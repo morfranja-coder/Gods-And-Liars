@@ -56,12 +56,25 @@ try {
     & tar -xJf $templatesArchive -C $templateTemp
     if ($LASTEXITCODE -ne 0) { throw "Failed to extract GodotSteam templates archive" }
 
-    $templateRoot = Get-ChildItem -Path $templateTemp -Recurse -Directory |
-        Where-Object { Test-Path (Join-Path $_.FullName "windows_release_x86_64.exe") } |
+    $windowsRelease = Get-ChildItem -Path $templateTemp -Recurse -File |
+        Where-Object {
+            $_.Name -match "windows" -and
+            $_.Name -match "release" -and
+            $_.Extension -eq ".exe"
+        } |
         Select-Object -First 1
-    if ($null -eq $templateRoot) {
-        throw "Could not locate GodotSteam Windows export template"
+
+    if ($null -eq $windowsRelease) {
+        Write-Host "Template archive contents:" -ForegroundColor Yellow
+        Get-ChildItem -Path $templateTemp -Recurse -File |
+            Select-Object -First 80 -ExpandProperty FullName |
+            ForEach-Object { Write-Host "  $_" }
+        throw "Could not locate a Windows release template in the GodotSteam archive"
     }
+
+    $templateRoot = Split-Path $windowsRelease.FullName -Parent
+    Write-Host "Detected Windows release template: $($windowsRelease.Name)"
+    Write-Host "Template root: $templateRoot"
 
     $godotData = if ($IsWindows) {
         Join-Path $env:APPDATA "Godot/export_templates/4.7.stable"
@@ -70,7 +83,7 @@ try {
         Join-Path $HOME ".local/share/godot/export_templates/4.7.stable"
     }
     New-Item -ItemType Directory -Path $godotData -Force | Out-Null
-    Copy-Item -Path (Join-Path $templateRoot.FullName "*") -Destination $godotData -Recurse -Force
+    Copy-Item -Path (Join-Path $templateRoot "*") -Destination $godotData -Recurse -Force
 
     $resolvedEditor = $editor.FullName
     Set-Content -Path (Join-Path $installPath "editor-path.txt") -Value $resolvedEditor -NoNewline

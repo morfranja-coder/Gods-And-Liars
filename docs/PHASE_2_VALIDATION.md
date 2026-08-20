@@ -12,10 +12,11 @@ FASE 2 covers only the pre-match multiplayer lobby. Table, avatars and roles are
 - Host start is replicated to every peer.
 - Lobby becomes frozen after START: no late joins, no READY changes, no double start.
 - Client disconnect removes it from the roster and clears rate-limit state.
-- Host disconnect returns clients to the offline lobby state.
+- Host disconnect tears down the client session and preserves a visible host-disconnected state.
+- Re-entry starts with a clean roster, READY state, lobby-started flag and rate-limit state.
+- A Steam identity can rejoin after its previous peer disconnects, but duplicate live Steam IDs are rejected.
 - New peers cannot exceed the 10-player lobby capacity.
 - Invalid, blank or oversized identities are rejected/sanitized.
-- Duplicate Steam IDs are rejected inside the synchronized roster.
 - Push-to-talk uses Steam voice capture and unreliable RPC packets.
 - Voice packets from unknown peers are rejected.
 - Compressed and decompressed voice payloads have hard size limits.
@@ -52,7 +53,9 @@ Use two PCs / two Steam accounts with Steam open and a GodotSteam build compatib
 10. Hold `V` on client and speak. Host must hear client.
 11. Client leaves. Host roster returns to one player.
 12. Repeat a join/leave cycle once to verify clean re-entry.
+13. In a fresh lobby, host disconnects. Client must show `El host abandonó el ritual. Volviste al lobby.` and roster must return to zero.
+14. Without restarting the client, refresh/create/join another lobby to prove session state was fully cleared.
 
 ## Exit gate
 
-FASE 2 is CLOSED only when the automated quality gate is green and steps 1–12 pass on real Steam clients.
+FASE 2 is CLOSED only when the automated quality gate is green and steps 1–14 pass on real Steam clients.

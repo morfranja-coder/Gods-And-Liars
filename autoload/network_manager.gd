@@ -6,8 +6,10 @@ signal peer_updated(peer_id: int)
 signal lobby_state_changed(state: StringName)
 signal lobby_list_updated(lobbies: Array)
 signal lobby_error(message: String)
+signal lobby_start_requested
 
 const MAX_PLAYERS: int = 10
+const TECHNICAL_START_MIN_PLAYERS: int = 2
 const GAME_TAG_KEY: String = "game"
 const GAME_TAG_VALUE: String = "GodsAndLiarsMVP"
 const LOBBY_NAME_KEY: String = "name"
@@ -89,12 +91,13 @@ func reset() -> void:
 	lobby_state_changed.emit(&"offline" if not Steamworks.initialized else &"steam_ready")
 
 func register_peer(peer_id: int, steam_id: int = 0, display_name: String = "") -> void:
-	var is_new := not peers.has(peer_id)
+	var previous: Dictionary = peers.get(peer_id, {})
+	var is_new := previous.is_empty()
 	peers[peer_id] = {
 		"steam_id": steam_id,
 		"display_name": display_name,
-		"seat_id": peers.get(peer_id, {}).get("seat_id", -1),
-		"ready": peers.get(peer_id, {}).get("ready", false),
+		"seat_id": previous.get("seat_id", -1),
+		"ready": previous.get("ready", false),
 	}
 	if is_new:
 		peer_joined.emit(peer_id)
@@ -108,12 +111,36 @@ func unregister_peer(peer_id: int) -> void:
 	peer_left.emit(peer_id)
 
 func set_peer_ready(peer_id: int, ready: bool) -> void:
-	if peers.has(peer_id):
-		peers[peer_id]["ready"] = ready
-		peer_updated.emit(peer_id)
+	if not peers.has(peer_id):
+		return
+	peers[peer_id]["ready"] = ready
+	peer_updated.emit(peer_id)
+
+func local_peer_ready() -> bool:
+	if multiplayer.multiplayer_peer == null:
+		return false
+	var peer_id := multiplayer.get_unique_id()
+	return bool(peers.get(peer_id, {}).get("ready", false))
+
+func request_local_ready(ready: bool) -> void:
+	if lobby_id == 0 or multiplayer.multiplayer_peer == null:
+		return
+	if multiplayer.is_server():
+		_server_set_ready(multiplayer.get_unique_id(), ready)
+	else:
+		_request_ready.rpc_id(1, ready)
+
+func can_host_start() -> bool:
+	return is_host and multiplayer.is_server() and peers.size() >= TECHNICAL_START_MIN_PLAYERS and all_peers_ready()
+
+func request_host_start() -> void:
+	if not can_host_start():
+		lobby_error.emit("El host solo puede iniciar cuando hay al menos %d jugadores y todos están listos." % TECHNICAL_START_MIN_PLAYERS)
+		return
+	_start_lobby.rpc()
 
 func all_peers_ready() -> bool:
-	if peers.is_empty():
+	if peers.size() < TECHNICAL_START_MIN_PLAYERS:
 		return false
 	for peer: Dictionary in peers.values():
 		if not peer.get("ready", false):
@@ -179,7 +206,6 @@ func _on_lobby_match_list(lobbies: Array) -> void:
 	lobby_state_changed.emit(&"steam_ready")
 
 func _on_peer_connected(_peer_id: int) -> void:
-	# Identity is registered only after the authenticated client announces it.
 	pass
 
 func _on_peer_disconnected(peer_id: int) -> void:
@@ -207,16 +233,37 @@ func _announce_identity(client_steam_id: int, display_name: String) -> void:
 	var sender_id := multiplayer.get_remote_sender_id()
 	if sender_id <= 0:
 		return
-	# Send all known identities to the newcomer first.
 	for existing_peer_id in peers.keys():
 		var data: Dictionary = peers[existing_peer_id]
-		_sync_peer.rpc_id(sender_id, int(existing_peer_id), int(data.get("steam_id", 0)), str(data.get("display_name", "")))
-	# Then publish the newcomer to everyone, including the host.
-	_sync_peer.rpc(sender_id, client_steam_id, display_name)
+		_sync_peer.rpc_id(sender_id, int(existing_peer_id), int(data.get("steam_id", 0)), str(data.get("display_name", "")), bool(data.get("ready", false)))
+	_sync_peer.rpc(sender_id, client_steam_id, display_name, false)
 
 @rpc("authority", "call_local", "reliable")
-func _sync_peer(peer_id: int, client_steam_id: int, display_name: String) -> void:
+func _sync_peer(peer_id: int, client_steam_id: int, display_name: String, ready: bool = false) -> void:
 	register_peer(peer_id, client_steam_id, display_name)
+	set_peer_ready(peer_id, ready)
+
+@rpc("any_peer", "reliable")
+func _request_ready(ready: bool) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	_server_set_ready(sender_id, ready)
+
+func _server_set_ready(peer_id: int, ready: bool) -> void:
+	if not multiplayer.is_server() or not peers.has(peer_id):
+		return
+	_sync_ready.rpc(peer_id, ready)
+
+@rpc("authority", "call_local", "reliable")
+func _sync_ready(peer_id: int, ready: bool) -> void:
+	set_peer_ready(peer_id, ready)
+
+@rpc("authority", "call_local", "reliable")
+func _start_lobby() -> void:
+	GameManager.set_phase(GameManager.MatchPhase.READY)
+	lobby_state_changed.emit(&"starting")
+	lobby_start_requested.emit()
 
 @rpc("authority", "call_local", "reliable")
 func _remove_peer(peer_id: int) -> void:

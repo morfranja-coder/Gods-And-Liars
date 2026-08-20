@@ -4,12 +4,39 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  godot-headless-check:
+  security:
+    name: Secret scan
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+
+  godot-quality:
+    name: Godot quality gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install gdtoolkit
+        run: pip install "gdtoolkit==4.*"
+
+      - name: Lint project GDScript
+        run: gdlint autoload scenes scripts tests
 
       - name: Setup Godot 4.7
         uses: chickensoft-games/setup-godot@v2
@@ -21,8 +48,20 @@ jobs:
       - name: Verify Godot
         run: godot --version
 
+      - name: Install pinned Godot addons
+        shell: pwsh
+        run: ./tools/setup-dev-tools.ps1 -Force
+
       - name: Import and parse project
         run: godot --headless --path . --editor --quit
 
-      - name: Run FASE 0 smoke tests
+      - name: Run smoke tests
         run: godot --headless --path . --script tests/smoke_match_rules.gd
+
+      - name: Run GdUnit4 tests
+        env:
+          GODOT_BIN: /home/runner/.local/bin/godot
+        run: |
+          chmod +x addons/gdUnit4/runtest.sh
+          GODOT_PATH="$(command -v godot)"
+          ./addons/gdUnit4/runtest.sh --godot_binary "$GODOT_PATH" --continue --add tests/unit

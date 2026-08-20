@@ -3,9 +3,10 @@
 .import/
 export.cfg
 
-# Reproducible third-party addons (installed by tools/setup-dev-tools.ps1)
+# Reproducible third-party addons
 addons/gdUnit4/
 addons/godot_state_charts/
+addons/godotsteam/
 
 # Builds
 build/

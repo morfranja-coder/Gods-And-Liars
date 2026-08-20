@@ -71,13 +71,7 @@ func refresh_lobbies() -> void:
 	lobby_state_changed.emit(&"searching")
 
 func leave_lobby() -> void:
-	if multiplayer.multiplayer_peer != null:
-		multiplayer.multiplayer_peer.close()
-		multiplayer.multiplayer_peer = null
-	if _steam != null and lobby_id != 0:
-		_steam.call("leaveLobby", lobby_id)
-	Steamworks.lobby_id = 0
-	reset()
+	_teardown_lobby(&"steam_ready" if Steamworks.initialized else &"offline")
 
 func get_lobby_name(target_lobby_id: int) -> String:
 	if _steam == null:
@@ -86,11 +80,7 @@ func get_lobby_name(target_lobby_id: int) -> String:
 	return value if not value.is_empty() else "Lobby %s" % target_lobby_id
 
 func reset() -> void:
-	is_host = false
-	lobby_id = 0
-	lobby_started = false
-	peers.clear()
-	_last_ready_request_ms.clear()
+	_clear_session_state()
 	lobby_state_changed.emit(&"offline" if not Steamworks.initialized else &"steam_ready")
 
 func register_peer(peer_id: int, steam_id: int = 0, display_name: String = "") -> void:
@@ -156,6 +146,23 @@ func request_host_start() -> void:
 
 func all_peers_ready() -> bool:
 	return LobbyRules.all_ready(peers, TECHNICAL_START_MIN_PLAYERS)
+
+func _clear_session_state() -> void:
+	is_host = false
+	lobby_id = 0
+	lobby_started = false
+	peers.clear()
+	_last_ready_request_ms.clear()
+
+func _teardown_lobby(final_state: StringName) -> void:
+	if multiplayer.multiplayer_peer != null:
+		multiplayer.multiplayer_peer.close()
+		multiplayer.multiplayer_peer = null
+	if _steam != null and lobby_id != 0:
+		_steam.call("leaveLobby", lobby_id)
+	Steamworks.lobby_id = 0
+	_clear_session_state()
+	lobby_state_changed.emit(final_state)
 
 func _require_steam() -> bool:
 	if not Steamworks.initialized or _steam == null:
@@ -232,11 +239,11 @@ func _on_connected_to_server() -> void:
 
 func _on_connection_failed() -> void:
 	lobby_error.emit("Could not establish the Steam multiplayer connection.")
-	leave_lobby()
+	_teardown_lobby(&"connection_failed")
 
 func _on_server_disconnected() -> void:
 	lobby_error.emit("The ritual host disconnected.")
-	leave_lobby()
+	_teardown_lobby(&"host_disconnected")
 
 @rpc("any_peer", "reliable")
 func _announce_identity(client_steam_id: int, display_name: String) -> void:

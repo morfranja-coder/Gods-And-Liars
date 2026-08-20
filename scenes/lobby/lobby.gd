@@ -1,5 +1,7 @@
 extends Control
 
+var _lobby_ids: Array[int] = []
+
 @onready var status_label: Label = %StatusLabel
 @onready var identity_label: Label = %IdentityLabel
 @onready var voice_label: Label = %VoiceLabel
@@ -11,8 +13,6 @@ extends Control
 @onready var ready_button: Button = %ReadyButton
 @onready var start_button: Button = %StartButton
 @onready var leave_button: Button = %LeaveButton
-
-var _lobby_ids: Array[int] = []
 
 func _ready() -> void:
 	create_button.pressed.connect(_on_create_pressed)

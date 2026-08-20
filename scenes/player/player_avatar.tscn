@@ -1,10 +1,14 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/player/avatar_slots.gd" id="1"]
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_placeholder"]
 radius = 0.42
 height = 1.8
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape_selection"]
+radius = 0.5
+height = 1.9
 
 [node name="PlayerAvatar" type="Node3D"]
 script = ExtResource("1")
@@ -17,6 +21,14 @@ mesh = SubResource("CapsuleMesh_placeholder")
 [node name="Tunic" type="Node3D" parent="."]
 
 [node name="Mask" type="Node3D" parent="."]
+
+[node name="SelectionArea" type="Area3D" parent="."]
+collision_layer = 2
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SelectionArea"]
+position = Vector3(0, 0.95, 0)
+shape = SubResource("CapsuleShape_selection")
 
 [node name="NameLabel" type="Label3D" parent="."]
 position = Vector3(0, 2.25, 0)

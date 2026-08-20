@@ -67,13 +67,14 @@ func _refresh_players() -> void:
 func _update_buttons() -> void:
 	var steam_ok := Steamworks.initialized
 	var in_lobby := NetworkManager.lobby_id != 0
+	var started := NetworkManager.lobby_started
 	create_button.disabled = not steam_ok or in_lobby
 	refresh_button.disabled = not steam_ok or in_lobby
 	join_button.disabled = not steam_ok or in_lobby or lobby_list.get_selected_items().is_empty()
-	ready_button.disabled = not in_lobby or multiplayer.multiplayer_peer == null
+	ready_button.disabled = not in_lobby or started or multiplayer.multiplayer_peer == null
 	ready_button.text = "No listo" if NetworkManager.local_peer_ready() else "Listo"
 	start_button.visible = NetworkManager.is_host
-	start_button.disabled = not NetworkManager.can_host_start()
+	start_button.disabled = started or not NetworkManager.can_host_start()
 	leave_button.disabled = not in_lobby
 
 func _on_create_pressed() -> void:

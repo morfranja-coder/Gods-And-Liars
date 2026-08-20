@@ -23,6 +23,7 @@ var is_host: bool = false
 var lobby_id: int = 0
 var peers: Dictionary = {}
 var _steam: Object = null
+var _last_ready_request_ms: Dictionary = {}
 
 func _ready() -> void:
 	Steamworks.steam_ready.connect(_bind_steam_callbacks)
@@ -87,6 +88,7 @@ func reset() -> void:
 	is_host = false
 	lobby_id = 0
 	peers.clear()
+	_last_ready_request_ms.clear()
 	lobby_state_changed.emit(&"offline" if not Steamworks.initialized else &"steam_ready")
 
 func register_peer(peer_id: int, steam_id: int = 0, display_name: String = "") -> void:
@@ -109,6 +111,7 @@ func unregister_peer(peer_id: int) -> void:
 	if not peers.has(peer_id):
 		return
 	peers.erase(peer_id)
+	_last_ready_request_ms.erase(peer_id)
 	peer_left.emit(peer_id)
 
 func set_peer_ready(peer_id: int, ready: bool) -> void:
@@ -249,7 +252,15 @@ func _sync_peer(peer_id: int, client_steam_id: int, display_name: String, ready:
 func _request_ready(ready: bool) -> void:
 	if not multiplayer.is_server():
 		return
-	_server_set_ready(multiplayer.get_remote_sender_id(), ready)
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not peers.has(sender_id):
+		return
+	var now_ms := Time.get_ticks_msec()
+	var last_ms := int(_last_ready_request_ms.get(sender_id, 0))
+	if not RateLimitPolicy.can_accept(last_ms, now_ms):
+		return
+	_last_ready_request_ms[sender_id] = now_ms
+	_server_set_ready(sender_id, ready)
 
 func _server_set_ready(peer_id: int, ready: bool) -> void:
 	if not multiplayer.is_server() or not peers.has(peer_id):

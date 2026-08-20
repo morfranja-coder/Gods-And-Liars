@@ -2,11 +2,19 @@ class_name NightResolver
 extends RefCounted
 
 class NightResult:
-	var victim_peer_id: int = 0
+	var victim_peer_ids: Array[int] = []
 	var protected_peer_id: int = 0
-	var killed_peer_id: int = 0
+	var killed_peer_ids: Array[int] = []
 	var investigation_target_peer_id: int = 0
 	var investigation_is_heretic: bool = false
+
+	var victim_peer_id: int:
+		get:
+			return victim_peer_ids[0] if not victim_peer_ids.is_empty() else 0
+
+	var killed_peer_id: int:
+		get:
+			return killed_peer_ids[0] if not killed_peer_ids.is_empty() else 0
 
 static func resolve(
 	players: Array[PlayerState],
@@ -14,31 +22,46 @@ static func resolve(
 	healer_target_peer_id: int,
 	inquisitor_target_peer_id: int
 ) -> NightResult:
+	var targets: Array[int] = []
+	if heretic_target_peer_id != 0:
+		targets.append(heretic_target_peer_id)
+	return resolve_many(players, targets, healer_target_peer_id, inquisitor_target_peer_id)
+
+static func resolve_many(
+	players: Array[PlayerState],
+	heretic_target_peer_ids: Array[int],
+	healer_target_peer_id: int,
+	inquisitor_target_peer_id: int
+) -> NightResult:
 	var result := NightResult.new()
-	result.victim_peer_id = heretic_target_peer_id
 	result.protected_peer_id = healer_target_peer_id
 	result.investigation_target_peer_id = inquisitor_target_peer_id
 
-	if heretic_target_peer_id != 0 and heretic_target_peer_id != healer_target_peer_id:
-		var victim := _find_alive_player(players, heretic_target_peer_id)
+	var seen_targets: Dictionary = {}
+	for target_peer_id in heretic_target_peer_ids:
+		if target_peer_id == 0 or seen_targets.has(target_peer_id):
+			continue
+		seen_targets[target_peer_id] = true
+		result.victim_peer_ids.append(target_peer_id)
+		if target_peer_id == healer_target_peer_id:
+			continue
+		var victim := _find_alive_player(players, target_peer_id)
 		if victim != null:
 			victim.alive = false
-			result.killed_peer_id = victim.peer_id
+			result.killed_peer_ids.append(victim.peer_id)
 
 	if inquisitor_target_peer_id != 0:
-		var target := _find_alive_or_dead_player(players, inquisitor_target_peer_id)
+		var target := _find_player(players, inquisitor_target_peer_id)
 		if target != null:
 			result.investigation_is_heretic = target.role == PlayerState.Role.HERETIC
 
 	return result
 
 static func _find_alive_player(players: Array[PlayerState], peer_id: int) -> PlayerState:
-	for player in players:
-		if player.peer_id == peer_id and player.alive:
-			return player
-	return null
+	var player := _find_player(players, peer_id)
+	return player if player != null and player.alive else null
 
-static func _find_alive_or_dead_player(players: Array[PlayerState], peer_id: int) -> PlayerState:
+static func _find_player(players: Array[PlayerState], peer_id: int) -> PlayerState:
 	for player in players:
 		if player.peer_id == peer_id:
 			return player

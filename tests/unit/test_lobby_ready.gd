@@ -45,3 +45,27 @@ func test_started_lobby_rejects_new_players() -> void:
 	NetworkManager.lobby_started = true
 	NetworkManager.register_peer(2, 1002, "Late Guest")
 	assert_bool(NetworkManager.peers.has(2)).is_false()
+
+func test_reset_clears_started_ready_and_roster_state() -> void:
+	NetworkManager.register_peer(1, 1001, "Host")
+	NetworkManager.register_peer(2, 1002, "Guest")
+	NetworkManager.set_peer_ready(1, true)
+	NetworkManager.set_peer_ready(2, true)
+	NetworkManager.lobby_started = true
+	NetworkManager.reset()
+	assert_bool(NetworkManager.lobby_started).is_false()
+	assert_bool(NetworkManager.is_host).is_false()
+	assert_int(NetworkManager.lobby_id).is_equal(0)
+	assert_int(NetworkManager.peers.size()).is_equal(0)
+
+func test_same_steam_identity_can_rejoin_after_disconnect() -> void:
+	NetworkManager.register_peer(2, 1002, "Guest")
+	NetworkManager.unregister_peer(2)
+	NetworkManager.register_peer(7, 1002, "Guest")
+	assert_bool(NetworkManager.peers.has(7)).is_true()
+	assert_int(int(NetworkManager.peers[7]["steam_id"])).is_equal(1002)
+
+func test_duplicate_steam_identity_is_rejected_while_connected() -> void:
+	NetworkManager.register_peer(2, 1002, "Guest")
+	NetworkManager.register_peer(7, 1002, "Impostor")
+	assert_bool(NetworkManager.peers.has(7)).is_false()

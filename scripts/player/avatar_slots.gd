@@ -25,9 +25,14 @@ func set_mask(scene: PackedScene) -> void:
 	_replace_child(mask_root, mask_scene)
 
 func _refresh_all() -> void:
-	_replace_child(body_root, body_scene)
-	_replace_child(tunic_root, tunic_scene)
-	_replace_child(mask_root, mask_scene)
+	_refresh_slot(body_root, body_scene)
+	_refresh_slot(tunic_root, tunic_scene)
+	_refresh_slot(mask_root, mask_scene)
+
+func _refresh_slot(root: Node3D, scene: PackedScene) -> void:
+	if scene == null:
+		return
+	_replace_child(root, scene)
 
 func _replace_child(root: Node3D, scene: PackedScene) -> void:
 	for child in root.get_children():

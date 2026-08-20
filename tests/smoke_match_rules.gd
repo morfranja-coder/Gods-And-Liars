@@ -8,6 +8,14 @@ func _initialize() -> void:
 	assert(session.can_start())
 	assert(session.prepare_match())
 
+	var used_seats: Dictionary = {}
+	for player in session.players:
+		assert(player.seat_id >= 0 and player.seat_id < TableLayout.SEAT_COUNT)
+		assert(not used_seats.has(player.seat_id))
+		used_seats[player.seat_id] = true
+		var seat_position := TableLayout.seat_position(player.seat_id)
+		assert(seat_position.length() > 2.0)
+
 	var heretics := 0
 	var healers := 0
 	var inquisitors := 0
@@ -34,5 +42,5 @@ func _initialize() -> void:
 	var tie_votes := {1: 3, 2: 4}
 	assert(session.resolve_vote(tie_votes) == 0)
 
-	print("FASE 0 smoke tests passed")
+	print("MVP core smoke tests passed")
 	quit(0)

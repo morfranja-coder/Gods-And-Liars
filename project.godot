@@ -10,6 +10,7 @@ config/features=PackedStringArray("4.7", "GL Compatibility")
 [autoload]
 Steamworks="*res://autoload/steamworks.gd"
 NetworkManager="*res://autoload/network_manager.gd"
+VoiceChat="*res://autoload/voice_chat.gd"
 GameManager="*res://autoload/game_manager.gd"
 
 [display]
@@ -18,6 +19,12 @@ window/size/viewport_height=720
 window/size/window_width_override=1280
 window/size/window_height_override=720
 window/stretch/mode="canvas_items"
+
+[input]
+voice_talk={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":86,"unicode":118)]
+}
 
 [rendering]
 renderer/rendering_method="gl_compatibility"

@@ -39,3 +39,11 @@ func start_match() -> void:
 	round_number = 1
 	set_phase(MatchPhase.ROLE_REVEAL)
 	match_started.emit()
+
+func start_next_round() -> void:
+	round_number += 1
+	set_phase(MatchPhase.NIGHT_START)
+
+func end_match(winner: StringName) -> void:
+	set_phase(MatchPhase.MATCH_END)
+	match_ended.emit(winner)

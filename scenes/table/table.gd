@@ -16,6 +16,7 @@ func _ready() -> void:
 	NetworkManager.peer_left.connect(_on_roster_changed)
 	NetworkManager.peer_updated.connect(_on_roster_changed)
 	MatchAuthority.night_resolution_received.connect(_on_night_resolution_received)
+	MatchAuthority.vote_resolution_received.connect(_on_vote_resolution_received)
 	_refresh_roster()
 	if multiplayer.is_server() and NetworkManager.is_host:
 		MatchAuthority.call_deferred("begin_role_reveal")
@@ -138,4 +139,7 @@ func _on_roster_changed(peer_id: int) -> void:
 	_refresh_roster(peer_id)
 
 func _on_night_resolution_received(_killed_peer_ids: Array[int]) -> void:
+	_refresh_roster()
+
+func _on_vote_resolution_received(_sacrificed_peer_id: int, _tied: bool) -> void:
 	_refresh_roster()

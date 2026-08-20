@@ -1,13 +1,13 @@
 extends CanvasLayer
 
+var selected_peer_id: int = 0
+var _table: Node = null
+
 @onready var panel: PanelContainer = $Panel
 @onready var phase_label: Label = $Panel/VBox/PhaseLabel
 @onready var target_label: Label = $Panel/VBox/TargetLabel
 @onready var confirm_button: Button = $Panel/VBox/ConfirmButton
 @onready var result_label: Label = $Panel/VBox/ResultLabel
-
-var selected_peer_id: int = 0
-var _table: Node = null
 
 func _ready() -> void:
 	_table = get_parent()

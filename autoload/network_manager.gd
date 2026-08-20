@@ -83,7 +83,7 @@ func reset() -> void:
 	_clear_session_state()
 	lobby_state_changed.emit(&"offline" if not Steamworks.initialized else &"steam_ready")
 
-func register_peer(peer_id: int, steam_id: int = 0, display_name: String = "") -> void:
+func register_peer(peer_id: int, steam_id: int = 0, display_name: String = "", seat_id: int = -1) -> void:
 	if lobby_started:
 		return
 	if not LobbyRules.can_register_peer(peers, peer_id, MAX_PLAYERS):
@@ -94,11 +94,17 @@ func register_peer(peer_id: int, steam_id: int = 0, display_name: String = "") -
 		return
 	var previous: Dictionary = peers.get(peer_id, {})
 	var is_new := previous.is_empty()
+	var previous_seat := int(previous.get("seat_id", -1))
+	var resolved_seat := previous_seat if SeatAllocator.is_valid_seat(previous_seat) else seat_id
+	if not SeatAllocator.is_valid_seat(resolved_seat):
+		resolved_seat = SeatAllocator.first_free_seat(peers)
+	if not SeatAllocator.seat_is_available(peers, resolved_seat, peer_id):
+		return
 	peers[peer_id] = LobbyRules.make_peer(
 		steam_id,
 		IdentityPolicy.sanitize_display_name(display_name),
 		bool(previous.get("ready", false)),
-		int(previous.get("seat_id", -1)),
+		resolved_seat,
 	)
 	if is_new:
 		peer_joined.emit(peer_id)
@@ -257,6 +263,9 @@ func _announce_identity(client_steam_id: int, display_name: String) -> void:
 	if IdentityPolicy.steam_id_in_use(peers, client_steam_id, sender_id):
 		return
 	var clean_name := IdentityPolicy.sanitize_display_name(display_name)
+	var assigned_seat := SeatAllocator.first_free_seat(peers)
+	if not SeatAllocator.is_valid_seat(assigned_seat):
+		return
 	for existing_peer_id in peers.keys():
 		var data: Dictionary = peers[existing_peer_id]
 		_sync_peer.rpc_id(
@@ -265,12 +274,13 @@ func _announce_identity(client_steam_id: int, display_name: String) -> void:
 			int(data.get("steam_id", 0)),
 			str(data.get("display_name", "")),
 			bool(data.get("ready", false)),
+			int(data.get("seat_id", -1)),
 		)
-	_sync_peer.rpc(sender_id, client_steam_id, clean_name, false)
+	_sync_peer.rpc(sender_id, client_steam_id, clean_name, false, assigned_seat)
 
 @rpc("authority", "call_local", "reliable")
-func _sync_peer(peer_id: int, client_steam_id: int, display_name: String, ready: bool = false) -> void:
-	register_peer(peer_id, client_steam_id, display_name)
+func _sync_peer(peer_id: int, client_steam_id: int, display_name: String, ready: bool = false, seat_id: int = -1) -> void:
+	register_peer(peer_id, client_steam_id, display_name, seat_id)
 	set_peer_ready(peer_id, ready)
 
 @rpc("any_peer", "reliable")

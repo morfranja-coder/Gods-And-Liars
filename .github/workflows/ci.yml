@@ -23,3 +23,6 @@ jobs:
 
       - name: Import and parse project
         run: godot --headless --path . --editor --quit
+
+      - name: Run FASE 0 smoke tests
+        run: godot --headless --path . --script tests/smoke_match_rules.gd

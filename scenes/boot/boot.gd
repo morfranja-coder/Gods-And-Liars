@@ -4,4 +4,6 @@ extends Control
 
 func _ready() -> void:
 	GameManager.reset_match()
-	status_label.text = "Gods & Liars — FASE 0\nCore bootstrap OK\nSteam: pending adapter integration"
+	status_label.text = "Gods & Liars\nInicializando ritual..."
+	await get_tree().process_frame
+	get_tree().change_scene_to_file("res://scenes/lobby/lobby.tscn")

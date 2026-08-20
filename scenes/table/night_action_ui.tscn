@@ -1,0 +1,32 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/table/night_action_ui.gd" id="1"]
+
+[node name="NightActionUI" type="CanvasLayer"]
+script = ExtResource("1")
+
+[node name="Panel" type="PanelContainer" parent="."]
+offset_left = 24.0
+offset_top = 24.0
+offset_right = 404.0
+offset_bottom = 214.0
+
+[node name="VBox" type="VBoxContainer" parent="Panel"]
+layout_mode = 2
+
+[node name="PhaseLabel" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+text = "Noche"
+
+[node name="TargetLabel" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+text = "Objetivo: ninguno"
+
+[node name="ConfirmButton" type="Button" parent="Panel/VBox"]
+layout_mode = 2
+text = "Confirmar objetivo"
+
+[node name="ResultLabel" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+text = ""
+autowrap_mode = 2

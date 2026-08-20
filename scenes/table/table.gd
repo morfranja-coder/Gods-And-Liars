@@ -15,6 +15,7 @@ func _ready() -> void:
 	NetworkManager.peer_joined.connect(_on_roster_changed)
 	NetworkManager.peer_left.connect(_on_roster_changed)
 	NetworkManager.peer_updated.connect(_on_roster_changed)
+	MatchAuthority.night_resolution_received.connect(_on_night_resolution_received)
 	_refresh_roster()
 	if multiplayer.is_server() and NetworkManager.is_host:
 		MatchAuthority.call_deferred("begin_role_reveal")
@@ -104,7 +105,9 @@ func _spawn_or_update_avatar(peer_id: int, seat_id: int) -> void:
 	var label := avatar.get_node_or_null("NameLabel") as Label3D
 	if label != null:
 		var display_name := str(peer.get("display_name", ""))
-		label.text = display_name if not display_name.is_empty() else "Player %s" % peer_id
+		if display_name.is_empty():
+			display_name = "Player %s" % peer_id
+		label.text = display_name if MatchAuthority.is_peer_publicly_alive(peer_id) else "† %s" % display_name
 
 func _select_from_screen_position(screen_position: Vector2) -> void:
 	var camera := get_viewport().get_camera_3d()
@@ -133,3 +136,6 @@ func _peer_id_from_collider(collider: Node) -> int:
 
 func _on_roster_changed(peer_id: int) -> void:
 	_refresh_roster(peer_id)
+
+func _on_night_resolution_received(_killed_peer_ids: Array[int]) -> void:
+	_refresh_roster()

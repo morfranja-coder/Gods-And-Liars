@@ -15,6 +15,8 @@ GitHub Actions must keep these jobs green:
 
 The Windows export job uploads `GodsAndLiars-Windows` as an internal GitHub Actions artifact.
 
+Important: this CI job uses official Godot and proves that the project can parse, test, and export a valid Windows PE executable. It does not by itself prove that Steam networking is available in that executable.
+
 ## 2. Local quality gate
 
 From PowerShell:
@@ -29,37 +31,57 @@ Expected final line:
 GREEN: local quality gate passed.
 ```
 
-## 3. GodotSteam dependency gate
+## 3. Steam runtime dependency gate
 
-A normal Godot export can succeed without the Steam GDExtension, but that build is not a functional Steam multiplayer build.
+Gods & Liars currently uses two runtime capabilities:
 
-The pinned MVP target remains:
+- the `Steam` singleton for lobbies, identity, callbacks, and voice;
+- `SteamMultiplayerPeer` for Godot high-level multiplayer over Steam.
 
-- GodotSteam GDExtension 4.20.1.
-- Steamworks SDK 1.64.
-- Godot 4.7.x.
-- Development App ID 480 until a real Steam App ID is assigned.
+The normal GodotSteam GDExtension exposes the Steam API but does not provide the GodotSteam `SteamMultiplayerPeer` implementation used by this project. Installing only `addons/godotsteam/godotsteam.gdextension` is therefore not sufficient for the current networking stack.
 
-Install the official pinned ZIP locally with:
+The pinned MVP target is:
 
-```powershell
-.\tools\install-godotsteam.ps1 -ZipPath "C:\path\to\official-godotsteam-4.20.1.zip"
-```
+- Godot 4.7.x;
+- Steamworks SDK 1.64;
+- GodotSteam 4.20 / 4.20.1 compatible runtime;
+- a GodotSteam MultiplayerPeer/module build that exposes both `Steam` and `SteamMultiplayerPeer`;
+- development App ID 480 until a real Steam App ID is assigned.
 
-The installer must produce:
+Reference naming used by the GodotSteam 4.7 builds:
 
 ```text
-addons/godotsteam/godotsteam.gdextension
+g47   = Godot 4.7
+s164  = Steamworks SDK 1.64
+gs420 = GodotSteam 4.20
 ```
 
-Do not mix the GDExtension package with a GodotSteam module/custom engine build.
+Do not combine a GodotSteam module/MultiplayerPeer build with the normal GodotSteam API GDExtension. They implement overlapping Steam bindings.
 
-## 4. Windows build
+The legacy helper `tools/install-godotsteam.ps1` installs only the API GDExtension and now prints an explicit warning. It is not the release path for the current MVP architecture.
 
-After Godot export templates are installed:
+## 4. Verify Steam runtime
+
+With the intended GodotSteam editor/runtime binary:
 
 ```powershell
-.\tools\build-windows.ps1
+& "C:\path\to\godotsteam.exe" --headless --path . --script res://tools/verify-steam-runtime.gd
+```
+
+Expected output:
+
+```text
+GREEN: Steam runtime exposes Steam + SteamMultiplayerPeer
+```
+
+If either capability is absent, release validation must stop.
+
+## 5. Windows build
+
+After the matching export templates for the selected GodotSteam runtime are installed:
+
+```powershell
+.\tools\build-windows.ps1 -GodotBinary "C:\path\to\godotsteam.exe"
 ```
 
 Expected output:
@@ -68,12 +90,14 @@ Expected output:
 build/windows/GodsAndLiars.exe
 ```
 
-## 5. Final release-readiness gate
+The build script validates that the result exists, is non-trivial in size, and has a Windows PE `MZ` header.
 
-Run:
+## 6. Final release-readiness gate
+
+Run the gate with the intended GodotSteam runtime binary:
 
 ```powershell
-.\tools\release-check.ps1
+.\tools\release-check.ps1 -GodotBinary "C:\path\to\godotsteam.exe"
 ```
 
 It checks:
@@ -81,8 +105,9 @@ It checks:
 1. the local automated quality gate;
 2. the Windows export preset;
 3. development App ID 480;
-4. the GodotSteam GDExtension is actually present;
-5. a Windows release export is produced.
+4. `Steam` is present;
+5. `SteamMultiplayerPeer` is present;
+6. a Windows release export is produced and retained.
 
 Expected final line:
 
@@ -90,7 +115,7 @@ Expected final line:
 GREEN: release readiness gate passed.
 ```
 
-## 6. Human multiplayer acceptance gate
+## 7. Human multiplayer acceptance gate
 
 Use real Steam clients. Four players are the minimum for the complete Mafia loop.
 
@@ -121,7 +146,7 @@ Use real Steam clients. Four players are the minimum for the complete Mafia loop
 FASE 8 is CLOSED only when:
 
 - CI is green including the Windows export job;
-- `release-check.ps1` is green with GodotSteam installed;
+- `release-check.ps1` is green using a runtime that exposes both Steam capabilities;
 - the real four-client Steam acceptance loop passes.
 
 Until those three gates pass, the repository is code-complete for the MVP loop but not yet declared release-ready.

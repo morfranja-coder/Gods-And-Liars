@@ -5,9 +5,11 @@ const TABLE_SCENE := preload("res://scenes/table/table.tscn")
 
 func before_test() -> void:
 	NetworkManager.reset()
+	MatchAuthority.reset()
 
 func after_test() -> void:
 	NetworkManager.reset()
+	MatchAuthority.reset()
 
 func test_table_builds_ten_seat_markers() -> void:
 	var table := TABLE_SCENE.instantiate()
@@ -38,4 +40,11 @@ func test_peer_update_does_not_duplicate_avatar() -> void:
 	NetworkManager.set_peer_ready(1, true)
 	await get_tree().process_frame
 	assert_int(table.find_children("Peer_1", "Node3D", true, false).size()).is_equal(1)
+	table.queue_free()
+
+func test_table_mounts_private_role_overlay() -> void:
+	var table := TABLE_SCENE.instantiate()
+	add_child(table)
+	await get_tree().process_frame
+	assert_object(table.get_node_or_null("RoleReveal")).is_not_null()
 	table.queue_free()

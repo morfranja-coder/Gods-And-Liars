@@ -8,9 +8,12 @@ signal night_resolution_received(killed_peer_ids: Array[int])
 signal private_investigation_received(target_peer_id: int, is_heretic: bool)
 signal vote_accepted(voter_peer_id: int, target_peer_id: int)
 signal vote_resolution_received(sacrificed_peer_id: int, tied: bool)
+signal match_end_received(winner: StringName)
+signal rematch_received
 
 var local_role: PlayerState.Role = PlayerState.Role.UNASSIGNED
 var public_alive_by_peer: Dictionary = {}
+var public_winner: StringName = &""
 var _session: MatchSession = null
 var _roles_dispatched: bool = false
 var _role_acknowledged: Dictionary = {}
@@ -25,6 +28,7 @@ func _ready() -> void:
 func reset() -> void:
 	local_role = PlayerState.Role.UNASSIGNED
 	public_alive_by_peer.clear()
+	public_winner = &""
 	_session = null
 	_roles_dispatched = false
 	_role_acknowledged.clear()
@@ -40,6 +44,7 @@ func begin_role_reveal() -> bool:
 		return false
 	_session = session
 	_roles_dispatched = true
+	public_winner = &""
 	_initialize_public_alive()
 	GameManager.start_match()
 	_dispatch_private_roles()
@@ -84,6 +89,14 @@ func submit_local_vote(target_peer_id: int) -> void:
 	else:
 		_request_vote.rpc_id(1, target_peer_id)
 
+func request_rematch() -> void:
+	if not multiplayer.is_server() or not NetworkManager.is_host:
+		return
+	if GameManager.phase != GameManager.MatchPhase.MATCH_END:
+		return
+	_sync_rematch.rpc()
+	call_deferred("begin_role_reveal")
+
 func server_role_for_peer(peer_id: int) -> PlayerState.Role:
 	if not multiplayer.is_server() or _session == null:
 		return PlayerState.Role.UNASSIGNED
@@ -92,6 +105,12 @@ func server_role_for_peer(peer_id: int) -> PlayerState.Role:
 
 func is_peer_publicly_alive(peer_id: int) -> bool:
 	return bool(public_alive_by_peer.get(peer_id, true))
+
+func is_local_ghost() -> bool:
+	if multiplayer.multiplayer_peer == null:
+		return false
+	var local_peer_id := multiplayer.get_unique_id()
+	return public_alive_by_peer.has(local_peer_id) and not is_peer_publicly_alive(local_peer_id)
 
 func role_title(role: PlayerState.Role = local_role) -> String:
 	match role:
@@ -214,7 +233,8 @@ func _resolve_night() -> void:
 	)
 	_sync_night_resolution.rpc(result.killed_peer_ids)
 	_dispatch_investigation_result(result)
-	_sync_phase.rpc(int(GameManager.MatchPhase.DAY_DISCUSSION))
+	_sync_phase.rpc(int(GameManager.MatchPhase.WIN_CHECK))
+	_finish_or_continue_after_night()
 
 func _dispatch_investigation_result(result: NightResolver.NightResult) -> void:
 	if result.investigation_target_peer_id == 0:
@@ -251,11 +271,42 @@ func _resolve_vote() -> void:
 	else:
 		_sync_sacrifice.rpc(0, true)
 	_sync_phase.rpc(int(GameManager.MatchPhase.WIN_CHECK))
+	_finish_or_continue_after_vote()
+
+func _finish_or_continue_after_night() -> void:
+	var winner := _session.winner()
+	if not winner.is_empty():
+		_end_match(winner)
+		return
+	_sync_phase.rpc(int(GameManager.MatchPhase.DAY_DISCUSSION))
+
+func _finish_or_continue_after_vote() -> void:
+	var winner := _session.winner()
+	if not winner.is_empty():
+		_end_match(winner)
+		return
+	GameManager.start_next_round()
+	_start_night()
+
+func _end_match(winner: StringName) -> void:
+	_sync_match_end.rpc(str(winner))
 
 func _reset_night_actions() -> void:
 	_heretic_targets.clear()
 	_healer_target_peer_id = 0
 	_inquisitor_target_peer_id = 0
+
+func _reset_for_rematch() -> void:
+	local_role = PlayerState.Role.UNASSIGNED
+	public_winner = &""
+	_session = null
+	_roles_dispatched = false
+	_role_acknowledged.clear()
+	_votes.clear()
+	_reset_night_actions()
+	_initialize_public_alive()
+	GameManager.round_number = 0
+	GameManager.set_phase(GameManager.MatchPhase.READY)
 
 @rpc("authority", "call_remote", "reliable")
 func _receive_private_role(role_value: int) -> void:
@@ -302,6 +353,20 @@ func _sync_sacrifice(sacrificed_peer_id: int, tied: bool) -> void:
 	if sacrificed_peer_id > 0:
 		public_alive_by_peer[sacrificed_peer_id] = false
 	vote_resolution_received.emit(sacrificed_peer_id, tied)
+
+@rpc("authority", "call_local", "reliable")
+func _sync_match_end(winner_value: String) -> void:
+	var winner := StringName(winner_value)
+	if winner not in [&"faithful", &"heretics"]:
+		return
+	public_winner = winner
+	GameManager.end_match(winner)
+	match_end_received.emit(winner)
+
+@rpc("authority", "call_local", "reliable")
+func _sync_rematch() -> void:
+	_reset_for_rematch()
+	rematch_received.emit()
 
 @rpc("authority", "call_remote", "reliable")
 func _receive_private_investigation(target_peer_id: int, is_heretic: bool) -> void:

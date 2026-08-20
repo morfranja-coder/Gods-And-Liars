@@ -29,7 +29,7 @@ func test_build_session_preserves_authoritative_seats() -> void:
 		4: {"steam_id": 1004, "display_name": "D", "seat_id": 2},
 	}
 	var session: MatchSession = MatchAuthority.call("_build_session", roster)
-	assert_object(session).is_not_null()
+	assert_bool(session != null).is_true()
 	assert_int(session.get_player(1).seat_id).is_equal(4)
 	assert_int(session.get_player(2).seat_id).is_equal(1)
 	assert_int(session.get_player(3).seat_id).is_equal(7)

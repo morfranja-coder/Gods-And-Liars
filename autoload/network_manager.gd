@@ -2,6 +2,7 @@ extends Node
 
 signal peer_joined(peer_id: int)
 signal peer_left(peer_id: int)
+signal peer_updated(peer_id: int)
 signal lobby_state_changed(state: StringName)
 signal lobby_list_updated(lobbies: Array)
 signal lobby_error(message: String)
@@ -29,6 +30,9 @@ func _ready() -> void:
 		_bind_steam_callbacks()
 	multiplayer.peer_connected.connect(_on_peer_connected)
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
+	multiplayer.connected_to_server.connect(_on_connected_to_server)
+	multiplayer.connection_failed.connect(_on_connection_failed)
+	multiplayer.server_disconnected.connect(_on_server_disconnected)
 
 func _bind_steam_callbacks() -> void:
 	_steam = Steamworks.get_api()
@@ -85,15 +89,17 @@ func reset() -> void:
 	lobby_state_changed.emit(&"offline" if not Steamworks.initialized else &"steam_ready")
 
 func register_peer(peer_id: int, steam_id: int = 0, display_name: String = "") -> void:
-	if peers.has(peer_id):
-		return
+	var is_new := not peers.has(peer_id)
 	peers[peer_id] = {
 		"steam_id": steam_id,
 		"display_name": display_name,
-		"seat_id": -1,
-		"ready": false,
+		"seat_id": peers.get(peer_id, {}).get("seat_id", -1),
+		"ready": peers.get(peer_id, {}).get("ready", false),
 	}
-	peer_joined.emit(peer_id)
+	if is_new:
+		peer_joined.emit(peer_id)
+	else:
+		peer_updated.emit(peer_id)
 
 func unregister_peer(peer_id: int) -> void:
 	if not peers.has(peer_id):
@@ -104,6 +110,7 @@ func unregister_peer(peer_id: int) -> void:
 func set_peer_ready(peer_id: int, ready: bool) -> void:
 	if peers.has(peer_id):
 		peers[peer_id]["ready"] = ready
+		peer_updated.emit(peer_id)
 
 func all_peers_ready() -> bool:
 	if peers.is_empty():
@@ -171,10 +178,48 @@ func _on_lobby_match_list(lobbies: Array) -> void:
 	lobby_list_updated.emit(lobbies)
 	lobby_state_changed.emit(&"steam_ready")
 
-func _on_peer_connected(peer_id: int) -> void:
-	register_peer(peer_id)
+func _on_peer_connected(_peer_id: int) -> void:
+	# Identity is registered only after the authenticated client announces it.
+	pass
 
 func _on_peer_disconnected(peer_id: int) -> void:
+	if multiplayer.is_server():
+		_remove_peer.rpc(peer_id)
+	else:
+		unregister_peer(peer_id)
+
+func _on_connected_to_server() -> void:
+	_announce_identity.rpc_id(1, Steamworks.steam_id, Steamworks.persona_name)
+	lobby_state_changed.emit(&"connected")
+
+func _on_connection_failed() -> void:
+	lobby_error.emit("Could not establish the Steam multiplayer connection.")
+	leave_lobby()
+
+func _on_server_disconnected() -> void:
+	lobby_error.emit("The ritual host disconnected.")
+	leave_lobby()
+
+@rpc("any_peer", "reliable")
+func _announce_identity(client_steam_id: int, display_name: String) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if sender_id <= 0:
+		return
+	# Send all known identities to the newcomer first.
+	for existing_peer_id in peers.keys():
+		var data: Dictionary = peers[existing_peer_id]
+		_sync_peer.rpc_id(sender_id, int(existing_peer_id), int(data.get("steam_id", 0)), str(data.get("display_name", "")))
+	# Then publish the newcomer to everyone, including the host.
+	_sync_peer.rpc(sender_id, client_steam_id, display_name)
+
+@rpc("authority", "call_local", "reliable")
+func _sync_peer(peer_id: int, client_steam_id: int, display_name: String) -> void:
+	register_peer(peer_id, client_steam_id, display_name)
+
+@rpc("authority", "call_local", "reliable")
+func _remove_peer(peer_id: int) -> void:
 	unregister_peer(peer_id)
 
 func _on_steam_unavailable(reason: String) -> void:

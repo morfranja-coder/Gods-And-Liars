@@ -27,3 +27,17 @@ func test_missing_ready_defaults_to_not_ready() -> void:
 		2: LobbyRules.make_peer(1002, "Guest", true),
 	}
 	assert_bool(LobbyRules.all_ready(peers)).is_false()
+
+func test_new_peer_is_rejected_when_lobby_is_full() -> void:
+	var peers := {
+		1: LobbyRules.make_peer(1001, "One"),
+		2: LobbyRules.make_peer(1002, "Two"),
+	}
+	assert_bool(LobbyRules.can_register_peer(peers, 3, 2)).is_false()
+
+func test_existing_peer_can_be_refreshed_when_lobby_is_full() -> void:
+	var peers := {
+		1: LobbyRules.make_peer(1001, "One"),
+		2: LobbyRules.make_peer(1002, "Two"),
+	}
+	assert_bool(LobbyRules.can_register_peer(peers, 2, 2)).is_true()

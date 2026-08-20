@@ -16,6 +16,8 @@ func _ready() -> void:
 	NetworkManager.peer_left.connect(_on_roster_changed)
 	NetworkManager.peer_updated.connect(_on_roster_changed)
 	_refresh_roster()
+	if multiplayer.is_server() and NetworkManager.is_host:
+		MatchAuthority.begin_role_reveal.call_deferred()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is not InputEventMouseButton:

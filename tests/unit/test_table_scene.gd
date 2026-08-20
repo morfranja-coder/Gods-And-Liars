@@ -62,3 +62,10 @@ func test_table_mounts_day_vote_ui() -> void:
 	await get_tree().process_frame
 	assert_object(table.get_node_or_null("DayVoteUI")).is_not_null()
 	table.queue_free()
+
+func test_table_mounts_match_end_ui() -> void:
+	var table := TABLE_SCENE.instantiate()
+	add_child(table)
+	await get_tree().process_frame
+	assert_object(table.get_node_or_null("MatchEndUI")).is_not_null()
+	table.queue_free()

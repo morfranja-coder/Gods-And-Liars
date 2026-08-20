@@ -34,7 +34,12 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Failed to extract GodotSteam editor archive" }
 
     $editor = Get-ChildItem -Path $editorDir -Recurse -File |
-        Where-Object { $_.Name -match "godotsteam" -and $_.Extension -ne ".txt" } |
+        Where-Object {
+            $_.Name -match "godotsteam" -and
+            $_.Name -match "editor" -and
+            $_.Name -notmatch "\.so$" -and
+            $_.Name -notmatch "\.txt$"
+        } |
         Select-Object -First 1
     if ($null -eq $editor) {
         throw "Could not locate extracted GodotSteam editor binary"

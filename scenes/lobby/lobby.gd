@@ -1,5 +1,7 @@
 extends Control
 
+const TABLE_SCENE := "res://scenes/table/table.tscn"
+
 var _lobby_ids: Array[int] = []
 
 @onready var status_label: Label = %StatusLabel
@@ -61,7 +63,9 @@ func _refresh_players() -> void:
 			name = "Peer %s" % peer_id
 		var ready_text := "LISTO" if bool(data.get("ready", false)) else "NO LISTO"
 		var host_text := " HOST" if int(peer_id) == 1 else ""
-		lines.append("• %s  [peer %s%s] — %s" % [name, peer_id, host_text, ready_text])
+		var seat_id := int(data.get("seat_id", -1))
+		var seat_text := "S%02d" % (seat_id + 1) if SeatAllocator.is_valid_seat(seat_id) else "SIN ASIENTO"
+		lines.append("• %s  [peer %s%s / %s] — %s" % [name, peer_id, host_text, seat_text, ready_text])
 	players_label.text = "\n".join(lines)
 
 func _update_buttons() -> void:
@@ -145,8 +149,12 @@ func _on_peer_changed(_peer_id: int) -> void:
 	_update_buttons()
 
 func _on_lobby_start_requested() -> void:
-	status_label.text = "FASE 2 OK: inicio sincronizado por el host."
+	status_label.text = "Inicio sincronizado. Entrando a la mesa..."
 	_update_buttons()
+	call_deferred("_enter_table")
+
+func _enter_table() -> void:
+	get_tree().change_scene_to_file(TABLE_SCENE)
 
 func _on_local_talking_changed(is_talking: bool) -> void:
 	voice_label.text = "Voz: TRANSMITIENDO..." if is_talking else "Voz: mantené V para hablar"

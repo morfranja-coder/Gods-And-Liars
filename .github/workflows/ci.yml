@@ -62,7 +62,9 @@ jobs:
         run: godot --headless --path . --script tests/smoke_match_rules.gd
 
       - name: Run GdUnit4 tests
-        run: |
-          chmod +x addons/gdUnit4/runtest.sh
-          GODOT_PATH="$(command -v godot)"
-          ./addons/gdUnit4/runtest.sh --godot_binary "$GODOT_PATH" --headless --continue --add tests/unit
+        run: >-
+          godot --headless --path .
+          --script res://addons/gdUnit4/bin/GdUnitCmdTool.gd
+          --ignoreHeadlessMode
+          --continue
+          --add tests/unit

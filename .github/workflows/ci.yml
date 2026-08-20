@@ -98,3 +98,48 @@ jobs:
           name: GodsAndLiars-Windows
           path: build/windows/
           if-no-files-found: error
+
+  steam-runtime:
+    name: Steam multiplayer runtime export
+    runs-on: ubuntu-latest
+    needs: godot-quality
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pinned Godot addons
+        shell: pwsh
+        run: ./tools/setup-dev-tools.ps1 -Force
+
+      - name: Setup pinned GodotSteam 4.20 runtime
+        shell: pwsh
+        run: ./tools/setup-godotsteam-runtime.ps1
+
+      - name: Resolve GodotSteam editor
+        id: godotsteam
+        shell: pwsh
+        run: |
+          $editor = (Get-Content .tools/godotsteam/editor-path.txt -Raw).Trim()
+          "editor=$editor" >> $env:GITHUB_OUTPUT
+          & $editor --version
+          if ($LASTEXITCODE -ne 0) { throw "GodotSteam editor failed to start" }
+
+      - name: Verify Steam + SteamMultiplayerPeer
+        shell: pwsh
+        run: |
+          $editor = "${{ steps.godotsteam.outputs.editor }}"
+          & $editor --headless --path . --script res://tools/verify-steam-runtime.gd
+          if ($LASTEXITCODE -ne 0) { throw "GodotSteam multiplayer runtime gate failed" }
+
+      - name: Export Steam-capable Windows release
+        shell: pwsh
+        run: |
+          $editor = "${{ steps.godotsteam.outputs.editor }}"
+          ./tools/build-windows.ps1 -GodotBinary $editor -Output "build/steam-windows/GodsAndLiars.exe"
+
+      - name: Upload Steam Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GodsAndLiars-Steam-Windows
+          path: build/steam-windows/
+          if-no-files-found: error

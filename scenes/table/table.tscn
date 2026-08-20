@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scenes/table/table.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/table/role_reveal.tscn" id="2"]
 
 [node name="Table" type="Node3D"]
 script = ExtResource("1")
@@ -10,3 +11,5 @@ transform = Transform3D(1, 0, 0, 0, 0.866025, 0.5, 0, -0.5, 0.866025, 0, 7.5, 11
 current = true
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+
+[node name="RoleReveal" parent="." instance=ExtResource("2")]

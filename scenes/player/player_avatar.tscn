@@ -1,0 +1,28 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/player/avatar_slots.gd" id="1"]
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_placeholder"]
+radius = 0.42
+height = 1.8
+
+[node name="PlayerAvatar" type="Node3D"]
+script = ExtResource("1")
+
+[node name="Body" type="Node3D" parent="."]
+
+[node name="Placeholder" type="MeshInstance3D" parent="Body"]
+mesh = SubResource("CapsuleMesh_placeholder")
+
+[node name="Tunic" type="Node3D" parent="."]
+
+[node name="Mask" type="Node3D" parent="."]
+
+[node name="NameLabel" type="Label3D" parent="."]
+position = Vector3(0, 2.25, 0)
+text = "Player"
+billboard = 1
+font_size = 32
+outline_size = 6
+
+[node name="AliveMarker" type="Node3D" parent="."]

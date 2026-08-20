@@ -81,7 +81,8 @@ func _receive_voice(compressed: PackedByteArray) -> void:
 	var raw: PackedByteArray = decompressed.get("uncompressed", PackedByteArray())
 	if raw.is_empty():
 		return
-	var frame_count := mini(byte_count / 2, raw.size() / 2)
+	var usable_bytes := mini(byte_count, raw.size())
+	var frame_count := usable_bytes >> 1
 	var frames := PackedVector2Array()
 	frames.resize(frame_count)
 	for i in range(frame_count):

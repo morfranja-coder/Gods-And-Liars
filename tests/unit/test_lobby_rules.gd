@@ -14,6 +14,16 @@ func test_start_requires_everyone_ready() -> void:
 	peers[2]["ready"] = true
 	assert_bool(LobbyRules.can_start(true, true, peers)).is_true()
 
+func test_gameplay_start_requires_match_minimum() -> void:
+	var peers := {
+		1: LobbyRules.make_peer(1001, "One", true),
+		2: LobbyRules.make_peer(1002, "Two", true),
+		3: LobbyRules.make_peer(1003, "Three", true),
+	}
+	assert_bool(LobbyRules.can_start(true, true, peers, MatchSession.MIN_PLAYERS)).is_false()
+	peers[4] = LobbyRules.make_peer(1004, "Four", true)
+	assert_bool(LobbyRules.can_start(true, true, peers, MatchSession.MIN_PLAYERS)).is_true()
+
 func test_client_cannot_start_even_when_everyone_ready() -> void:
 	var peers := {
 		1: LobbyRules.make_peer(1001, "Host", true),

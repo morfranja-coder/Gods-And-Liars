@@ -1,8 +1,13 @@
 extends Node3D
 
+signal target_selected(peer_id: int)
+
 const PLAYER_AVATAR_SCENE := preload("res://scenes/player/player_avatar.tscn")
+const SELECTION_MASK := 2
+const RAY_LENGTH := 100.0
 
 var _avatars: Dictionary = {}
+var selected_peer_id: int = 0
 
 func _ready() -> void:
 	_build_placeholder_table()
@@ -11,6 +16,14 @@ func _ready() -> void:
 	NetworkManager.peer_left.connect(_on_roster_changed)
 	NetworkManager.peer_updated.connect(_on_roster_changed)
 	_refresh_roster()
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is not InputEventMouseButton:
+		return
+	var mouse_event := event as InputEventMouseButton
+	if mouse_event.button_index != MOUSE_BUTTON_LEFT or not mouse_event.pressed:
+		return
+	_select_from_screen_position(mouse_event.position)
 
 func _build_placeholder_table() -> void:
 	var table := MeshInstance3D.new()
@@ -68,6 +81,8 @@ func _refresh_roster(_unused: int = 0) -> void:
 			var avatar: Node = _avatars[peer_id]
 			avatar.queue_free()
 			_avatars.erase(peer_id)
+			if selected_peer_id == peer_id:
+				selected_peer_id = 0
 
 func _spawn_or_update_avatar(peer_id: int, seat_id: int) -> void:
 	var marker := get_seat_marker(seat_id)
@@ -79,6 +94,7 @@ func _spawn_or_update_avatar(peer_id: int, seat_id: int) -> void:
 	else:
 		avatar = PLAYER_AVATAR_SCENE.instantiate()
 		avatar.name = "Peer_%s" % peer_id
+		avatar.set_meta("peer_id", peer_id)
 		add_child(avatar)
 		_avatars[peer_id] = avatar
 	avatar.global_transform = marker.global_transform
@@ -87,6 +103,31 @@ func _spawn_or_update_avatar(peer_id: int, seat_id: int) -> void:
 	if label != null:
 		var display_name := str(peer.get("display_name", ""))
 		label.text = display_name if not display_name.is_empty() else "Player %s" % peer_id
+
+func _select_from_screen_position(screen_position: Vector2) -> void:
+	var camera := get_viewport().get_camera_3d()
+	if camera == null:
+		return
+	var origin := camera.project_ray_origin(screen_position)
+	var end := origin + camera.project_ray_normal(screen_position) * RAY_LENGTH
+	var query := PhysicsRayQueryParameters3D.create(origin, end, SELECTION_MASK)
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty():
+		return
+	var collider := hit.get("collider") as Node
+	var peer_id := _peer_id_from_collider(collider)
+	if peer_id <= 0 or not NetworkManager.peers.has(peer_id):
+		return
+	selected_peer_id = peer_id
+	target_selected.emit(peer_id)
+
+func _peer_id_from_collider(collider: Node) -> int:
+	var current := collider
+	while current != null and current != self:
+		if current.has_meta("peer_id"):
+			return int(current.get_meta("peer_id"))
+		current = current.get_parent()
+	return 0
 
 func _on_roster_changed(peer_id: int) -> void:
 	_refresh_roster(peer_id)

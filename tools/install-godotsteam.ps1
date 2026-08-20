@@ -9,6 +9,9 @@ $Zip = (Resolve-Path $ZipPath).Path
 $Temp = Join-Path ([System.IO.Path]::GetTempPath()) ("godotsteam-" + [guid]::NewGuid().ToString("N"))
 $Target = Join-Path $Root "addons/godotsteam"
 
+Write-Warning "This installs the GodotSteam API GDExtension only. It does NOT provide SteamMultiplayerPeer and is not sufficient for the Gods & Liars MVP networking stack."
+Write-Warning "For release validation use a GodotSteam MultiplayerPeer/module build compatible with Godot 4.7 + Steamworks 1.64."
+
 try {
     New-Item -ItemType Directory -Path $Temp -Force | Out-Null
     Expand-Archive -Path $Zip -DestinationPath $Temp -Force
@@ -30,7 +33,8 @@ try {
         throw "GodotSteam installation failed"
     }
 
-    Write-Host "GREEN: GodotSteam installed at addons/godotsteam"
+    Write-Host "GREEN: GodotSteam API GDExtension installed at addons/godotsteam"
+    Write-Host "NOTE: release-check.ps1 will still fail unless the selected Godot binary exposes SteamMultiplayerPeer."
 }
 finally {
     if (Test-Path $Temp) {

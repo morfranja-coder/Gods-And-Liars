@@ -32,9 +32,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Smoke tests failed" }
 
     Write-Host "[6/6] Running GdUnit4"
-    $runner = Join-Path $Root "addons/gdUnit4/runtest.cmd"
-    if (-not (Test-Path $runner)) { throw "GdUnit4 runner not found" }
-    & $runner --godot_binary $GodotBinary --headless --continue --add tests/unit
+    & $GodotBinary --headless --path . --script res://addons/gdUnit4/bin/GdUnitCmdTool.gd --ignoreHeadlessMode --continue --add tests/unit
     if ($LASTEXITCODE -ne 0) { throw "GdUnit4 failed" }
 
     Write-Host ""

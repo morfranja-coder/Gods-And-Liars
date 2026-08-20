@@ -56,25 +56,35 @@ try {
     & tar -xJf $templatesArchive -C $templateTemp
     if ($LASTEXITCODE -ne 0) { throw "Failed to extract GodotSteam templates archive" }
 
-    $windowsRelease = Get-ChildItem -Path $templateTemp -Recurse -File |
-        Where-Object {
-            $_.Name -match "windows" -and
-            $_.Name -match "release" -and
-            $_.Extension -eq ".exe"
-        } |
+    $win64Dir = Get-ChildItem -Path $templateTemp -Recurse -Directory |
+        Where-Object { $_.Name -eq "win64" } |
         Select-Object -First 1
-
-    if ($null -eq $windowsRelease) {
-        Write-Host "Template archive contents:" -ForegroundColor Yellow
-        Get-ChildItem -Path $templateTemp -Recurse -File |
-            Select-Object -First 80 -ExpandProperty FullName |
-            ForEach-Object { Write-Host "  $_" }
-        throw "Could not locate a Windows release template in the GodotSteam archive"
+    if ($null -eq $win64Dir) {
+        throw "Could not locate win64 directory in GodotSteam template archive"
     }
 
-    $templateRoot = Split-Path $windowsRelease.FullName -Parent
-    Write-Host "Detected Windows release template: $($windowsRelease.Name)"
-    Write-Host "Template root: $templateRoot"
+    $windowsRelease = Get-ChildItem -Path $win64Dir.FullName -File |
+        Where-Object {
+            $_.Name -match "\.template\.win64\.exe$" -and
+            $_.Name -notmatch "\.debug\."
+        } |
+        Select-Object -First 1
+    $windowsDebug = Get-ChildItem -Path $win64Dir.FullName -File |
+        Where-Object { $_.Name -match "\.debug\.template\.win64\.exe$" } |
+        Select-Object -First 1
+    $steamApi = Get-ChildItem -Path $win64Dir.FullName -File -Filter "steam_api64.dll" |
+        Select-Object -First 1
+
+    if ($null -eq $windowsRelease -or $null -eq $windowsDebug -or $null -eq $steamApi) {
+        Write-Host "win64 archive contents:" -ForegroundColor Yellow
+        Get-ChildItem -Path $win64Dir.FullName -File |
+            ForEach-Object { Write-Host "  $($_.FullName)" }
+        throw "GodotSteam win64 package is missing release, debug, or steam_api64.dll"
+    }
+
+    Write-Host "Detected release template: $($windowsRelease.Name)"
+    Write-Host "Detected debug template: $($windowsDebug.Name)"
+    Write-Host "Detected Steam runtime DLL: $($steamApi.Name)"
 
     $godotData = if ($IsWindows) {
         Join-Path $env:APPDATA "Godot/export_templates/4.7.stable"
@@ -83,7 +93,10 @@ try {
         Join-Path $HOME ".local/share/godot/export_templates/4.7.stable"
     }
     New-Item -ItemType Directory -Path $godotData -Force | Out-Null
-    Copy-Item -Path (Join-Path $templateRoot "*") -Destination $godotData -Recurse -Force
+
+    Copy-Item -Path $windowsRelease.FullName -Destination (Join-Path $godotData "windows_release_x86_64.exe") -Force
+    Copy-Item -Path $windowsDebug.FullName -Destination (Join-Path $godotData "windows_debug_x86_64.exe") -Force
+    Copy-Item -Path $steamApi.FullName -Destination (Join-Path $godotData "steam_api64.dll") -Force
 
     $resolvedEditor = $editor.FullName
     Set-Content -Path (Join-Path $installPath "editor-path.txt") -Value $resolvedEditor -NoNewline

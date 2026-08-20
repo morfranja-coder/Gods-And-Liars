@@ -21,6 +21,7 @@ const STEAM_CHAT_ENTER_SUCCESS := 1
 
 var is_host: bool = false
 var lobby_id: int = 0
+var lobby_started: bool = false
 var peers: Dictionary = {}
 var _steam: Object = null
 var _last_ready_request_ms: Dictionary = {}
@@ -87,11 +88,14 @@ func get_lobby_name(target_lobby_id: int) -> String:
 func reset() -> void:
 	is_host = false
 	lobby_id = 0
+	lobby_started = false
 	peers.clear()
 	_last_ready_request_ms.clear()
 	lobby_state_changed.emit(&"offline" if not Steamworks.initialized else &"steam_ready")
 
 func register_peer(peer_id: int, steam_id: int = 0, display_name: String = "") -> void:
+	if lobby_started:
+		return
 	if not LobbyRules.can_register_peer(peers, peer_id, MAX_PLAYERS):
 		return
 	if not IdentityPolicy.valid_identity(steam_id, display_name):
@@ -119,7 +123,7 @@ func unregister_peer(peer_id: int) -> void:
 	peer_left.emit(peer_id)
 
 func set_peer_ready(peer_id: int, ready: bool) -> void:
-	if not peers.has(peer_id):
+	if lobby_started or not peers.has(peer_id):
 		return
 	peers[peer_id]["ready"] = ready
 	peer_updated.emit(peer_id)
@@ -130,7 +134,7 @@ func local_peer_ready() -> bool:
 	return bool(peers.get(multiplayer.get_unique_id(), {}).get("ready", false))
 
 func request_local_ready(ready: bool) -> void:
-	if lobby_id == 0 or multiplayer.multiplayer_peer == null:
+	if lobby_started or lobby_id == 0 or multiplayer.multiplayer_peer == null:
 		return
 	if multiplayer.is_server():
 		_server_set_ready(multiplayer.get_unique_id(), ready)
@@ -138,9 +142,13 @@ func request_local_ready(ready: bool) -> void:
 		_request_ready.rpc_id(1, ready)
 
 func can_host_start() -> bool:
+	if lobby_started:
+		return false
 	return LobbyRules.can_start(is_host, multiplayer.is_server(), peers, TECHNICAL_START_MIN_PLAYERS)
 
 func request_host_start() -> void:
+	if lobby_started:
+		return
 	if not can_host_start():
 		lobby_error.emit("El host solo puede iniciar cuando hay al menos %d jugadores y todos están listos." % TECHNICAL_START_MIN_PLAYERS)
 		return
@@ -178,6 +186,7 @@ func _on_lobby_created(result: int, new_lobby_id: int) -> void:
 	lobby_id = new_lobby_id
 	Steamworks.lobby_id = new_lobby_id
 	is_host = true
+	lobby_started = false
 	_steam.call("setLobbyData", new_lobby_id, LOBBY_NAME_KEY, "%s's Ritual" % Steamworks.persona_name)
 	_steam.call("setLobbyData", new_lobby_id, GAME_TAG_KEY, GAME_TAG_VALUE)
 	var peer = _create_steam_peer()
@@ -194,6 +203,7 @@ func _on_lobby_joined(joined_lobby_id: int, _permissions: int, _locked, response
 		return
 	lobby_id = joined_lobby_id
 	Steamworks.lobby_id = joined_lobby_id
+	lobby_started = false
 	var host_steam_id := int(_steam.call("getLobbyOwner", joined_lobby_id))
 	is_host = host_steam_id == Steamworks.steam_id
 	if not is_host:
@@ -230,7 +240,9 @@ func _on_server_disconnected() -> void:
 
 @rpc("any_peer", "reliable")
 func _announce_identity(client_steam_id: int, display_name: String) -> void:
-	if not multiplayer.is_server() or not IdentityPolicy.valid_identity(client_steam_id, display_name):
+	if lobby_started or not multiplayer.is_server():
+		return
+	if not IdentityPolicy.valid_identity(client_steam_id, display_name):
 		return
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not LobbyRules.can_register_peer(peers, sender_id, MAX_PLAYERS):
@@ -256,7 +268,7 @@ func _sync_peer(peer_id: int, client_steam_id: int, display_name: String, ready:
 
 @rpc("any_peer", "reliable")
 func _request_ready(ready: bool) -> void:
-	if not multiplayer.is_server():
+	if lobby_started or not multiplayer.is_server():
 		return
 	var sender_id := multiplayer.get_remote_sender_id()
 	if not peers.has(sender_id):
@@ -269,7 +281,7 @@ func _request_ready(ready: bool) -> void:
 	_server_set_ready(sender_id, ready)
 
 func _server_set_ready(peer_id: int, ready: bool) -> void:
-	if not multiplayer.is_server() or not peers.has(peer_id):
+	if lobby_started or not multiplayer.is_server() or not peers.has(peer_id):
 		return
 	_sync_ready.rpc(peer_id, ready)
 
@@ -279,6 +291,9 @@ func _sync_ready(peer_id: int, ready: bool) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _start_lobby() -> void:
+	if lobby_started:
+		return
+	lobby_started = true
 	GameManager.set_phase(GameManager.MatchPhase.READY)
 	lobby_state_changed.emit(&"starting")
 	lobby_start_requested.emit()

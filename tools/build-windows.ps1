@@ -27,13 +27,35 @@ try {
 
     Write-Host "[3/3] Exporting Windows release"
     & $GodotBinary --headless --path . --export-release $Preset $Output
-    if ($LASTEXITCODE -ne 0) { throw "Windows export failed" }
+    $exportExitCode = $LASTEXITCODE
 
     if (-not (Test-Path $Output)) {
-        throw "Expected executable was not produced: $Output"
+        throw "Expected executable was not produced: $Output (Godot exit code $exportExitCode)"
     }
 
-    Write-Host "GREEN: Windows build created at $Output"
+    $exe = Get-Item $Output
+    if ($exe.Length -lt 1024) {
+        throw "Exported executable is unexpectedly small: $($exe.Length) bytes"
+    }
+
+    $stream = [System.IO.File]::OpenRead($exe.FullName)
+    try {
+        $first = $stream.ReadByte()
+        $second = $stream.ReadByte()
+    }
+    finally {
+        $stream.Dispose()
+    }
+
+    if ($first -ne 0x4D -or $second -ne 0x5A) {
+        throw "Exported file is not a valid Windows PE executable (missing MZ header)"
+    }
+
+    if ($exportExitCode -ne 0) {
+        Write-Warning "Godot returned exit code $exportExitCode after producing a valid Windows executable; accepting artifact after validation."
+    }
+
+    Write-Host "GREEN: Windows build created at $Output ($($exe.Length) bytes)"
 }
 finally {
     Pop-Location

@@ -60,3 +60,9 @@ try {
 finally {
     Pop-Location
 }
+
+# GitHub Actions' pwsh wrapper observes the last native process exit code even
+# when the script intentionally accepts a validated artifact. Reset it only
+# after every validation above has succeeded; thrown failures never reach here.
+$global:LASTEXITCODE = 0
+exit 0

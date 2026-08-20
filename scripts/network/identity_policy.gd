@@ -18,3 +18,12 @@ static func valid_display_name(display_name: String) -> bool:
 
 static func valid_identity(steam_id: int, display_name: String) -> bool:
 	return valid_steam_id(steam_id) and valid_display_name(display_name)
+
+static func steam_id_in_use(peers: Dictionary, steam_id: int, except_peer_id: int = 0) -> bool:
+	for peer_id in peers.keys():
+		if int(peer_id) == except_peer_id:
+			continue
+		var data: Dictionary = peers[peer_id]
+		if int(data.get("steam_id", 0)) == steam_id:
+			return true
+	return false

@@ -3,6 +3,7 @@ extends Control
 @onready var status_label: Label = %StatusLabel
 @onready var identity_label: Label = %IdentityLabel
 @onready var lobby_list: ItemList = %LobbyList
+@onready var players_label: Label = %PlayersLabel
 @onready var create_button: Button = %CreateButton
 @onready var refresh_button: Button = %RefreshButton
 @onready var join_button: Button = %JoinButton
@@ -15,13 +16,18 @@ func _ready() -> void:
 	refresh_button.pressed.connect(_on_refresh_pressed)
 	join_button.pressed.connect(_on_join_pressed)
 	leave_button.pressed.connect(_on_leave_pressed)
+	lobby_list.item_selected.connect(_on_lobby_selected)
 	lobby_list.item_activated.connect(_on_lobby_activated)
 	NetworkManager.lobby_list_updated.connect(_on_lobby_list_updated)
 	NetworkManager.lobby_state_changed.connect(_on_lobby_state_changed)
 	NetworkManager.lobby_error.connect(_on_lobby_error)
+	NetworkManager.peer_joined.connect(_on_peer_changed)
+	NetworkManager.peer_updated.connect(_on_peer_changed)
+	NetworkManager.peer_left.connect(_on_peer_changed)
 	Steamworks.steam_ready.connect(_refresh_identity)
 	Steamworks.steam_unavailable.connect(_on_steam_unavailable)
 	_refresh_identity()
+	_refresh_players()
 	_update_buttons()
 
 func _refresh_identity() -> void:
@@ -32,6 +38,21 @@ func _refresh_identity() -> void:
 		identity_label.text = "Steam: no disponible"
 		status_label.text = "Abre este proyecto con GodotSteam 4.20 y Steam iniciado."
 	_update_buttons()
+
+func _refresh_players() -> void:
+	if NetworkManager.peers.is_empty():
+		players_label.text = "Jugadores conectados: 0"
+		return
+	var lines: PackedStringArray = ["Jugadores conectados: %d" % NetworkManager.peers.size()]
+	var ids := NetworkManager.peers.keys()
+	ids.sort()
+	for peer_id in ids:
+		var data: Dictionary = NetworkManager.peers[peer_id]
+		var name := str(data.get("display_name", ""))
+		if name.is_empty():
+			name = "Peer %s" % peer_id
+		lines.append("• %s  [peer %s]" % [name, peer_id])
+	players_label.text = "\n".join(lines)
 
 func _update_buttons() -> void:
 	var steam_ok := Steamworks.initialized
@@ -55,6 +76,9 @@ func _on_join_pressed() -> void:
 		return
 	_join_index(selected[0])
 
+func _on_lobby_selected(_index: int) -> void:
+	_update_buttons()
+
 func _on_lobby_activated(index: int) -> void:
 	_join_index(index)
 
@@ -66,6 +90,7 @@ func _join_index(index: int) -> void:
 func _on_leave_pressed() -> void:
 	NetworkManager.leave_lobby()
 	status_label.text = "Saliste del ritual."
+	_refresh_players()
 	_update_buttons()
 
 func _on_lobby_list_updated(lobbies: Array) -> void:
@@ -84,9 +109,14 @@ func _on_lobby_state_changed(state: StringName) -> void:
 		&"searching": status_label.text = "Buscando rituales..."
 		&"joining": status_label.text = "Entrando al ritual..."
 		&"hosting": status_label.text = "Ritual creado. Lobby ID: %s" % NetworkManager.lobby_id
-		&"in_lobby": status_label.text = "Conectado al ritual. Lobby ID: %s" % NetworkManager.lobby_id
+		&"in_lobby": status_label.text = "Steam lobby unido. Conectando peer..."
+		&"connected": status_label.text = "Peer conectado. Sincronizando identidad..."
 		&"steam_ready": status_label.text = "Steam listo."
+	_refresh_players()
 	_update_buttons()
+
+func _on_peer_changed(_peer_id: int) -> void:
+	_refresh_players()
 
 func _on_lobby_error(message: String) -> void:
 	status_label.text = "ERROR: %s" % message

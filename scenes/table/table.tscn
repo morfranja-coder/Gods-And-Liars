@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scenes/table/table.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/table/role_reveal.tscn" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/table/night_action_ui.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/table/day_vote_ui.tscn" id="4"]
 
 [node name="Table" type="Node3D"]
 script = ExtResource("1")
@@ -16,3 +17,5 @@ current = true
 [node name="RoleReveal" parent="." instance=ExtResource("2")]
 
 [node name="NightActionUI" parent="." instance=ExtResource("3")]
+
+[node name="DayVoteUI" parent="." instance=ExtResource("4")]

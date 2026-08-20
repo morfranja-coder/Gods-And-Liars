@@ -4,6 +4,10 @@
 export.cfg
 export_presets.cfg
 
+# Reproducible third-party addons (installed by tools/setup-dev-tools.ps1)
+addons/gdUnit4/
+addons/godot_state_charts/
+
 # Builds
 build/
 dist/

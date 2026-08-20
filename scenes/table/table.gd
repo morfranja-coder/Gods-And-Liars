@@ -6,8 +6,8 @@ const PLAYER_AVATAR_SCENE := preload("res://scenes/player/player_avatar.tscn")
 const SELECTION_MASK := 2
 const RAY_LENGTH := 100.0
 
-var _avatars: Dictionary = {}
 var selected_peer_id: int = 0
+var _avatars: Dictionary = {}
 
 func _ready() -> void:
 	_build_placeholder_table()

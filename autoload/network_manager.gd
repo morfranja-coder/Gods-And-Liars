@@ -92,7 +92,11 @@ func reset() -> void:
 	lobby_state_changed.emit(&"offline" if not Steamworks.initialized else &"steam_ready")
 
 func register_peer(peer_id: int, steam_id: int = 0, display_name: String = "") -> void:
-	if peer_id <= 0 or not IdentityPolicy.valid_identity(steam_id, display_name):
+	if not LobbyRules.can_register_peer(peers, peer_id, MAX_PLAYERS):
+		return
+	if not IdentityPolicy.valid_identity(steam_id, display_name):
+		return
+	if IdentityPolicy.steam_id_in_use(peers, steam_id, peer_id):
 		return
 	var previous: Dictionary = peers.get(peer_id, {})
 	var is_new := previous.is_empty()
@@ -229,7 +233,9 @@ func _announce_identity(client_steam_id: int, display_name: String) -> void:
 	if not multiplayer.is_server() or not IdentityPolicy.valid_identity(client_steam_id, display_name):
 		return
 	var sender_id := multiplayer.get_remote_sender_id()
-	if sender_id <= 0 or peers.has(sender_id):
+	if not LobbyRules.can_register_peer(peers, sender_id, MAX_PLAYERS):
+		return
+	if IdentityPolicy.steam_id_in_use(peers, client_steam_id, sender_id):
 		return
 	var clean_name := IdentityPolicy.sanitize_display_name(display_name)
 	for existing_peer_id in peers.keys():

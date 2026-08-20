@@ -38,7 +38,8 @@ func _process(_delta: float) -> void:
 	if NetworkManager.lobby_id == 0 or multiplayer.multiplayer_peer == null:
 		_set_talking(false)
 		return
-	_set_talking(Input.is_action_pressed(VOICE_ACTION))
+	var can_talk := VoiceRouter.can_transmit(GameManager.phase, _local_alive())
+	_set_talking(can_talk and Input.is_action_pressed(VOICE_ACTION))
 	if is_talking:
 		_capture_and_send_voice()
 
@@ -78,7 +79,10 @@ func _can_receive_voice(sender_id: int, compressed: PackedByteArray) -> bool:
 		return false
 	if not VoicePolicy.accepts_sender(sender_id, NetworkManager.peers):
 		return false
-	return VoicePolicy.accepts_compressed_size(compressed.size())
+	if not VoicePolicy.accepts_compressed_size(compressed.size()):
+		return false
+	var sender_alive := MatchAuthority.is_peer_publicly_alive(sender_id)
+	return VoiceRouter.can_receive(GameManager.phase, sender_alive, _local_alive())
 
 func _valid_decompressed_voice(decompressed: Dictionary) -> bool:
 	if int(decompressed.get("result", -1)) != VOICE_RESULT_OK:
@@ -104,3 +108,8 @@ func _push_decompressed_voice(sender_id: int, decompressed: Dictionary) -> void:
 	if room > 0:
 		_playback.push_buffer(frames if room >= frames.size() else frames.slice(0, room))
 		remote_talking.emit(sender_id)
+
+func _local_alive() -> bool:
+	if multiplayer.multiplayer_peer == null:
+		return true
+	return MatchAuthority.is_peer_publicly_alive(multiplayer.get_unique_id())

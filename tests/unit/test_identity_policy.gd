@@ -12,3 +12,15 @@ func test_display_name_is_trimmed_and_bounded() -> void:
 
 func test_blank_display_name_is_rejected() -> void:
 	assert_bool(IdentityPolicy.valid_display_name("   ")).is_false()
+
+func test_duplicate_steam_id_is_detected() -> void:
+	var peers := {
+		1: LobbyRules.make_peer(111, "Host"),
+		2: LobbyRules.make_peer(222, "Guest"),
+	}
+	assert_bool(IdentityPolicy.steam_id_in_use(peers, 111)).is_true()
+	assert_bool(IdentityPolicy.steam_id_in_use(peers, 333)).is_false()
+
+func test_current_peer_can_refresh_same_steam_id() -> void:
+	var peers := {2: LobbyRules.make_peer(222, "Guest")}
+	assert_bool(IdentityPolicy.steam_id_in_use(peers, 222, 2)).is_false()

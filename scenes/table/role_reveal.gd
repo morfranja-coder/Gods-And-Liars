@@ -22,3 +22,4 @@ func _show_local_role() -> void:
 
 func _on_close_pressed() -> void:
 	panel.visible = false
+	MatchAuthority.acknowledge_local_role()

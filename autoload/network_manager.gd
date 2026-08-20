@@ -9,12 +9,11 @@ signal lobby_error(message: String)
 signal lobby_start_requested
 
 const MAX_PLAYERS: int = 10
-const TECHNICAL_START_MIN_PLAYERS: int = 2
+const TECHNICAL_START_MIN_PLAYERS: int = LobbyRules.TECHNICAL_START_MIN_PLAYERS
 const GAME_TAG_KEY: String = "game"
 const GAME_TAG_VALUE: String = "GodsAndLiarsMVP"
 const LOBBY_NAME_KEY: String = "name"
 
-# Steam enum values used dynamically so vanilla Godot can still parse/run CI.
 const STEAM_LOBBY_TYPE_PUBLIC := 2
 const STEAM_LOBBY_COMPARISON_EQUAL := 3
 const STEAM_RESULT_OK := 1
@@ -56,7 +55,7 @@ func host_lobby() -> void:
 	_steam.call("createLobby", STEAM_LOBBY_TYPE_PUBLIC, MAX_PLAYERS)
 
 func join_lobby(target_lobby_id: int) -> void:
-	if not _require_steam():
+	if not _require_steam() or target_lobby_id <= 0:
 		return
 	lobby_state_changed.emit(&"joining")
 	_steam.call("joinLobby", target_lobby_id)
@@ -91,14 +90,16 @@ func reset() -> void:
 	lobby_state_changed.emit(&"offline" if not Steamworks.initialized else &"steam_ready")
 
 func register_peer(peer_id: int, steam_id: int = 0, display_name: String = "") -> void:
+	if peer_id <= 0 or not IdentityPolicy.valid_identity(steam_id, display_name):
+		return
 	var previous: Dictionary = peers.get(peer_id, {})
 	var is_new := previous.is_empty()
-	peers[peer_id] = {
-		"steam_id": steam_id,
-		"display_name": display_name,
-		"seat_id": previous.get("seat_id", -1),
-		"ready": previous.get("ready", false),
-	}
+	peers[peer_id] = LobbyRules.make_peer(
+		steam_id,
+		IdentityPolicy.sanitize_display_name(display_name),
+		bool(previous.get("ready", false)),
+		int(previous.get("seat_id", -1)),
+	)
 	if is_new:
 		peer_joined.emit(peer_id)
 	else:
@@ -119,8 +120,7 @@ func set_peer_ready(peer_id: int, ready: bool) -> void:
 func local_peer_ready() -> bool:
 	if multiplayer.multiplayer_peer == null:
 		return false
-	var peer_id := multiplayer.get_unique_id()
-	return bool(peers.get(peer_id, {}).get("ready", false))
+	return bool(peers.get(multiplayer.get_unique_id(), {}).get("ready", false))
 
 func request_local_ready(ready: bool) -> void:
 	if lobby_id == 0 or multiplayer.multiplayer_peer == null:
@@ -131,7 +131,7 @@ func request_local_ready(ready: bool) -> void:
 		_request_ready.rpc_id(1, ready)
 
 func can_host_start() -> bool:
-	return is_host and multiplayer.is_server() and peers.size() >= TECHNICAL_START_MIN_PLAYERS and all_peers_ready()
+	return LobbyRules.can_start(is_host, multiplayer.is_server(), peers, TECHNICAL_START_MIN_PLAYERS)
 
 func request_host_start() -> void:
 	if not can_host_start():
@@ -140,12 +140,7 @@ func request_host_start() -> void:
 	_start_lobby.rpc()
 
 func all_peers_ready() -> bool:
-	if peers.size() < TECHNICAL_START_MIN_PLAYERS:
-		return false
-	for peer: Dictionary in peers.values():
-		if not peer.get("ready", false):
-			return false
-	return true
+	return LobbyRules.all_ready(peers, TECHNICAL_START_MIN_PLAYERS)
 
 func _require_steam() -> bool:
 	if not Steamworks.initialized or _steam == null:
@@ -228,15 +223,22 @@ func _on_server_disconnected() -> void:
 
 @rpc("any_peer", "reliable")
 func _announce_identity(client_steam_id: int, display_name: String) -> void:
-	if not multiplayer.is_server():
+	if not multiplayer.is_server() or not IdentityPolicy.valid_identity(client_steam_id, display_name):
 		return
 	var sender_id := multiplayer.get_remote_sender_id()
-	if sender_id <= 0:
+	if sender_id <= 0 or peers.has(sender_id):
 		return
+	var clean_name := IdentityPolicy.sanitize_display_name(display_name)
 	for existing_peer_id in peers.keys():
 		var data: Dictionary = peers[existing_peer_id]
-		_sync_peer.rpc_id(sender_id, int(existing_peer_id), int(data.get("steam_id", 0)), str(data.get("display_name", "")), bool(data.get("ready", false)))
-	_sync_peer.rpc(sender_id, client_steam_id, display_name, false)
+		_sync_peer.rpc_id(
+			sender_id,
+			int(existing_peer_id),
+			int(data.get("steam_id", 0)),
+			str(data.get("display_name", "")),
+			bool(data.get("ready", false)),
+		)
+	_sync_peer.rpc(sender_id, client_steam_id, clean_name, false)
 
 @rpc("authority", "call_local", "reliable")
 func _sync_peer(peer_id: int, client_steam_id: int, display_name: String, ready: bool = false) -> void:
@@ -247,8 +249,7 @@ func _sync_peer(peer_id: int, client_steam_id: int, display_name: String, ready:
 func _request_ready(ready: bool) -> void:
 	if not multiplayer.is_server():
 		return
-	var sender_id := multiplayer.get_remote_sender_id()
-	_server_set_ready(sender_id, ready)
+	_server_set_ready(multiplayer.get_remote_sender_id(), ready)
 
 func _server_set_ready(peer_id: int, ready: bool) -> void:
 	if not multiplayer.is_server() or not peers.has(peer_id):

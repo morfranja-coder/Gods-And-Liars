@@ -1,0 +1,22 @@
+# Godot
+.godot/
+.import/
+export.cfg
+export_presets.cfg
+
+# Builds
+build/
+dist/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Secrets / local env
+.env
+.env.*
+*.key
+*.pem
+steam_appid.txt

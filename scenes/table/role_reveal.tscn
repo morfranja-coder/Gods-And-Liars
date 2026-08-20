@@ -1,0 +1,35 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/table/role_reveal.gd" id="1"]
+
+[node name="RoleReveal" type="CanvasLayer"]
+script = ExtResource("1")
+
+[node name="Panel" type="PanelContainer" parent="."]
+offset_left = 390.0
+offset_top = 210.0
+offset_right = 890.0
+offset_bottom = 510.0
+
+[node name="VBox" type="VBoxContainer" parent="Panel"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+text = "Tu rol"
+horizontal_alignment = 1
+
+[node name="RoleLabel" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+text = "Sin revelar"
+horizontal_alignment = 1
+
+[node name="DescriptionLabel" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+text = "Esperando la voluntad de los dioses."
+autowrap_mode = 2
+horizontal_alignment = 1
+
+[node name="CloseButton" type="Button" parent="Panel/VBox"]
+layout_mode = 2
+text = "Entendido"

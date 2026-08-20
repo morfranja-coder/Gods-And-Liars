@@ -133,7 +133,10 @@ func _on_lobby_state_changed(state: StringName) -> void:
 		&"in_lobby": status_label.text = "Steam lobby unido. Conectando peer..."
 		&"connected": status_label.text = "Peer conectado. Sincronizando identidad..."
 		&"starting": status_label.text = "Todos listos. El host inició el ritual."
+		&"host_disconnected": status_label.text = "El host abandonó el ritual. Volviste al lobby."
+		&"connection_failed": status_label.text = "No se pudo conectar al ritual. Podés intentar de nuevo."
 		&"steam_ready": status_label.text = "Steam listo."
+		&"offline": status_label.text = "Steam no disponible."
 	_refresh_players()
 	_update_buttons()
 

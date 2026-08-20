@@ -5,6 +5,7 @@ signal remote_talking(peer_id: int)
 
 const VOICE_SAMPLE_RATE := 48000
 const VOICE_RESULT_OK := 0
+const VOICE_ACTION := &"voice_talk"
 
 var is_talking: bool = false
 var _steam: Object = null
@@ -37,7 +38,7 @@ func _process(_delta: float) -> void:
 	if NetworkManager.lobby_id == 0 or multiplayer.multiplayer_peer == null:
 		_set_talking(false)
 		return
-	_set_talking(Input.is_key_pressed(KEY_V))
+	_set_talking(Input.is_action_pressed(VOICE_ACTION))
 	if is_talking:
 		_capture_and_send_voice()
 

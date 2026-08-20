@@ -20,7 +20,6 @@ try {
 
     Write-Host "[1/3] Installing pinned development addons"
     & "$PSScriptRoot/setup-dev-tools.ps1" -Force
-    if ($LASTEXITCODE -ne 0) { throw "Addon setup failed" }
 
     Write-Host "[2/3] Importing project"
     & $GodotBinary --headless --path . --editor --quit

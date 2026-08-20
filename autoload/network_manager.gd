@@ -10,6 +10,7 @@ signal lobby_start_requested
 
 const MAX_PLAYERS: int = 10
 const TECHNICAL_START_MIN_PLAYERS: int = LobbyRules.TECHNICAL_START_MIN_PLAYERS
+const GAMEPLAY_START_MIN_PLAYERS: int = MatchSession.MIN_PLAYERS
 const GAME_TAG_KEY: String = "game"
 const GAME_TAG_VALUE: String = "GodsAndLiarsMVP"
 const LOBBY_NAME_KEY: String = "name"
@@ -140,13 +141,13 @@ func request_local_ready(ready: bool) -> void:
 func can_host_start() -> bool:
 	if lobby_started:
 		return false
-	return LobbyRules.can_start(is_host, multiplayer.is_server(), peers, TECHNICAL_START_MIN_PLAYERS)
+	return LobbyRules.can_start(is_host, multiplayer.is_server(), peers, GAMEPLAY_START_MIN_PLAYERS)
 
 func request_host_start() -> void:
 	if lobby_started:
 		return
 	if not can_host_start():
-		lobby_error.emit("El host solo puede iniciar cuando hay al menos %d jugadores y todos están listos." % TECHNICAL_START_MIN_PLAYERS)
+		lobby_error.emit("El host solo puede iniciar cuando hay al menos %d jugadores y todos están listos." % GAMEPLAY_START_MIN_PLAYERS)
 		return
 	_start_lobby.rpc()
 

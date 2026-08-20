@@ -9,7 +9,7 @@ func _ready() -> void:
 	_build_seat_markers()
 	NetworkManager.peer_joined.connect(_on_roster_changed)
 	NetworkManager.peer_left.connect(_on_roster_changed)
-	NetworkManager.peer_identity_updated.connect(_on_peer_identity_updated)
+	NetworkManager.peer_updated.connect(_on_roster_changed)
 	_refresh_roster()
 
 func _build_placeholder_table() -> void:
@@ -48,18 +48,20 @@ func _build_seat_markers() -> void:
 		seats.add_child(marker)
 
 func get_seat_marker(seat_id: int) -> Marker3D:
-	if seat_id < 0 or seat_id >= TableLayout.SEAT_COUNT:
+	if not SeatAllocator.is_valid_seat(seat_id):
 		return null
 	return get_node_or_null("Seats/Seat_%02d" % (seat_id + 1)) as Marker3D
 
 func _refresh_roster(_unused: int = 0) -> void:
 	var active_ids: Array[int] = []
-	var ordered_ids := NetworkManager.peers.keys()
-	ordered_ids.sort()
-	for index in range(mini(ordered_ids.size(), TableLayout.SEAT_COUNT)):
-		var peer_id := int(ordered_ids[index])
+	for raw_peer_id in NetworkManager.peers.keys():
+		var peer_id := int(raw_peer_id)
+		var peer: Dictionary = NetworkManager.peers[raw_peer_id]
+		var seat_id := int(peer.get("seat_id", -1))
+		if not SeatAllocator.is_valid_seat(seat_id):
+			continue
 		active_ids.append(peer_id)
-		_spawn_or_update_avatar(peer_id, index)
+		_spawn_or_update_avatar(peer_id, seat_id)
 	for raw_id in _avatars.keys():
 		var peer_id := int(raw_id)
 		if peer_id not in active_ids:
@@ -88,6 +90,3 @@ func _spawn_or_update_avatar(peer_id: int, seat_id: int) -> void:
 
 func _on_roster_changed(peer_id: int) -> void:
 	_refresh_roster(peer_id)
-
-func _on_peer_identity_updated(_peer_id: int) -> void:
-	_refresh_roster()

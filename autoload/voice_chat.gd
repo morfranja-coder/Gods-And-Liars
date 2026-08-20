@@ -65,22 +65,33 @@ func _capture_and_send_voice() -> void:
 
 @rpc("any_peer", "call_remote", "unreliable")
 func _receive_voice(compressed: PackedByteArray) -> void:
-	if _steam == null or _playback == null:
-		return
 	var sender_id := multiplayer.get_remote_sender_id()
-	if not VoicePolicy.accepts_sender(sender_id, NetworkManager.peers):
-		return
-	if not VoicePolicy.accepts_compressed_size(compressed.size()):
+	if not _can_receive_voice(sender_id, compressed):
 		return
 	var decompressed: Dictionary = _steam.call("decompressVoice", compressed, VOICE_SAMPLE_RATE)
-	var byte_count := int(decompressed.get("size", 0))
+	if not _valid_decompressed_voice(decompressed):
+		return
+	_push_decompressed_voice(sender_id, decompressed)
+
+func _can_receive_voice(sender_id: int, compressed: PackedByteArray) -> bool:
+	if _steam == null or _playback == null:
+		return false
+	if not VoicePolicy.accepts_sender(sender_id, NetworkManager.peers):
+		return false
+	return VoicePolicy.accepts_compressed_size(compressed.size())
+
+func _valid_decompressed_voice(decompressed: Dictionary) -> bool:
 	if int(decompressed.get("result", -1)) != VOICE_RESULT_OK:
-		return
+		return false
+	var byte_count := int(decompressed.get("size", 0))
 	if not VoicePolicy.accepts_decompressed_size(byte_count):
-		return
+		return false
 	var raw: PackedByteArray = decompressed.get("uncompressed", PackedByteArray())
-	if raw.is_empty():
-		return
+	return not raw.is_empty()
+
+func _push_decompressed_voice(sender_id: int, decompressed: Dictionary) -> void:
+	var byte_count := int(decompressed.get("size", 0))
+	var raw: PackedByteArray = decompressed.get("uncompressed", PackedByteArray())
 	var usable_bytes := mini(byte_count, raw.size())
 	var frame_count := usable_bytes >> 1
 	var frames := PackedVector2Array()
@@ -90,7 +101,6 @@ func _receive_voice(compressed: PackedByteArray) -> void:
 		var amplitude := float(sample) / 32768.0
 		frames[i] = Vector2(amplitude, amplitude)
 	var room := _playback.get_frames_available()
-	if room <= 0:
-		return
-	_playback.push_buffer(frames if room >= frames.size() else frames.slice(0, room))
-	remote_talking.emit(sender_id)
+	if room > 0:
+		_playback.push_buffer(frames if room >= frames.size() else frames.slice(0, room))
+		remote_talking.emit(sender_id)

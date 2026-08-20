@@ -236,7 +236,7 @@ func _request_night_action(target_peer_id: int) -> void:
 func _sync_phase(phase_value: int) -> void:
 	if phase_value < GameManager.MatchPhase.BOOT or phase_value > GameManager.MatchPhase.MATCH_END:
 		return
-	GameManager.set_phase(phase_value as GameManager.MatchPhase)
+	GameManager.set_phase(phase_value)
 	phase_synced.emit(phase_value)
 
 @rpc("authority", "call_local", "reliable")

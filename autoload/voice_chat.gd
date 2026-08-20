@@ -37,7 +37,7 @@ func _process(_delta: float) -> void:
 	if NetworkManager.lobby_id == 0 or multiplayer.multiplayer_peer == null:
 		_set_talking(false)
 		return
-	_set_talking(Input.is_action_pressed("voice_talk"))
+	_set_talking(Input.is_key_pressed(KEY_V))
 	if is_talking:
 		_capture_and_send_voice()
 

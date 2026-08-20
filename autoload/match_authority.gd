@@ -7,6 +7,9 @@ var local_role: PlayerState.Role = PlayerState.Role.UNASSIGNED
 var _session: MatchSession = null
 var _roles_dispatched: bool = false
 
+func _ready() -> void:
+	NetworkManager.lobby_state_changed.connect(_on_lobby_state_changed)
+
 func reset() -> void:
 	local_role = PlayerState.Role.UNASSIGNED
 	_session = null
@@ -85,5 +88,9 @@ func _dispatch_private_roles() -> void:
 func _receive_private_role(role_value: int) -> void:
 	if role_value <= PlayerState.Role.UNASSIGNED or role_value > PlayerState.Role.INQUISITOR:
 		return
-	local_role = role_value as PlayerState.Role
+	local_role = role_value
 	private_role_received.emit(int(local_role))
+
+func _on_lobby_state_changed(state: StringName) -> void:
+	if state in [&"steam_ready", &"offline", &"host_disconnected", &"connection_failed"]:
+		reset()

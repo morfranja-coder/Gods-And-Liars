@@ -60,16 +60,23 @@ func _capture_and_send_voice() -> void:
 	if int(voice.get("result", -1)) != VOICE_RESULT_OK or written <= 0:
 		return
 	var buffer: PackedByteArray = voice.get("buffer", PackedByteArray())
-	if not buffer.is_empty():
+	if VoicePolicy.accepts_compressed_size(buffer.size()):
 		_receive_voice.rpc(buffer)
 
 @rpc("any_peer", "call_remote", "unreliable")
 func _receive_voice(compressed: PackedByteArray) -> void:
 	if _steam == null or _playback == null:
 		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	if not VoicePolicy.accepts_sender(sender_id, NetworkManager.peers):
+		return
+	if not VoicePolicy.accepts_compressed_size(compressed.size()):
+		return
 	var decompressed: Dictionary = _steam.call("decompressVoice", compressed, VOICE_SAMPLE_RATE)
 	var byte_count := int(decompressed.get("size", 0))
-	if int(decompressed.get("result", -1)) != VOICE_RESULT_OK or byte_count <= 0:
+	if int(decompressed.get("result", -1)) != VOICE_RESULT_OK:
+		return
+	if not VoicePolicy.accepts_decompressed_size(byte_count):
 		return
 	var raw: PackedByteArray = decompressed.get("uncompressed", PackedByteArray())
 	if raw.is_empty():
@@ -85,4 +92,4 @@ func _receive_voice(compressed: PackedByteArray) -> void:
 	if room <= 0:
 		return
 	_playback.push_buffer(frames if room >= frames.size() else frames.slice(0, room))
-	remote_talking.emit(multiplayer.get_remote_sender_id())
+	remote_talking.emit(sender_id)

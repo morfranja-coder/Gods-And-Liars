@@ -6,6 +6,8 @@ signal phase_synced(phase: int)
 signal night_action_accepted(actor_peer_id: int, target_peer_id: int)
 signal night_resolution_received(killed_peer_ids: Array[int])
 signal private_investigation_received(target_peer_id: int, is_heretic: bool)
+signal vote_accepted(voter_peer_id: int, target_peer_id: int)
+signal vote_resolution_received(sacrificed_peer_id: int, tied: bool)
 
 var local_role: PlayerState.Role = PlayerState.Role.UNASSIGNED
 var public_alive_by_peer: Dictionary = {}
@@ -15,6 +17,7 @@ var _role_acknowledged: Dictionary = {}
 var _heretic_targets: Dictionary = {}
 var _healer_target_peer_id: int = 0
 var _inquisitor_target_peer_id: int = 0
+var _votes: Dictionary = {}
 
 func _ready() -> void:
 	NetworkManager.lobby_state_changed.connect(_on_lobby_state_changed)
@@ -25,6 +28,7 @@ func reset() -> void:
 	_session = null
 	_roles_dispatched = false
 	_role_acknowledged.clear()
+	_votes.clear()
 	_reset_night_actions()
 
 func begin_role_reveal() -> bool:
@@ -58,6 +62,27 @@ func submit_local_night_target(target_peer_id: int) -> void:
 		_server_submit_night_action(multiplayer.get_unique_id(), target_peer_id)
 	else:
 		_request_night_action.rpc_id(1, target_peer_id)
+
+func request_begin_voting() -> void:
+	if not multiplayer.is_server() or not NetworkManager.is_host:
+		return
+	if GameManager.phase != GameManager.MatchPhase.DAY_DISCUSSION or _session == null:
+		return
+	_votes.clear()
+	_sync_phase.rpc(int(GameManager.MatchPhase.VOTING))
+
+func submit_local_vote(target_peer_id: int) -> void:
+	if GameManager.phase != GameManager.MatchPhase.VOTING:
+		return
+	if multiplayer.multiplayer_peer == null:
+		return
+	var local_peer_id := multiplayer.get_unique_id()
+	if not is_peer_publicly_alive(local_peer_id):
+		return
+	if multiplayer.is_server():
+		_server_submit_vote(local_peer_id, target_peer_id)
+	else:
+		_request_vote.rpc_id(1, target_peer_id)
 
 func server_role_for_peer(peer_id: int) -> PlayerState.Role:
 	if not multiplayer.is_server() or _session == null:
@@ -206,6 +231,27 @@ func _dispatch_investigation_result(result: NightResolver.NightResult) -> void:
 				)
 			return
 
+func _server_submit_vote(voter_peer_id: int, target_peer_id: int) -> void:
+	if not multiplayer.is_server() or _session == null or GameManager.phase != GameManager.MatchPhase.VOTING:
+		return
+	if not VoteRules.can_vote(_session.players, voter_peer_id, target_peer_id):
+		return
+	_votes[voter_peer_id] = target_peer_id
+	vote_accepted.emit(voter_peer_id, target_peer_id)
+	if _votes.size() >= VoteRules.living_count(_session.players):
+		_resolve_vote()
+
+func _resolve_vote() -> void:
+	var sacrificed_peer_id := VoteRules.resolve(_session.players, _votes)
+	var tied := sacrificed_peer_id == 0
+	_sync_phase.rpc(int(GameManager.MatchPhase.SACRIFICE))
+	if sacrificed_peer_id > 0:
+		_session.sacrifice(sacrificed_peer_id)
+		_sync_sacrifice.rpc(sacrificed_peer_id, false)
+	else:
+		_sync_sacrifice.rpc(0, true)
+	_sync_phase.rpc(int(GameManager.MatchPhase.WIN_CHECK))
+
 func _reset_night_actions() -> void:
 	_heretic_targets.clear()
 	_healer_target_peer_id = 0
@@ -232,6 +278,12 @@ func _request_night_action(target_peer_id: int) -> void:
 		return
 	_server_submit_night_action(multiplayer.get_remote_sender_id(), target_peer_id)
 
+@rpc("any_peer", "reliable")
+func _request_vote(target_peer_id: int) -> void:
+	if not multiplayer.is_server():
+		return
+	_server_submit_vote(multiplayer.get_remote_sender_id(), target_peer_id)
+
 @rpc("authority", "call_local", "reliable")
 func _sync_phase(phase_value: int) -> void:
 	if phase_value < GameManager.MatchPhase.BOOT or phase_value > GameManager.MatchPhase.MATCH_END:
@@ -244,6 +296,12 @@ func _sync_night_resolution(killed_peer_ids: Array[int]) -> void:
 	for peer_id in killed_peer_ids:
 		public_alive_by_peer[int(peer_id)] = false
 	night_resolution_received.emit(killed_peer_ids)
+
+@rpc("authority", "call_local", "reliable")
+func _sync_sacrifice(sacrificed_peer_id: int, tied: bool) -> void:
+	if sacrificed_peer_id > 0:
+		public_alive_by_peer[sacrificed_peer_id] = false
+	vote_resolution_received.emit(sacrificed_peer_id, tied)
 
 @rpc("authority", "call_remote", "reliable")
 func _receive_private_investigation(target_peer_id: int, is_heretic: bool) -> void:

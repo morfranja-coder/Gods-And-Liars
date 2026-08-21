@@ -9,6 +9,7 @@ config/features=PackedStringArray("4.7", "GL Compatibility")
 
 [autoload]
 Steamworks="*res://autoload/steamworks.gd"
+PartyManager="*res://autoload/party_manager.gd"
 NetworkManager="*res://autoload/network_manager.gd"
 MatchmakingManager="*res://autoload/matchmaking_manager.gd"
 VoiceChat="*res://autoload/voice_chat.gd"

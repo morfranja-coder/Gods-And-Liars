@@ -294,6 +294,8 @@ func _on_party_reservation_result(accepted: bool) -> void:
 	if state != STATE_RESERVING:
 		return
 	if not accepted:
+		if PartyManager.is_local_leader():
+			PartyManager.clear_match_target()
 		if NetworkManager.lobby_id != 0:
 			NetworkManager.leave_lobby()
 		_candidate_lobby_id = 0
@@ -314,9 +316,12 @@ func _on_network_lobby_state_changed(network_state: StringName) -> void:
 			PartyManager.set_match_target(NetworkManager.lobby_id)
 		_request_match_lobbies(true)
 	elif state == STATE_RESERVING and network_state in [&"connection_failed", &"host_disconnected"]:
+		if PartyManager.is_local_leader():
+			PartyManager.clear_match_target()
 		_candidate_lobby_id = 0
 		state = STATE_SEARCHING
 		queue_state_changed.emit(state)
+		_request_match_lobbies(true)
 
 func _on_party_match_target_changed(target_lobby_id: int) -> void:
 	if target_lobby_id <= 0:

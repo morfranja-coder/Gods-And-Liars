@@ -12,141 +12,111 @@ GitHub Actions must keep these jobs green:
 - Smoke tests.
 - GdUnit4 unit/scene tests.
 - Windows release export.
+- Steam multiplayer runtime export.
 
-The Windows export job uploads `GodsAndLiars-Windows` as an internal GitHub Actions artifact.
-
-Important: this CI job uses official Godot and proves that the project can parse, test, and export a valid Windows PE executable. It does not by itself prove that Steam networking is available in that executable.
+The Windows export job proves that the project parses, tests and exports. The Steam runtime job separately proves that the selected runtime exposes both `Steam` and `SteamMultiplayerPeer` and assembles the Steam-capable Windows artifact.
 
 ## 2. Local quality gate
 
 From PowerShell:
 
 ```powershell
-.\tools\verify-local.ps1
+.\tools\check-local-qa-prereqs.ps1
 ```
 
 Expected final line:
 
 ```text
-GREEN: local quality gate passed.
+GREEN: local QA workstation prerequisites are ready.
 ```
 
 ## 3. Steam runtime dependency gate
 
-Gods & Liars currently uses two runtime capabilities:
-
-- the `Steam` singleton for lobbies, identity, callbacks, and voice;
-- `SteamMultiplayerPeer` for Godot high-level multiplayer over Steam.
-
-The normal GodotSteam GDExtension exposes the Steam API but does not provide the GodotSteam `SteamMultiplayerPeer` implementation used by this project. Installing only `addons/godotsteam/godotsteam.gdextension` is therefore not sufficient for the current networking stack.
-
-The pinned MVP target is:
+Pinned MVP target:
 
 - Godot 4.7.x;
 - Steamworks SDK 1.64;
-- GodotSteam 4.20 / 4.20.1 compatible runtime;
-- a GodotSteam MultiplayerPeer/module build that exposes both `Steam` and `SteamMultiplayerPeer`;
+- GodotSteam 4.20 / compatible MultiplayerPeer runtime;
 - development App ID 480 until a real Steam App ID is assigned.
 
-Reference naming used by the GodotSteam 4.7 builds:
+The intended runtime must expose both:
 
-```text
-g47   = Godot 4.7
-s164  = Steamworks SDK 1.64
-gs420 = GodotSteam 4.20
-```
+- `Steam` for identity, lobbies, callbacks and voice;
+- `SteamMultiplayerPeer` for Godot high-level multiplayer over Steam.
 
-Do not combine a GodotSteam module/MultiplayerPeer build with the normal GodotSteam API GDExtension. They implement overlapping Steam bindings.
+Do not combine overlapping GodotSteam module and normal API GDExtension bindings.
 
-The legacy helper `tools/install-godotsteam.ps1` installs only the API GDExtension and now prints an explicit warning. It is not the release path for the current MVP architecture.
+## 4. Party + Quick Match gate
 
-## 4. Verify Steam runtime
+The commercial entry flow is:
 
-With the intended GodotSteam editor/runtime binary:
+`Party -> Quick Match -> Match Found -> Match Lobby -> Role Reveal -> Match`
 
-```powershell
-& "C:\path\to\godotsteam.exe" --headless --path . --script res://tools/verify-steam-runtime.gd
-```
+Current Mafia target is exactly 8 players.
 
-Expected output:
+Required behavior:
 
-```text
-GREEN: Steam runtime exposes Steam + SteamMultiplayerPeer
-```
+1. Party size may be 1–8.
+2. A Party is never split.
+3. Match composition must total exactly 8.
+4. Search expands CLOSE -> DEFAULT -> FAR -> WORLDWIDE over time.
+5. Existing compatible forming Match Lobbies should be preferred before creating another one.
+6. Multi-player Parties require a reservation step before moving members to avoid overfill races.
+7. A Match Lobby must reject a ninth player.
 
-If either capability is absent, release validation must stop.
+See `docs/MATCHMAKING_ARCHITECTURE.md`.
 
 ## 5. Windows build
 
-After the matching export templates for the selected GodotSteam runtime are installed:
-
-```powershell
-.\tools\build-windows.ps1 -GodotBinary "C:\path\to\godotsteam.exe"
-```
-
-Expected output:
+After the matching GodotSteam runtime/templates are available, the Steam CI path produces:
 
 ```text
-build/windows/GodsAndLiars.exe
+GodsAndLiars.exe
+steam_api64.dll
+steam_appid.txt
 ```
 
-The build script validates that the result exists, is non-trivial in size, and has a Windows PE `MZ` header.
-
-## 6. Final release-readiness gate
-
-Run the gate with the intended GodotSteam runtime binary:
-
-```powershell
-.\tools\release-check.ps1 -GodotBinary "C:\path\to\godotsteam.exe"
-```
-
-It checks:
-
-1. the local automated quality gate;
-2. the Windows export preset;
-3. development App ID 480;
-4. `Steam` is present;
-5. `SteamMultiplayerPeer` is present;
-6. a Windows release export is produced and retained.
-
-Expected final line:
+The artifact is published internally as:
 
 ```text
-GREEN: release readiness gate passed.
+GodsAndLiars-Steam-Windows
 ```
 
-## 7. Human multiplayer acceptance gate
+`steam_appid.txt` must contain `480` during development.
 
-Use real Steam clients. Four players are the minimum for the complete Mafia loop.
+## 6. Human multiplayer acceptance gate
 
-1. Host creates lobby.
-2. Three clients join.
-3. All four identities and seats match on every client.
-4. All players READY.
-5. Host starts.
-6. All clients enter the ritual table.
-7. Every client receives exactly one private role.
-8. Every client confirms role reveal.
-9. Night phases advance in order.
-10. Only the active role can submit its action.
-11. Night deaths synchronize on every client.
-12. Inquisitor result is visible only to the Inquisitor.
-13. Day voice routing follows living/dead rules.
-14. Host opens voting.
-15. Every living player votes; invalid/dead votes are rejected.
-16. Sacrifice or tie synchronizes correctly.
-17. Win condition resolves identically on every client.
-18. Dead players remain ghosts/spectators.
-19. Host starts rematch.
-20. Same lobby/peers/seats are retained, everyone is alive again, and new roles are dealt.
-21. Host disconnect ends the session cleanly for clients.
+Testing layers are intentionally different:
+
+- 1 real Steam client: local launch / Steam smoke.
+- 2 real Steam clients: transport, roster, seat and voice gate.
+- 4 clients or synthetic peers: isolated rule and disconnect QA only.
+- 8 real Steam clients: full Mafia acceptance gate.
+
+The full gate is `docs/PHASE_8_STEAM_8CLIENT_CHECKLIST.md`.
+
+At 8/8 validate:
+
+1. Party / Quick Match delivers all eight users into the same Match Lobby.
+2. All identities and seats match on every client.
+3. START stays blocked at 7/8 and is available only at 8/8 with all required readiness satisfied.
+4. Every client receives exactly one private role.
+5. Distribution is 2 Herejes, 1 Sanador, 1 Inquisidor, 4 Fieles.
+6. Night phases and private investigation behave correctly.
+7. Day voice routing follows living/dead rules.
+8. Voting and sacrifice synchronize.
+9. Win condition resolves identically on every client.
+10. Rematch retains the Match Lobby and resets the match state.
+11. Disconnects do not freeze ACK/action/vote quorum.
+12. Host disconnect terminates the current match cleanly; host migration remains out of MVP.
 
 ## Exit gate
 
 FASE 8 is CLOSED only when:
 
-- CI is green including the Windows export job;
-- `release-check.ps1` is green using a runtime that exposes both Steam capabilities;
-- the real four-client Steam acceptance loop passes.
+- CI is green including Windows and Steam runtime export jobs;
+- local QA prerequisites are green;
+- the real 8-client Steam acceptance loop passes;
+- Party + Quick Match no longer relies on the public server-browser UI for the commercial path.
 
-Until those three gates pass, the repository is code-complete for the MVP loop but not yet declared release-ready.
+Until those gates pass, the repository is implementation-in-progress and must not be called release-ready.

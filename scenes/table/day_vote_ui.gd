@@ -32,11 +32,14 @@ func _on_begin_voting_pressed() -> void:
 	MatchAuthority.request_begin_voting()
 
 func _on_vote_pressed() -> void:
-	if selected_peer_id <= 0:
+	var local_peer_id := multiplayer.get_unique_id() if multiplayer.multiplayer_peer != null else 0
+	if not _valid_selected_target(local_peer_id):
+		result_label.text = "Voto inválido. Elegí a otro jugador vivo."
+		_refresh()
 		return
 	MatchAuthority.submit_local_vote(selected_peer_id)
-	vote_button.disabled = true
-	result_label.text = "Voto enviado al host."
+	result_label.text = "Voto enviado. Podés cambiarlo hasta que cierre la votación."
+	_refresh()
 
 func _on_vote_resolution_received(sacrificed_peer_id: int, tied: bool) -> void:
 	if tied:
@@ -48,7 +51,10 @@ func _on_vote_resolution_received(sacrificed_peer_id: int, tied: bool) -> void:
 func _refresh() -> void:
 	var is_discussion := GameManager.phase == GameManager.MatchPhase.DAY_DISCUSSION
 	var is_voting := GameManager.phase == GameManager.MatchPhase.VOTING
-	var is_sacrifice := GameManager.phase in [GameManager.MatchPhase.SACRIFICE, GameManager.MatchPhase.WIN_CHECK]
+	var is_sacrifice := GameManager.phase in [
+		GameManager.MatchPhase.SACRIFICE,
+		GameManager.MatchPhase.WIN_CHECK,
+	]
 	panel.visible = is_discussion or is_voting or is_sacrifice
 	phase_label.text = "Día — Discusión" if is_discussion else "Día — Votación"
 	begin_button.visible = is_discussion and multiplayer.is_server() and NetworkManager.is_host
@@ -57,10 +63,16 @@ func _refresh() -> void:
 	vote_button.visible = is_voting and local_alive
 	vote_button.disabled = not is_voting or not local_alive or not _valid_selected_target(local_peer_id)
 	target_label.visible = is_voting
-	target_label.text = "Acusado: %s" % _peer_name(selected_peer_id) if selected_peer_id > 0 else "Acusado: ninguno"
+	target_label.text = (
+		"Acusado: %s" % _peer_name(selected_peer_id)
+		if selected_peer_id > 0
+		else "Acusado: ninguno"
+	)
 
 func _valid_selected_target(local_peer_id: int) -> bool:
 	if selected_peer_id <= 0 or selected_peer_id == local_peer_id:
+		return false
+	if not NetworkManager.peers.has(selected_peer_id):
 		return false
 	return MatchAuthority.is_peer_publicly_alive(selected_peer_id)
 

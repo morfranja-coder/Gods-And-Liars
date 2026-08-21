@@ -1,22 +1,28 @@
 extends Node
 
 const ENV_QA_LOG := "GODS_LIARS_QA_LOG"
-const LOG_PATH := "user://qa-session.log"
+const ENV_QA_CLIENT := "GODS_LIARS_QA_CLIENT"
+const DEFAULT_LOG_PATH := "user://qa-session.log"
 
 var enabled: bool = false
+var client_label: String = ""
 var _file: FileAccess = null
 
 func _ready() -> void:
 	enabled = OS.get_environment(ENV_QA_LOG) == "1"
 	if not enabled:
 		return
-	_file = FileAccess.open(LOG_PATH, FileAccess.WRITE)
+	client_label = _sanitize_label(OS.get_environment(ENV_QA_CLIENT))
+	var log_path := DEFAULT_LOG_PATH
+	if not client_label.is_empty():
+		log_path = "user://qa-session-%s.log" % client_label
+	_file = FileAccess.open(log_path, FileAccess.WRITE)
 	if _file == null:
-		push_warning("QAEventLog could not open %s" % LOG_PATH)
+		push_warning("QAEventLog could not open %s" % log_path)
 		enabled = false
 		return
 	_connect_signals()
-	_write_event("qa_log_started")
+	_write_event("qa_log_started", {"client": client_label, "log_path": log_path})
 
 func _exit_tree() -> void:
 	if _file != null:
@@ -97,11 +103,21 @@ func _on_match_end_received(winner: StringName) -> void:
 func _on_rematch_received() -> void:
 	_write_event("rematch")
 
+func _sanitize_label(raw_label: String) -> String:
+	var result := ""
+	for character in raw_label.strip_edges().to_lower():
+		if character.is_valid_identifier() or character.is_valid_int():
+			result += character
+		elif character in ["-", "_"]:
+			result += character
+	return result.left(32)
+
 func _write_event(event_name: String, payload: Dictionary = {}) -> void:
 	if not enabled or _file == null:
 		return
 	var record := {
 		"unix_time": Time.get_unix_time_from_system(),
+		"client": client_label,
 		"event": event_name,
 		"payload": payload,
 	}

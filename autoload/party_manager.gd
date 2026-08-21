@@ -11,7 +11,7 @@ const LOBBY_KIND_KEY := "kind"
 const LOBBY_KIND_PARTY := "party"
 const MEMBER_NAME_KEY := "display_name"
 const MATCH_TARGET_KEY := "target_match_id"
-const STEAM_LOBBY_TYPE_FRIENDS_ONLY := 1
+const STEAM_LOBBY_TYPE_PRIVATE := 0
 const STEAM_RESULT_OK := 1
 const STEAM_CHAT_ENTER_SUCCESS := 1
 const TARGET_POLL_INTERVAL_MS := 500
@@ -23,6 +23,7 @@ var _steam: Object = null
 var _pending_create: bool = false
 var _pending_join_id: int = 0
 var _last_target_poll_ms: int = 0
+var _pending_invite_steam_ids: Array[int] = []
 
 func _ready() -> void:
 	Steamworks.steam_ready.connect(_bind_steam_callbacks)
@@ -59,6 +60,7 @@ func reset_to_solo() -> void:
 	_pending_create = false
 	_pending_join_id = 0
 	_last_target_poll_ms = 0
+	_pending_invite_steam_ids.clear()
 	if not Steamworks.initialized or Steamworks.steam_id <= 0:
 		state = PartyState.new()
 		party_changed.emit()
@@ -77,7 +79,7 @@ func ensure_party_lobby() -> bool:
 	party_lobby_state_changed.emit(&"creating")
 	_steam.call(
 		"createLobby",
-		STEAM_LOBBY_TYPE_FRIENDS_ONLY,
+		STEAM_LOBBY_TYPE_PRIVATE,
 		QuickMatchRules.MAX_PARTY_SIZE,
 	)
 	return false
@@ -110,6 +112,22 @@ func open_invite_overlay() -> bool:
 		party_error.emit("La interfaz de invitación de Steam no está disponible.")
 		return false
 	_steam.call("activateGameOverlayInviteDialog", party_lobby_id)
+	return true
+
+func invite_steam_users(steam_ids: Array[int]) -> bool:
+	if not _require_steam():
+		return false
+	for steam_id in steam_ids:
+		if steam_id <= 0 or steam_id == Steamworks.steam_id:
+			continue
+		if not _pending_invite_steam_ids.has(steam_id):
+			_pending_invite_steam_ids.append(steam_id)
+	if _pending_invite_steam_ids.is_empty():
+		return false
+	if party_lobby_id == 0:
+		ensure_party_lobby()
+		return true
+	_send_pending_invites()
 	return true
 
 func set_match_target(target_lobby_id: int) -> bool:
@@ -190,6 +208,18 @@ func _publish_local_member_data() -> void:
 		return
 	_steam.call("setLobbyMemberData", party_lobby_id, MEMBER_NAME_KEY, Steamworks.persona_name)
 
+func _send_pending_invites() -> void:
+	if _steam == null or party_lobby_id == 0:
+		return
+	var remaining: Array[int] = []
+	for steam_id in _pending_invite_steam_ids:
+		var accepted := bool(_steam.call("inviteUserToLobby", party_lobby_id, steam_id))
+		if not accepted:
+			remaining.append(steam_id)
+	_pending_invite_steam_ids = remaining
+	if not remaining.is_empty():
+		party_error.emit("Steam no pudo enviar una o más invitaciones al grupo.")
+
 func _sync_match_target_from_lobby() -> void:
 	if _steam == null or party_lobby_id == 0:
 		return
@@ -214,6 +244,7 @@ func _on_lobby_created(result: int, new_lobby_id: int) -> void:
 	_steam.call("setLobbyData", new_lobby_id, MATCH_TARGET_KEY, "0")
 	_publish_local_member_data()
 	_refresh_from_steam_lobby()
+	_send_pending_invites()
 	party_lobby_state_changed.emit(&"ready")
 
 func _on_lobby_joined(joined_lobby_id: int, _permissions: int, _locked, response: int) -> void:
@@ -263,5 +294,6 @@ func _on_steam_unavailable(_reason: String) -> void:
 	_pending_create = false
 	_pending_join_id = 0
 	_last_target_poll_ms = 0
+	_pending_invite_steam_ids.clear()
 	party_changed.emit()
 	party_lobby_state_changed.emit(&"offline")

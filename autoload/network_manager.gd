@@ -16,7 +16,8 @@ const GAME_TAG_VALUE: String = "GodsAndLiarsMVP"
 const LOBBY_NAME_KEY: String = "name"
 
 const STEAM_LOBBY_TYPE_PUBLIC := 2
-const STEAM_LOBBY_COMPARISON_EQUAL := 3
+const STEAM_LOBBY_COMPARISON_EQUAL := 0
+const STEAM_LOBBY_DISTANCE_WORLDWIDE := 3
 const STEAM_RESULT_OK := 1
 const STEAM_CHAT_ENTER_SUCCESS := 1
 
@@ -67,6 +68,7 @@ func refresh_lobbies() -> void:
 	if not _require_steam():
 		return
 	_steam.call("addRequestLobbyListStringFilter", GAME_TAG_KEY, GAME_TAG_VALUE, STEAM_LOBBY_COMPARISON_EQUAL)
+	_steam.call("addRequestLobbyListDistanceFilter", STEAM_LOBBY_DISTANCE_WORLDWIDE)
 	_steam.call("addRequestLobbyListResultCountFilter", 50)
 	_steam.call("requestLobbyList")
 	lobby_state_changed.emit(&"searching")
@@ -147,7 +149,10 @@ func request_host_start() -> void:
 	if lobby_started:
 		return
 	if not can_host_start():
-		lobby_error.emit("El host solo puede iniciar cuando hay al menos %d jugadores y todos están listos." % GAMEPLAY_START_MIN_PLAYERS)
+		lobby_error.emit(
+			"El host solo puede iniciar cuando hay al menos %d jugadores y todos están listos."
+			% GAMEPLAY_START_MIN_PLAYERS
+		)
 		return
 	_start_lobby.rpc()
 
@@ -185,10 +190,14 @@ func _create_steam_peer(host_steam_id: int = 0):
 	if peer == null:
 		lobby_error.emit("Could not instantiate SteamMultiplayerPeer.")
 		return null
+	var create_result
 	if host_steam_id == 0:
-		peer.call("create_host", 0)
+		create_result = peer.call("create_host", 0)
 	else:
-		peer.call("create_client", host_steam_id, 0)
+		create_result = peer.call("create_client", host_steam_id, 0)
+	if create_result != null and int(create_result) != OK:
+		lobby_error.emit("Steam multiplayer peer creation failed (error %s)." % create_result)
+		return null
 	peer.set("server_relay", true)
 	return peer
 
@@ -205,6 +214,7 @@ func _on_lobby_created(result: int, new_lobby_id: int) -> void:
 	_steam.call("setLobbyData", new_lobby_id, GAME_TAG_KEY, GAME_TAG_VALUE)
 	var peer = _create_steam_peer()
 	if peer == null:
+		_teardown_lobby(&"steam_ready")
 		return
 	multiplayer.multiplayer_peer = peer
 	register_peer(1, Steamworks.steam_id, Steamworks.persona_name)
@@ -223,6 +233,7 @@ func _on_lobby_joined(joined_lobby_id: int, _permissions: int, _locked, response
 	if not is_host:
 		var peer = _create_steam_peer(host_steam_id)
 		if peer == null:
+			_teardown_lobby(&"steam_ready")
 			return
 		multiplayer.multiplayer_peer = peer
 	lobby_state_changed.emit(&"in_lobby")
@@ -280,7 +291,13 @@ func _announce_identity(client_steam_id: int, display_name: String) -> void:
 	_sync_peer.rpc(sender_id, client_steam_id, clean_name, false, assigned_seat)
 
 @rpc("authority", "call_local", "reliable")
-func _sync_peer(peer_id: int, client_steam_id: int, display_name: String, ready: bool = false, seat_id: int = -1) -> void:
+func _sync_peer(
+	peer_id: int,
+	client_steam_id: int,
+	display_name: String,
+	ready: bool = false,
+	seat_id: int = -1,
+) -> void:
 	register_peer(peer_id, client_steam_id, display_name, seat_id)
 	set_peer_ready(peer_id, ready)
 

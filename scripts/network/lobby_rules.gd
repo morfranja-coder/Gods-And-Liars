@@ -29,7 +29,8 @@ static func can_register_peer(peers: Dictionary, peer_id: int, max_players: int)
 		return false
 	if peers.has(peer_id):
 		return true
-	return peers.size() < max_players
+	var effective_max := mini(max_players, MatchSession.MAX_PLAYERS)
+	return peers.size() < effective_max
 
 static func make_peer(
 	steam_id: int,

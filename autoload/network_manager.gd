@@ -14,6 +14,8 @@ const GAMEPLAY_START_PLAYERS: int = QuickMatchRules.TARGET_PLAYERS
 const GAME_TAG_KEY: String = "game"
 const GAME_TAG_VALUE: String = "GodsAndLiarsMVP"
 const LOBBY_NAME_KEY: String = "name"
+const LOBBY_KIND_KEY: String = "kind"
+const LOBBY_KIND_MATCH: String = "match"
 
 const STEAM_LOBBY_TYPE_PUBLIC := 2
 const STEAM_LOBBY_COMPARISON_EQUAL := 0
@@ -27,6 +29,9 @@ var lobby_started: bool = false
 var peers: Dictionary = {}
 var _steam: Object = null
 var _last_ready_request_ms: Dictionary = {}
+var _pending_create_match: bool = false
+var _pending_join_match_id: int = 0
+var _pending_match_search: bool = false
 
 func _ready() -> void:
 	Steamworks.steam_ready.connect(_bind_steam_callbacks)
@@ -53,24 +58,33 @@ func _connect_steam_signal(signal_name: StringName, method: Callable) -> void:
 		_steam.connect(signal_name, method)
 
 func host_lobby() -> void:
-	if not _require_steam():
+	if not _require_steam() or _pending_create_match:
 		return
+	_pending_create_match = true
 	lobby_state_changed.emit(&"creating")
 	_steam.call("createLobby", STEAM_LOBBY_TYPE_PUBLIC, MAX_PLAYERS)
 
 func join_lobby(target_lobby_id: int) -> void:
 	if not _require_steam() or target_lobby_id <= 0:
 		return
+	_pending_join_match_id = target_lobby_id
 	lobby_state_changed.emit(&"joining")
 	_steam.call("joinLobby", target_lobby_id)
 
 func refresh_lobbies() -> void:
-	if not _require_steam():
+	if not _require_steam() or _pending_match_search:
 		return
+	_pending_match_search = true
 	_steam.call(
 		"addRequestLobbyListStringFilter",
 		GAME_TAG_KEY,
 		GAME_TAG_VALUE,
+		STEAM_LOBBY_COMPARISON_EQUAL,
+	)
+	_steam.call(
+		"addRequestLobbyListStringFilter",
+		LOBBY_KIND_KEY,
+		LOBBY_KIND_MATCH,
 		STEAM_LOBBY_COMPARISON_EQUAL,
 	)
 	_steam.call("addRequestLobbyListDistanceFilter", STEAM_LOBBY_DISTANCE_WORLDWIDE)
@@ -169,12 +183,18 @@ func request_host_start() -> void:
 func all_peers_ready() -> bool:
 	return LobbyRules.all_ready(peers, TECHNICAL_START_MIN_PLAYERS)
 
+func _clear_pending_operations() -> void:
+	_pending_create_match = false
+	_pending_join_match_id = 0
+	_pending_match_search = false
+
 func _clear_session_state() -> void:
 	is_host = false
 	lobby_id = 0
 	lobby_started = false
 	peers.clear()
 	_last_ready_request_ms.clear()
+	_clear_pending_operations()
 
 func _teardown_lobby(final_state: StringName) -> void:
 	if multiplayer.multiplayer_peer != null:
@@ -214,6 +234,9 @@ func _create_steam_peer(host_steam_id: int = 0):
 	return peer
 
 func _on_lobby_created(result: int, new_lobby_id: int) -> void:
+	if not _pending_create_match:
+		return
+	_pending_create_match = false
 	if result != STEAM_RESULT_OK:
 		lobby_error.emit("Steam could not create lobby (result %s)." % result)
 		lobby_state_changed.emit(&"steam_ready")
@@ -229,6 +252,7 @@ func _on_lobby_created(result: int, new_lobby_id: int) -> void:
 		"%s's Ritual" % Steamworks.persona_name,
 	)
 	_steam.call("setLobbyData", new_lobby_id, GAME_TAG_KEY, GAME_TAG_VALUE)
+	_steam.call("setLobbyData", new_lobby_id, LOBBY_KIND_KEY, LOBBY_KIND_MATCH)
 	var peer = _create_steam_peer()
 	if peer == null:
 		_teardown_lobby(&"steam_ready")
@@ -238,6 +262,9 @@ func _on_lobby_created(result: int, new_lobby_id: int) -> void:
 	lobby_state_changed.emit(&"hosting")
 
 func _on_lobby_joined(joined_lobby_id: int, _permissions: int, _locked, response: int) -> void:
+	if joined_lobby_id != _pending_join_match_id:
+		return
+	_pending_join_match_id = 0
 	if response != STEAM_CHAT_ENTER_SUCCESS:
 		lobby_error.emit(
 			"Steam could not join lobby %s (response %s)." % [joined_lobby_id, response]
@@ -258,6 +285,9 @@ func _on_lobby_joined(joined_lobby_id: int, _permissions: int, _locked, response
 	lobby_state_changed.emit(&"in_lobby")
 
 func _on_lobby_match_list(lobbies: Array) -> void:
+	if not _pending_match_search:
+		return
+	_pending_match_search = false
 	lobby_list_updated.emit(lobbies)
 	lobby_state_changed.emit(&"steam_ready")
 
@@ -357,5 +387,6 @@ func _remove_peer(peer_id: int) -> void:
 	unregister_peer(peer_id)
 
 func _on_steam_unavailable(reason: String) -> void:
+	_clear_pending_operations()
 	lobby_error.emit(reason)
 	lobby_state_changed.emit(&"offline")

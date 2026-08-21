@@ -47,7 +47,13 @@ Report-Check "Node.js 18+" $nodeOk $nodeDetail
 $npx = Get-Command npx.cmd -ErrorAction SilentlyContinue
 Report-Check "npx" ($null -ne $npx) $(if ($npx) { $npx.Source } else { "npx.cmd not found" })
 
-$codex = Get-Command codex -ErrorAction SilentlyContinue
+$codex = Get-Command codex.cmd -ErrorAction SilentlyContinue
+if ($null -eq $codex) {
+    $codex = Get-Command codex.exe -ErrorAction SilentlyContinue
+}
+if ($null -eq $codex) {
+    $codex = Get-Command codex -ErrorAction SilentlyContinue
+}
 Report-Check "Codex CLI" ($null -ne $codex) $(if ($codex) { $codex.Source } else { "codex not found in PATH" })
 
 $godot47 = Get-ChildItem `
@@ -68,8 +74,12 @@ Report-Check "Godot 4.7" $godot47Ok $godot47Detail
 $mcpOk = $false
 $mcpDetail = "not configured"
 if ($codex) {
+    $previousErrorPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
     $mcpOutput = & $codex.Source mcp get $McpName --json 2>$null | Out-String
-    if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($mcpOutput)) {
+    $mcpExitCode = $LASTEXITCODE
+    $ErrorActionPreference = $previousErrorPreference
+    if ($mcpExitCode -eq 0 -and -not [string]::IsNullOrWhiteSpace($mcpOutput)) {
         $mcpOk = $true
         $mcpDetail = "registered as '$McpName'"
     }

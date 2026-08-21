@@ -23,6 +23,32 @@ func test_private_role_labels_are_local_only() -> void:
 	assert_str(MatchAuthority.role_title()).is_equal("Sanador")
 	assert_bool(MatchAuthority.role_description().contains("Protegé")).is_true()
 
+func test_heretic_receives_only_private_teammate_identity() -> void:
+	MatchAuthority._receive_private_role(int(PlayerState.Role.HERETIC))
+	MatchAuthority._receive_private_heretic_teammate(2, "P2")
+	assert_int(MatchAuthority.local_heretic_teammate_peer_id).is_equal(2)
+	assert_str(MatchAuthority.local_heretic_teammate_name).is_equal("P2")
+	assert_bool(MatchAuthority.role_description().contains("P2")).is_true()
+	assert_bool(MatchAuthority.get("_session") == null).is_true()
+
+func test_non_heretic_ignores_private_teammate_identity() -> void:
+	MatchAuthority._receive_private_role(int(PlayerState.Role.HEALER))
+	MatchAuthority._receive_private_heretic_teammate(2, "P2")
+	assert_int(MatchAuthority.local_heretic_teammate_peer_id).is_equal(0)
+	assert_str(MatchAuthority.local_heretic_teammate_name).is_empty()
+
+func test_host_resolves_only_the_other_heretic_as_teammate() -> void:
+	var session: MatchSession = MatchAuthority.call("_build_session", _eight_player_roster())
+	assert_bool(session != null).is_true()
+	session.get_player(1).role = PlayerState.Role.HERETIC
+	session.get_player(2).role = PlayerState.Role.HERETIC
+	session.get_player(3).role = PlayerState.Role.HEALER
+	MatchAuthority.set("_session", session)
+	var teammate: PlayerState = MatchAuthority.call("_heretic_teammate_for", 1)
+	assert_bool(teammate != null).is_true()
+	assert_int(teammate.peer_id).is_equal(2)
+	assert_bool(MatchAuthority.call("_heretic_teammate_for", 3) == null).is_true()
+
 func test_build_session_preserves_authoritative_seats() -> void:
 	var roster := _eight_player_roster()
 	var session: MatchSession = MatchAuthority.call("_build_session", roster)

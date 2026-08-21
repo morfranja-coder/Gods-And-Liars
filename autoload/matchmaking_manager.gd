@@ -33,6 +33,7 @@ var _search_pending: bool = false
 var _last_search_ms: int = 0
 var _anchor_after_ms: int = ANCHOR_BASE_DELAY_MS
 var _candidate_lobby_id: int = 0
+var _steam_search_enabled: bool = false
 
 func _ready() -> void:
 	Steamworks.steam_ready.connect(_bind_steam_callbacks)
@@ -44,7 +45,7 @@ func _ready() -> void:
 		_bind_steam_callbacks()
 
 func _process(_delta: float) -> void:
-	if state != STATE_SEARCHING:
+	if state != STATE_SEARCHING or not _steam_search_enabled:
 		return
 	var elapsed_ms: int = maxi(0, Time.get_ticks_msec() - queue_started_ms)
 	var next_tier: int = QuickMatchRules.distance_tier_for_elapsed(elapsed_ms)
@@ -72,7 +73,19 @@ func start_party_quick_match() -> bool:
 	if not PartyManager.can_queue():
 		queue_error.emit("Solo el líder de un Party válido puede iniciar Quick Match.")
 		return false
-	return start_quick_match(PartyManager.size())
+	if not Steamworks.initialized or _steam == null:
+		queue_error.emit("Steam debe estar disponible para Quick Match.")
+		return false
+	if NetworkManager.lobby_id != 0:
+		queue_error.emit("Ya estás conectado a una partida.")
+		return false
+	if not start_quick_match(PartyManager.size()):
+		return false
+	_steam_search_enabled = true
+	_anchor_after_ms = ANCHOR_BASE_DELAY_MS + int(Steamworks.steam_id % ANCHOR_JITTER_MS)
+	PartyManager.clear_match_target()
+	_request_match_lobbies(true)
+	return true
 
 func start_quick_match(party_size: int) -> bool:
 	if state != STATE_IDLE:
@@ -82,24 +95,17 @@ func start_quick_match(party_size: int) -> bool:
 			"El grupo debe tener entre 1 y %d jugadores." % QuickMatchRules.TARGET_PLAYERS
 		)
 		return false
-	if not Steamworks.initialized or _steam == null:
-		queue_error.emit("Steam debe estar disponible para Quick Match.")
-		return false
-	if NetworkManager.lobby_id != 0:
-		queue_error.emit("Ya estás conectado a una partida.")
-		return false
 	local_party_size = party_size
 	queue_started_ms = Time.get_ticks_msec()
 	current_distance_tier = QuickMatchRules.DISTANCE_CLOSE
 	_last_search_ms = 0
 	_search_pending = false
 	_candidate_lobby_id = 0
-	_anchor_after_ms = ANCHOR_BASE_DELAY_MS + int(Steamworks.steam_id % ANCHOR_JITTER_MS)
-	PartyManager.clear_match_target()
+	_anchor_after_ms = ANCHOR_BASE_DELAY_MS
+	_steam_search_enabled = false
 	state = STATE_SEARCHING
 	queue_state_changed.emit(state)
 	search_scope_changed.emit(current_distance_tier)
-	_request_match_lobbies(true)
 	return true
 
 func cancel_quick_match() -> void:
@@ -107,7 +113,7 @@ func cancel_quick_match() -> void:
 		return
 	if state in [STATE_RESERVING, STATE_MATCH_FOUND] and NetworkManager.lobby_id != 0:
 		NetworkManager.leave_lobby()
-	if PartyManager.is_local_leader():
+	if _steam_search_enabled and PartyManager.is_local_leader():
 		PartyManager.clear_match_target()
 	reset()
 	queue_state_changed.emit(state)
@@ -140,7 +146,7 @@ func consider_candidates(candidates: Array[Dictionary]) -> Array[int]:
 	return party_ids
 
 func _request_match_lobbies(force: bool = false) -> void:
-	if state != STATE_SEARCHING or _steam == null or _search_pending:
+	if not _steam_search_enabled or state != STATE_SEARCHING or _steam == null or _search_pending:
 		return
 	var now_ms := Time.get_ticks_msec()
 	if not force and now_ms - _last_search_ms < SEARCH_INTERVAL_MS:
@@ -254,7 +260,7 @@ func _on_party_match_target_changed(target_lobby_id: int) -> void:
 
 func _on_steam_unavailable(reason: String) -> void:
 	_steam = null
-	if state != STATE_IDLE:
+	if state != STATE_IDLE and _steam_search_enabled:
 		queue_error.emit(reason)
 	reset()
 
@@ -267,3 +273,4 @@ func reset() -> void:
 	_last_search_ms = 0
 	_anchor_after_ms = ANCHOR_BASE_DELAY_MS
 	_candidate_lobby_id = 0
+	_steam_search_enabled = false

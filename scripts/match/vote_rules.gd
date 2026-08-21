@@ -18,13 +18,25 @@ static func living_count(players: Array[PlayerState]) -> int:
 	return count
 
 static func resolve(players: Array[PlayerState], votes: Dictionary) -> int:
+	var valid_votes := _valid_votes(players, votes)
+	if valid_votes.size() < living_count(players):
+		return 0
+	return _resolve_valid_votes(valid_votes)
+
+static func resolve_partial(players: Array[PlayerState], votes: Dictionary) -> int:
+	return _resolve_valid_votes(_valid_votes(players, votes))
+
+static func _valid_votes(players: Array[PlayerState], votes: Dictionary) -> Dictionary:
 	var valid_votes: Dictionary = {}
 	for raw_voter_id in votes.keys():
 		var voter_id := int(raw_voter_id)
 		var target_id := int(votes[raw_voter_id])
 		if can_vote(players, voter_id, target_id):
 			valid_votes[voter_id] = target_id
-	if valid_votes.size() < living_count(players):
+	return valid_votes
+
+static func _resolve_valid_votes(valid_votes: Dictionary) -> int:
+	if valid_votes.is_empty():
 		return 0
 	var counts: Dictionary = {}
 	for target_id in valid_votes.values():

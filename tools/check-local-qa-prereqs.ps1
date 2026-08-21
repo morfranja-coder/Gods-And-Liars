@@ -1,10 +1,12 @@
 param(
     [string]$Godot46InstallRoot = (Join-Path $env:LOCALAPPDATA "GodsAndLiars/Godot46"),
-    [string]$McpName = "godot46-visual"
+    [string]$McpName = "godot46-visual",
+    [string]$GodotVersion = "4.6.3"
 )
 
 $ErrorActionPreference = "Stop"
 $failures = [System.Collections.Generic.List[string]]::new()
+$runningOnWindows = $env:OS -eq "Windows_NT"
 
 function Report-Check {
     param(
@@ -17,16 +19,17 @@ function Report-Check {
     }
     else {
         Write-Host "[RED]   $Name - $Detail" -ForegroundColor Red
-        $failures.Add("$Name: $Detail")
+        $failures.Add("${Name}: $Detail")
     }
 }
 
 Write-Host "== Gods & Liars local QA preflight =="
 
-Report-Check "Windows" $IsWindows "local QA scripts target Windows"
+Report-Check "Windows" $runningOnWindows "local QA scripts target Windows"
 
 $git = Get-Command git.exe -ErrorAction SilentlyContinue
-Report-Check "Git" ($null -ne $git) $(if ($git) { (& $git.Source --version | Out-String).Trim() } else { "git.exe not found" })
+$gitDetail = if ($git) { (& $git.Source --version | Out-String).Trim() } else { "git.exe not found" }
+Report-Check "Git" ($null -ne $git) $gitDetail
 
 $steam = Get-Process steam -ErrorAction SilentlyContinue
 Report-Check "Steam" ($null -ne $steam) $(if ($steam) { "running" } else { "not running" })
@@ -48,15 +51,22 @@ Report-Check "npx" ($null -ne $npx) $(if ($npx) { $npx.Source } else { "npx.cmd 
 $codex = Get-Command codex -ErrorAction SilentlyContinue
 Report-Check "Codex CLI" ($null -ne $codex) $(if ($codex) { $codex.Source } else { "codex not found in PATH" })
 
-$godot46 = Get-ChildItem -Path (Join-Path $Godot46InstallRoot "editor") -Recurse -File -Filter "Godot_v4.6-stable_win64.exe" -ErrorAction SilentlyContinue |
+$editorName = "Godot_v$GodotVersion-stable_win64.exe"
+$godot46 = Get-ChildItem `
+    -Path (Join-Path $Godot46InstallRoot "editor") `
+    -Recurse `
+    -File `
+    -Filter $editorName `
+    -ErrorAction SilentlyContinue |
     Select-Object -First 1
 $godot46Ok = $false
 $godot46Detail = "not installed"
 if ($godot46) {
     $godot46Detail = (& $godot46.FullName --version | Out-String).Trim()
-    $godot46Ok = $LASTEXITCODE -eq 0 -and $godot46Detail -match "^4\.6"
+    $expectedPrefix = [regex]::Escape($GodotVersion)
+    $godot46Ok = $LASTEXITCODE -eq 0 -and $godot46Detail -match "^$expectedPrefix"
 }
-Report-Check "Godot 4.6" $godot46Ok $godot46Detail
+Report-Check "Godot $GodotVersion" $godot46Ok $godot46Detail
 
 $mcpOk = $false
 $mcpDetail = "not configured"

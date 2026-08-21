@@ -23,11 +23,19 @@ func _process(_delta: float) -> void:
 		current_distance_tier = next_tier
 		search_scope_changed.emit(current_distance_tier)
 
+func start_party_quick_match() -> bool:
+	if not PartyManager.can_queue():
+		queue_error.emit("Solo el líder de un Party válido puede iniciar Quick Match.")
+		return false
+	return start_quick_match(PartyManager.size())
+
 func start_quick_match(party_size: int) -> bool:
 	if state == STATE_SEARCHING:
 		return false
 	if not QuickMatchRules.valid_party_size(party_size):
-		queue_error.emit("El grupo debe tener entre 1 y %d jugadores." % QuickMatchRules.TARGET_PLAYERS)
+		queue_error.emit(
+			"El grupo debe tener entre 1 y %d jugadores." % QuickMatchRules.TARGET_PLAYERS
+		)
 		return false
 	local_party_size = party_size
 	queue_started_ms = Time.get_ticks_msec()
@@ -47,6 +55,19 @@ func cancel_quick_match() -> void:
 
 func slots_needed() -> int:
 	return QuickMatchRules.slots_needed(local_party_size)
+
+func search_scope_name() -> String:
+	match current_distance_tier:
+		QuickMatchRules.DISTANCE_CLOSE:
+			return "CLOSE"
+		QuickMatchRules.DISTANCE_DEFAULT:
+			return "DEFAULT"
+		QuickMatchRules.DISTANCE_FAR:
+			return "FAR"
+		QuickMatchRules.DISTANCE_WORLDWIDE:
+			return "WORLDWIDE"
+		_:
+			return "UNKNOWN"
 
 func consider_candidates(candidates: Array[Dictionary]) -> Array[int]:
 	if state != STATE_SEARCHING:

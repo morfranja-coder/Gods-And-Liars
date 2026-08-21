@@ -76,8 +76,20 @@ func test_duplicate_steam_identity_is_rejected_while_connected() -> void:
 
 func test_anchor_party_reservations_are_removed_from_advertised_slots() -> void:
 	NetworkManager.register_peer(1, 1001, "Host")
-	NetworkManager.set("_reserved_party_steam_ids", [1002, 1003, 1004, 1005])
+	var reserved_ids: Array[int] = [1002, 1003, 1004, 1005]
+	NetworkManager.set("_reserved_party_steam_ids", reserved_ids)
 	assert_int(NetworkManager.advertised_open_slots()).is_equal(3)
+
+func test_anchor_party_reservation_is_consumed_as_members_register() -> void:
+	NetworkManager.register_peer(1, 1001, "Host")
+	var reserved_ids: Array[int] = [1002, 1003, 1004]
+	NetworkManager.set("_reserved_party_steam_ids", reserved_ids)
+	assert_int(NetworkManager.advertised_open_slots()).is_equal(4)
+	NetworkManager.register_peer(2, 1002, "Friend")
+	assert_int(NetworkManager.advertised_open_slots()).is_equal(4)
+	var remaining: Array[int] = NetworkManager.get("_reserved_party_steam_ids")
+	assert_int(remaining.size()).is_equal(2)
+	assert_bool(remaining.has(1002)).is_false()
 
 func test_external_party_reservation_prevents_slot_theft_while_members_join() -> void:
 	for peer_id in range(1, 7):

@@ -21,7 +21,7 @@ static func run(
 	var session := _build_session(seed_value)
 	if session == null:
 		return {"completed": false, "blocked": false, "reason": "prepare_failed", "rounds": 0}
-	var effective_fault_peer_id := _resolve_fault_peer_id(session, fault, fault_peer_id)
+	var night_fault_peer_id := _resolve_night_fault_peer_id(session, fault, fault_peer_id)
 	var brains := _build_brains(session)
 	var rounds := 0
 	var fault_consumed := false
@@ -34,7 +34,7 @@ static func run(
 			session,
 			brains,
 			fault,
-			effective_fault_peer_id,
+			night_fault_peer_id,
 			fault_consumed,
 		)
 		fault_consumed = fault_consumed or bool(night_result.get("fault_consumed", false))
@@ -44,18 +44,20 @@ static func run(
 		if not winner.is_empty():
 			return _result(session, winner, rounds, true, false, fault_consumed)
 		if fault == Fault.DISCONNECT_AFTER_NIGHT and not fault_consumed:
-			var disconnected := session.get_player(effective_fault_peer_id)
+			var disconnect_peer_id := _resolve_living_fault_peer_id(session, fault_peer_id)
+			var disconnected := session.get_player(disconnect_peer_id)
 			if disconnected != null and disconnected.alive:
 				disconnected.alive = false
 				fault_consumed = true
 				winner = session.winner()
 				if not winner.is_empty():
 					return _result(session, winner, rounds, true, false, fault_consumed)
+		var vote_fault_peer_id := _resolve_living_fault_peer_id(session, fault_peer_id)
 		var vote_result := _run_vote(
 			session,
 			brains,
 			fault,
-			effective_fault_peer_id,
+			vote_fault_peer_id,
 			fault_consumed,
 		)
 		fault_consumed = fault_consumed or bool(vote_result.get("fault_consumed", false))
@@ -76,20 +78,37 @@ static func _build_session(seed_value: int) -> MatchSession:
 		player.ready = true
 	return session if session.prepare_match() else null
 
-static func _resolve_fault_peer_id(session: MatchSession, fault: Fault, requested_peer_id: int) -> int:
-	if requested_peer_id > 0:
+static func _resolve_night_fault_peer_id(
+	session: MatchSession,
+	fault: Fault,
+	requested_peer_id: int,
+) -> int:
+	if fault != Fault.AFK_NIGHT:
 		return requested_peer_id
+	if requested_peer_id > 0:
+		var requested := session.get_player(requested_peer_id)
+		if requested != null and requested.alive and requested.role in [
+			PlayerState.Role.HERETIC,
+			PlayerState.Role.HEALER,
+			PlayerState.Role.INQUISITOR,
+		]:
+			return requested_peer_id
 	for player in session.players:
-		if not player.alive:
-			continue
-		if fault == Fault.AFK_NIGHT:
-			if player.role in [
-				PlayerState.Role.HERETIC,
-				PlayerState.Role.HEALER,
-				PlayerState.Role.INQUISITOR,
-			]:
-				return player.peer_id
-		else:
+		if player.alive and player.role in [
+			PlayerState.Role.HERETIC,
+			PlayerState.Role.HEALER,
+			PlayerState.Role.INQUISITOR,
+		]:
+			return player.peer_id
+	return 0
+
+static func _resolve_living_fault_peer_id(session: MatchSession, requested_peer_id: int) -> int:
+	if requested_peer_id > 0:
+		var requested := session.get_player(requested_peer_id)
+		if requested != null and requested.alive:
+			return requested_peer_id
+	for player in session.players:
+		if player.alive:
 			return player.peer_id
 	return 0
 

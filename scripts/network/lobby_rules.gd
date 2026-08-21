@@ -11,8 +11,18 @@ static func all_ready(peers: Dictionary, min_players: int = TECHNICAL_START_MIN_
 			return false
 	return true
 
-static func can_start(is_host: bool, is_server: bool, peers: Dictionary, min_players: int = TECHNICAL_START_MIN_PLAYERS) -> bool:
+static func can_start(
+	is_host: bool,
+	is_server: bool,
+	peers: Dictionary,
+	min_players: int = TECHNICAL_START_MIN_PLAYERS,
+) -> bool:
 	return is_host and is_server and all_ready(peers, min_players)
+
+static func can_start_exact(is_host: bool, is_server: bool, peers: Dictionary, target_players: int) -> bool:
+	if not is_host or not is_server or peers.size() != target_players:
+		return false
+	return all_ready(peers, target_players)
 
 static func can_register_peer(peers: Dictionary, peer_id: int, max_players: int) -> bool:
 	if peer_id <= 0 or max_players <= 0:
@@ -21,7 +31,12 @@ static func can_register_peer(peers: Dictionary, peer_id: int, max_players: int)
 		return true
 	return peers.size() < max_players
 
-static func make_peer(steam_id: int, display_name: String, ready: bool = false, seat_id: int = -1) -> Dictionary:
+static func make_peer(
+	steam_id: int,
+	display_name: String,
+	ready: bool = false,
+	seat_id: int = -1,
+) -> Dictionary:
 	return {
 		"steam_id": steam_id,
 		"display_name": display_name,

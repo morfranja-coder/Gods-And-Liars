@@ -1,6 +1,7 @@
 extends Node
 
 signal private_role_received(role: int)
+signal private_heretic_teammate_received(peer_id: int, display_name: String)
 signal role_reveal_failed(reason: String)
 signal phase_synced(phase: int)
 signal phase_timeout_triggered(phase: int)
@@ -14,6 +15,8 @@ signal match_end_received(winner: StringName)
 signal rematch_received
 
 var local_role: PlayerState.Role = PlayerState.Role.UNASSIGNED
+var local_heretic_teammate_peer_id: int = 0
+var local_heretic_teammate_name: String = ""
 var public_alive_by_peer: Dictionary = {}
 var public_winner: StringName = &""
 var _session: MatchSession = null
@@ -47,6 +50,8 @@ func _process(_delta: float) -> void:
 
 func reset() -> void:
 	local_role = PlayerState.Role.UNASSIGNED
+	local_heretic_teammate_peer_id = 0
+	local_heretic_teammate_name = ""
 	public_alive_by_peer.clear()
 	public_winner = &""
 	_session = null
@@ -154,6 +159,8 @@ func role_description(role: PlayerState.Role = local_role) -> String:
 		PlayerState.Role.FAITHFUL:
 			return "Descubrí a los herejes y sobreviví al ritual."
 		PlayerState.Role.HERETIC:
+			if not local_heretic_teammate_name.is_empty():
+				return "Eliminá a los fieles sin revelar tu identidad. Tu compañero hereje es %s." % local_heretic_teammate_name
 			return "Eliminá a los fieles sin revelar tu identidad."
 		PlayerState.Role.HEALER:
 			return "Protegé a una persona durante la noche."
@@ -194,6 +201,30 @@ func _dispatch_private_roles() -> void:
 			_receive_private_role(int(player.role))
 		else:
 			_receive_private_role.rpc_id(player.peer_id, int(player.role))
+		if player.role != PlayerState.Role.HERETIC:
+			continue
+		var teammate := _heretic_teammate_for(player.peer_id)
+		if teammate == null:
+			continue
+		if player.peer_id == multiplayer.get_unique_id():
+			_receive_private_heretic_teammate(teammate.peer_id, teammate.display_name)
+		else:
+			_receive_private_heretic_teammate.rpc_id(
+				player.peer_id,
+				teammate.peer_id,
+				teammate.display_name,
+			)
+
+func _heretic_teammate_for(peer_id: int) -> PlayerState:
+	if _session == null:
+		return null
+	var actor := _session.get_player(peer_id)
+	if actor == null or actor.role != PlayerState.Role.HERETIC:
+		return null
+	for player in _session.players:
+		if player.peer_id != peer_id and player.role == PlayerState.Role.HERETIC:
+			return player
+	return null
 
 func _server_acknowledge_role(peer_id: int) -> void:
 	if not multiplayer.is_server() or _session == null:
@@ -399,6 +430,8 @@ func _reset_night_actions() -> void:
 
 func _reset_for_rematch() -> void:
 	local_role = PlayerState.Role.UNASSIGNED
+	local_heretic_teammate_peer_id = 0
+	local_heretic_teammate_name = ""
 	public_winner = &""
 	_session = null
 	_roles_dispatched = false
@@ -458,9 +491,23 @@ func _receive_private_role(role_value: int) -> void:
 	if role_value <= PlayerState.Role.UNASSIGNED or role_value > PlayerState.Role.INQUISITOR:
 		return
 	local_role = role_value
+	if local_role != PlayerState.Role.HERETIC:
+		local_heretic_teammate_peer_id = 0
+		local_heretic_teammate_name = ""
 	if public_alive_by_peer.is_empty():
 		_initialize_public_alive()
 	private_role_received.emit(int(local_role))
+
+@rpc("authority", "call_remote", "reliable")
+func _receive_private_heretic_teammate(peer_id: int, display_name: String) -> void:
+	if local_role != PlayerState.Role.HERETIC or peer_id <= 0:
+		return
+	var clean_name := display_name.strip_edges()
+	if clean_name.is_empty():
+		return
+	local_heretic_teammate_peer_id = peer_id
+	local_heretic_teammate_name = clean_name
+	private_heretic_teammate_received.emit(peer_id, clean_name)
 
 @rpc("any_peer", "reliable")
 func _acknowledge_role() -> void:

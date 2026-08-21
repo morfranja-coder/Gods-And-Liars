@@ -7,6 +7,7 @@ signal lobby_state_changed(state: StringName)
 signal lobby_list_updated(lobbies: Array)
 signal lobby_error(message: String)
 signal lobby_start_requested
+signal party_reservation_result(accepted: bool)
 
 const MAX_PLAYERS: int = QuickMatchRules.TARGET_PLAYERS
 const TECHNICAL_START_MIN_PLAYERS: int = LobbyRules.TECHNICAL_START_MIN_PLAYERS
@@ -20,6 +21,8 @@ const MATCH_STATE_KEY: String = "match_state"
 const MATCH_STATE_OPEN: String = "open"
 const MATCH_STATE_STARTED: String = "started"
 const OPEN_SLOTS_KEY: String = "open_slots"
+const MEMBER_PARTY_SIZE_KEY: String = "party_size"
+const MEMBER_PARTY_TOKEN_KEY: String = "party_token"
 
 const STEAM_LOBBY_TYPE_PUBLIC := 2
 const STEAM_LOBBY_TYPE_INVISIBLE := 3
@@ -39,6 +42,8 @@ var _pending_create_lobby_type: int = STEAM_LOBBY_TYPE_PUBLIC
 var _pending_join_match_id: int = 0
 var _pending_match_search: bool = false
 var _reserved_party_steam_ids: Array[int] = []
+var _party_reservations: Dictionary = {}
+var _peer_party_tokens: Dictionary = {}
 
 func _ready() -> void:
 	Steamworks.steam_ready.connect(_bind_steam_callbacks)
@@ -85,6 +90,8 @@ func _begin_host_lobby(lobby_type: int, reserved_ids: Array[int]) -> void:
 
 func join_lobby(target_lobby_id: int) -> void:
 	if not _require_steam() or target_lobby_id <= 0:
+		return
+	if lobby_id == target_lobby_id:
 		return
 	_pending_join_match_id = target_lobby_id
 	lobby_state_changed.emit(&"joining")
@@ -159,6 +166,7 @@ func unregister_peer(peer_id: int) -> void:
 		return
 	peers.erase(peer_id)
 	_last_ready_request_ms.erase(peer_id)
+	_release_party_token_for_peer(peer_id)
 	peer_left.emit(peer_id)
 	_publish_match_capacity()
 
@@ -206,7 +214,13 @@ func all_peers_ready() -> bool:
 	return LobbyRules.all_ready(peers, TECHNICAL_START_MIN_PLAYERS)
 
 func advertised_open_slots() -> int:
-	return maxi(0, MAX_PLAYERS - peers.size() - _reserved_party_steam_ids.size())
+	var external_reserved := 0
+	for remaining in _party_reservations.values():
+		external_reserved += int(remaining)
+	return maxi(
+		0,
+		MAX_PLAYERS - peers.size() - _reserved_party_steam_ids.size() - external_reserved,
+	)
 
 func _publish_match_capacity() -> void:
 	if not is_host or _steam == null or lobby_id == 0:
@@ -235,6 +249,8 @@ func _clear_session_state() -> void:
 	peers.clear()
 	_last_ready_request_ms.clear()
 	_reserved_party_steam_ids.clear()
+	_party_reservations.clear()
+	_peer_party_tokens.clear()
 	_clear_pending_operations()
 
 func _teardown_lobby(final_state: StringName) -> void:
@@ -274,6 +290,16 @@ func _create_steam_peer(host_steam_id: int = 0):
 	peer.set("server_relay", true)
 	return peer
 
+func _publish_local_match_party_data(target_lobby_id: int) -> void:
+	if _steam == null or target_lobby_id == 0:
+		return
+	var party_size := PartyManager.size()
+	var party_token := PartyManager.state.party_id
+	if party_token <= 0:
+		party_token = Steamworks.steam_id
+	_steam.call("setLobbyMemberData", target_lobby_id, MEMBER_PARTY_SIZE_KEY, str(party_size))
+	_steam.call("setLobbyMemberData", target_lobby_id, MEMBER_PARTY_TOKEN_KEY, str(party_token))
+
 func _on_lobby_created(result: int, new_lobby_id: int) -> void:
 	if not _pending_create_match:
 		return
@@ -296,6 +322,7 @@ func _on_lobby_created(result: int, new_lobby_id: int) -> void:
 	_steam.call("setLobbyData", new_lobby_id, GAME_TAG_KEY, GAME_TAG_VALUE)
 	_steam.call("setLobbyData", new_lobby_id, LOBBY_KIND_KEY, LOBBY_KIND_MATCH)
 	_steam.call("setLobbyData", new_lobby_id, MATCH_STATE_KEY, MATCH_STATE_OPEN)
+	_publish_local_match_party_data(new_lobby_id)
 	var peer = _create_steam_peer()
 	if peer == null:
 		_teardown_lobby(&"steam_ready")
@@ -314,16 +341,19 @@ func _on_lobby_joined(joined_lobby_id: int, _permissions: int, _locked, response
 			"Steam could not join lobby %s (response %s)." % [joined_lobby_id, response]
 		)
 		lobby_state_changed.emit(&"steam_ready")
+		party_reservation_result.emit(false)
 		return
 	lobby_id = joined_lobby_id
 	Steamworks.lobby_id = joined_lobby_id
 	lobby_started = false
+	_publish_local_match_party_data(joined_lobby_id)
 	var host_steam_id := int(_steam.call("getLobbyOwner", joined_lobby_id))
 	is_host = host_steam_id == Steamworks.steam_id
 	if not is_host:
 		var peer = _create_steam_peer(host_steam_id)
 		if peer == null:
 			_teardown_lobby(&"steam_ready")
+			party_reservation_result.emit(false)
 			return
 		multiplayer.multiplayer_peer = peer
 	lobby_state_changed.emit(&"in_lobby")
@@ -349,6 +379,7 @@ func _on_connected_to_server() -> void:
 	lobby_state_changed.emit(&"connected")
 
 func _on_connection_failed() -> void:
+	party_reservation_result.emit(false)
 	lobby_error.emit("Could not establish the Steam multiplayer connection.")
 	_teardown_lobby(&"connection_failed")
 
@@ -356,20 +387,81 @@ func _on_server_disconnected() -> void:
 	lobby_error.emit("The ritual host disconnected.")
 	_teardown_lobby(&"host_disconnected")
 
+func _try_reserve_party(peer_id: int, client_steam_id: int) -> bool:
+	if client_steam_id in _reserved_party_steam_ids:
+		return true
+	if _steam == null or lobby_id == 0:
+		return false
+	var raw_size := str(
+		_steam.call("getLobbyMemberData", lobby_id, client_steam_id, MEMBER_PARTY_SIZE_KEY)
+	)
+	var raw_token := str(
+		_steam.call("getLobbyMemberData", lobby_id, client_steam_id, MEMBER_PARTY_TOKEN_KEY)
+	)
+	var party_size := int(raw_size) if raw_size.is_valid_int() else 1
+	var party_token := int(raw_token) if raw_token.is_valid_int() else client_steam_id
+	party_size = clampi(party_size, 1, QuickMatchRules.MAX_PARTY_SIZE)
+	if _party_reservations.has(party_token):
+		var remaining := int(_party_reservations[party_token])
+		if remaining <= 0:
+			return false
+		remaining -= 1
+		if remaining == 0:
+			_party_reservations.erase(party_token)
+		else:
+			_party_reservations[party_token] = remaining
+		_peer_party_tokens[peer_id] = party_token
+		_publish_match_capacity()
+		return true
+	if advertised_open_slots() < party_size:
+		return false
+	var remaining_members := party_size - 1
+	if remaining_members > 0:
+		_party_reservations[party_token] = remaining_members
+	_peer_party_tokens[peer_id] = party_token
+	_publish_match_capacity()
+	return true
+
+func _release_party_token_for_peer(peer_id: int) -> void:
+	if not _peer_party_tokens.has(peer_id):
+		return
+	var party_token := int(_peer_party_tokens[peer_id])
+	_peer_party_tokens.erase(peer_id)
+	for other_token in _peer_party_tokens.values():
+		if int(other_token) == party_token:
+			return
+	_party_reservations.erase(party_token)
+
+func _reject_remote_peer(peer_id: int) -> void:
+	if multiplayer.multiplayer_peer != null and multiplayer.multiplayer_peer.has_method("disconnect_peer"):
+		multiplayer.multiplayer_peer.call("disconnect_peer", peer_id)
+
 @rpc("any_peer", "reliable")
 func _announce_identity(client_steam_id: int, display_name: String) -> void:
 	if lobby_started or not multiplayer.is_server():
 		return
-	if not IdentityPolicy.valid_identity(client_steam_id, display_name):
-		return
 	var sender_id := multiplayer.get_remote_sender_id()
+	if not IdentityPolicy.valid_identity(client_steam_id, display_name):
+		_match_reservation_result.rpc_id(sender_id, false)
+		_reject_remote_peer(sender_id)
+		return
 	if not LobbyRules.can_register_peer(peers, sender_id, MAX_PLAYERS):
+		_match_reservation_result.rpc_id(sender_id, false)
+		_reject_remote_peer(sender_id)
 		return
 	if IdentityPolicy.steam_id_in_use(peers, client_steam_id, sender_id):
+		_match_reservation_result.rpc_id(sender_id, false)
+		_reject_remote_peer(sender_id)
+		return
+	if not _try_reserve_party(sender_id, client_steam_id):
+		_match_reservation_result.rpc_id(sender_id, false)
+		_reject_remote_peer(sender_id)
 		return
 	var clean_name := IdentityPolicy.sanitize_display_name(display_name)
 	var assigned_seat := SeatAllocator.first_free_seat(peers)
 	if not SeatAllocator.is_valid_seat(assigned_seat):
+		_match_reservation_result.rpc_id(sender_id, false)
+		_reject_remote_peer(sender_id)
 		return
 	for existing_peer_id in peers.keys():
 		var data: Dictionary = peers[existing_peer_id]
@@ -382,6 +474,11 @@ func _announce_identity(client_steam_id: int, display_name: String) -> void:
 			int(data.get("seat_id", -1)),
 		)
 	_sync_peer.rpc(sender_id, client_steam_id, clean_name, false, assigned_seat)
+	_match_reservation_result.rpc_id(sender_id, true)
+
+@rpc("authority", "reliable")
+func _match_reservation_result(accepted: bool) -> void:
+	party_reservation_result.emit(accepted)
 
 @rpc("authority", "call_local", "reliable")
 func _sync_peer(

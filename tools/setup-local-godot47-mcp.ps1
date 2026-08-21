@@ -76,18 +76,32 @@ if ($SkipMcpRegistration) {
     Write-Host "[skip] MCP registration skipped by request."
 }
 else {
-    $codex = Get-Command codex -ErrorAction SilentlyContinue
+    $codex = Get-Command codex.cmd -ErrorAction SilentlyContinue
+    if ($null -eq $codex) {
+        $codex = Get-Command codex.exe -ErrorAction SilentlyContinue
+    }
+    if ($null -eq $codex) {
+        $codex = Get-Command codex -ErrorAction SilentlyContinue
+    }
     if ($null -eq $codex) {
         throw "Codex CLI was not found in PATH. Install/open Codex CLI and rerun, or use -SkipMcpRegistration."
     }
 
+    $previousErrorPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
     & $codex.Source mcp get $McpName --json *> $null
-    if ($LASTEXITCODE -eq 0) {
+    $mcpExists = $LASTEXITCODE -eq 0
+    $ErrorActionPreference = $previousErrorPreference
+
+    if ($mcpExists) {
         Write-Host "[replace] Removing existing MCP '$McpName'"
         & $codex.Source mcp remove $McpName
         if ($LASTEXITCODE -ne 0) {
             throw "Could not remove existing MCP '$McpName'."
         }
+    }
+    else {
+        Write-Host "[new] MCP '$McpName' is not registered yet. Creating it now."
     }
 
     & $codex.Source mcp add $McpName `

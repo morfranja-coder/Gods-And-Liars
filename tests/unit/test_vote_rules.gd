@@ -34,6 +34,16 @@ func test_resolve_returns_zero_on_tie() -> void:
 	var votes := {1: 2, 2: 1, 3: 4, 4: 3}
 	assert_int(VoteRules.resolve(players, votes)).is_equal(0)
 
+func test_partial_resolve_uses_only_valid_received_votes() -> void:
+	var players := _players()
+	var votes := {1: 2, 2: 1, 3: 2}
+	assert_int(VoteRules.resolve_partial(players, votes)).is_equal(2)
+
+func test_partial_resolve_returns_zero_when_received_votes_tie() -> void:
+	var players := _players()
+	var votes := {1: 2, 2: 1}
+	assert_int(VoteRules.resolve_partial(players, votes)).is_equal(0)
+
 func _players() -> Array[PlayerState]:
 	var result: Array[PlayerState] = []
 	for peer_id in range(1, 5):

@@ -4,6 +4,7 @@ signal private_role_received(role: int)
 signal role_reveal_failed(reason: String)
 signal phase_synced(phase: int)
 signal night_action_accepted(actor_peer_id: int, target_peer_id: int)
+signal night_action_result_received(accepted: bool, target_peer_id: int)
 signal night_resolution_received(killed_peer_ids: Array[int])
 signal private_investigation_received(target_peer_id: int, is_heretic: bool)
 signal vote_accepted(voter_peer_id: int, target_peer_id: int)
@@ -24,6 +25,7 @@ var _votes: Dictionary = {}
 
 func _ready() -> void:
 	NetworkManager.lobby_state_changed.connect(_on_lobby_state_changed)
+	NetworkManager.peer_left.connect(_on_peer_left)
 
 func reset() -> void:
 	local_role = PlayerState.Role.UNASSIGNED
@@ -40,13 +42,16 @@ func begin_role_reveal() -> bool:
 		return false
 	var session := _build_session(NetworkManager.peers)
 	if session == null or not session.prepare_match():
-		role_reveal_failed.emit("Se necesitan al menos %d jugadores para repartir roles." % MatchSession.MIN_PLAYERS)
+		role_reveal_failed.emit(
+			"Se necesitan al menos %d jugadores para repartir roles." % MatchSession.MIN_PLAYERS
+		)
 		return false
 	_session = session
 	_roles_dispatched = true
 	public_winner = &""
 	_initialize_public_alive()
 	GameManager.start_match()
+	_broadcast_phase(GameManager.MatchPhase.ROLE_REVEAL)
 	_dispatch_private_roles()
 	return true
 
@@ -74,7 +79,7 @@ func request_begin_voting() -> void:
 	if GameManager.phase != GameManager.MatchPhase.DAY_DISCUSSION or _session == null:
 		return
 	_votes.clear()
-	_sync_phase.rpc(int(GameManager.MatchPhase.VOTING))
+	_broadcast_phase(GameManager.MatchPhase.VOTING)
 
 func submit_local_vote(target_peer_id: int) -> void:
 	if GameManager.phase != GameManager.MatchPhase.VOTING:
@@ -147,7 +152,11 @@ func _build_session(roster: Dictionary) -> MatchSession:
 	for raw_peer_id in peer_ids:
 		var peer_id := int(raw_peer_id)
 		var data: Dictionary = roster[raw_peer_id]
-		if not session.add_player(peer_id, int(data.get("steam_id", 0)), str(data.get("display_name", ""))):
+		if not session.add_player(
+			peer_id,
+			int(data.get("steam_id", 0)),
+			str(data.get("display_name", "")),
+		):
 			return null
 		var player := session.get_player(peer_id)
 		player.seat_id = int(data.get("seat_id", -1))
@@ -160,21 +169,26 @@ func _initialize_public_alive() -> void:
 
 func _dispatch_private_roles() -> void:
 	for player in _session.players:
+		if not player.alive:
+			continue
 		if player.peer_id == multiplayer.get_unique_id():
 			_receive_private_role(int(player.role))
 		else:
 			_receive_private_role.rpc_id(player.peer_id, int(player.role))
 
 func _server_acknowledge_role(peer_id: int) -> void:
-	if not multiplayer.is_server() or _session == null or _session.get_player(peer_id) == null:
+	if not multiplayer.is_server() or _session == null:
+		return
+	var player := _session.get_player(peer_id)
+	if player == null or not player.alive:
 		return
 	_role_acknowledged[peer_id] = true
-	if _role_acknowledged.size() == _session.players.size():
+	if _role_acknowledged.size() >= _living_player_count():
 		_start_night()
 
 func _start_night() -> void:
 	_reset_night_actions()
-	_sync_phase.rpc(int(GameManager.MatchPhase.NIGHT_START))
+	_broadcast_phase(GameManager.MatchPhase.NIGHT_START)
 	_advance_night_phase()
 
 func _advance_night_phase() -> void:
@@ -184,10 +198,10 @@ func _advance_night_phase() -> void:
 	while NightPhaseRules.is_action_phase(next_phase):
 		var role := NightPhaseRules.role_for_phase(next_phase)
 		if NightActionRules.expected_actor_count(_session.players, role) > 0:
-			_sync_phase.rpc(int(next_phase))
+			_broadcast_phase(next_phase)
 			return
 		next_phase = NightPhaseRules.next_action_phase(next_phase)
-	_sync_phase.rpc(int(GameManager.MatchPhase.NIGHT_RESOLUTION))
+	_broadcast_phase(GameManager.MatchPhase.NIGHT_RESOLUTION)
 	_resolve_night()
 
 func _server_submit_night_action(actor_peer_id: int, target_peer_id: int) -> void:
@@ -195,8 +209,15 @@ func _server_submit_night_action(actor_peer_id: int, target_peer_id: int) -> voi
 		return
 	var required_role := NightPhaseRules.role_for_phase(GameManager.phase)
 	if required_role == PlayerState.Role.UNASSIGNED:
+		_send_night_action_result(actor_peer_id, false, target_peer_id)
 		return
-	if not NightActionRules.can_target(_session.players, actor_peer_id, target_peer_id, required_role):
+	if not NightActionRules.can_target(
+		_session.players,
+		actor_peer_id,
+		target_peer_id,
+		required_role,
+	):
+		_send_night_action_result(actor_peer_id, false, target_peer_id)
 		return
 	match required_role:
 		PlayerState.Role.HERETIC:
@@ -205,9 +226,16 @@ func _server_submit_night_action(actor_peer_id: int, target_peer_id: int) -> voi
 			_healer_target_peer_id = target_peer_id
 		PlayerState.Role.INQUISITOR:
 			_inquisitor_target_peer_id = target_peer_id
+	_send_night_action_result(actor_peer_id, true, target_peer_id)
 	night_action_accepted.emit(actor_peer_id, target_peer_id)
 	if _current_phase_has_all_actions(required_role):
 		_advance_night_phase()
+
+func _send_night_action_result(actor_peer_id: int, accepted: bool, target_peer_id: int) -> void:
+	if multiplayer.multiplayer_peer == null or actor_peer_id == multiplayer.get_unique_id():
+		_receive_night_action_result(accepted, target_peer_id)
+	else:
+		_receive_night_action_result.rpc_id(actor_peer_id, accepted, target_peer_id)
 
 func _current_phase_has_all_actions(role: PlayerState.Role) -> bool:
 	var expected := NightActionRules.expected_actor_count(_session.players, role)
@@ -233,7 +261,7 @@ func _resolve_night() -> void:
 	)
 	_sync_night_resolution.rpc(result.killed_peer_ids)
 	_dispatch_investigation_result(result)
-	_sync_phase.rpc(int(GameManager.MatchPhase.WIN_CHECK))
+	_broadcast_phase(GameManager.MatchPhase.WIN_CHECK)
 	_finish_or_continue_after_night()
 
 func _dispatch_investigation_result(result: NightResolver.NightResult) -> void:
@@ -242,7 +270,10 @@ func _dispatch_investigation_result(result: NightResolver.NightResult) -> void:
 	for player in _session.players:
 		if player.alive and player.role == PlayerState.Role.INQUISITOR:
 			if player.peer_id == multiplayer.get_unique_id():
-				_receive_private_investigation(result.investigation_target_peer_id, result.investigation_is_heretic)
+				_receive_private_investigation(
+					result.investigation_target_peer_id,
+					result.investigation_is_heretic,
+				)
 			else:
 				_receive_private_investigation.rpc_id(
 					player.peer_id,
@@ -252,25 +283,37 @@ func _dispatch_investigation_result(result: NightResolver.NightResult) -> void:
 			return
 
 func _server_submit_vote(voter_peer_id: int, target_peer_id: int) -> void:
-	if not multiplayer.is_server() or _session == null or GameManager.phase != GameManager.MatchPhase.VOTING:
+	if not multiplayer.is_server() or _session == null:
+		return
+	if GameManager.phase != GameManager.MatchPhase.VOTING:
 		return
 	if not VoteRules.can_vote(_session.players, voter_peer_id, target_peer_id):
 		return
 	_votes[voter_peer_id] = target_peer_id
 	vote_accepted.emit(voter_peer_id, target_peer_id)
-	if _votes.size() >= VoteRules.living_count(_session.players):
+	if _valid_vote_count() >= VoteRules.living_count(_session.players):
 		_resolve_vote()
+
+func _valid_vote_count() -> int:
+	if _session == null:
+		return 0
+	var count := 0
+	for raw_voter_id in _votes.keys():
+		var voter_id := int(raw_voter_id)
+		var target_peer_id := int(_votes[raw_voter_id])
+		if VoteRules.can_vote(_session.players, voter_id, target_peer_id):
+			count += 1
+	return count
 
 func _resolve_vote() -> void:
 	var sacrificed_peer_id := VoteRules.resolve(_session.players, _votes)
-	var tied := sacrificed_peer_id == 0
-	_sync_phase.rpc(int(GameManager.MatchPhase.SACRIFICE))
+	_broadcast_phase(GameManager.MatchPhase.SACRIFICE)
 	if sacrificed_peer_id > 0:
 		_session.sacrifice(sacrificed_peer_id)
 		_sync_sacrifice.rpc(sacrificed_peer_id, false)
 	else:
 		_sync_sacrifice.rpc(0, true)
-	_sync_phase.rpc(int(GameManager.MatchPhase.WIN_CHECK))
+	_broadcast_phase(GameManager.MatchPhase.WIN_CHECK)
 	_finish_or_continue_after_vote()
 
 func _finish_or_continue_after_night() -> void:
@@ -278,7 +321,7 @@ func _finish_or_continue_after_night() -> void:
 	if not winner.is_empty():
 		_end_match(winner)
 		return
-	_sync_phase.rpc(int(GameManager.MatchPhase.DAY_DISCUSSION))
+	_broadcast_phase(GameManager.MatchPhase.DAY_DISCUSSION)
 
 func _finish_or_continue_after_vote() -> void:
 	var winner := _session.winner()
@@ -290,6 +333,12 @@ func _finish_or_continue_after_vote() -> void:
 
 func _end_match(winner: StringName) -> void:
 	_sync_match_end.rpc(str(winner))
+
+func _living_player_count() -> int:
+	return 0 if _session == null else _session.living_players().size()
+
+func _broadcast_phase(phase_value: GameManager.MatchPhase) -> void:
+	_sync_phase.rpc(int(phase_value), GameManager.round_number)
 
 func _reset_night_actions() -> void:
 	_heretic_targets.clear()
@@ -307,6 +356,49 @@ func _reset_for_rematch() -> void:
 	_initialize_public_alive()
 	GameManager.round_number = 0
 	GameManager.set_phase(GameManager.MatchPhase.READY)
+
+func _apply_peer_disconnect(peer_id: int) -> bool:
+	if _session == null:
+		return false
+	var player := _session.get_player(peer_id)
+	if player == null:
+		return false
+	player.alive = false
+	public_alive_by_peer[peer_id] = false
+	_role_acknowledged.erase(peer_id)
+	_heretic_targets.erase(peer_id)
+	for raw_actor_id in _heretic_targets.keys():
+		if int(_heretic_targets[raw_actor_id]) == peer_id:
+			_heretic_targets.erase(raw_actor_id)
+	if _healer_target_peer_id == peer_id:
+		_healer_target_peer_id = 0
+	if _inquisitor_target_peer_id == peer_id:
+		_inquisitor_target_peer_id = 0
+	_votes.erase(peer_id)
+	for raw_voter_id in _votes.keys():
+		if int(_votes[raw_voter_id]) == peer_id:
+			_votes.erase(raw_voter_id)
+	return true
+
+func _resume_after_disconnect() -> void:
+	if _session == null or GameManager.phase == GameManager.MatchPhase.MATCH_END:
+		return
+	var winner := _session.winner()
+	if not winner.is_empty():
+		_end_match(winner)
+		return
+	if GameManager.phase == GameManager.MatchPhase.ROLE_REVEAL:
+		if _role_acknowledged.size() >= _living_player_count():
+			_start_night()
+		return
+	if NightPhaseRules.is_action_phase(GameManager.phase):
+		var required_role := NightPhaseRules.role_for_phase(GameManager.phase)
+		if _current_phase_has_all_actions(required_role):
+			_advance_night_phase()
+		return
+	if GameManager.phase == GameManager.MatchPhase.VOTING:
+		if _valid_vote_count() >= VoteRules.living_count(_session.players):
+			_resolve_vote()
 
 @rpc("authority", "call_remote", "reliable")
 func _receive_private_role(role_value: int) -> void:
@@ -336,11 +428,17 @@ func _request_vote(target_peer_id: int) -> void:
 	_server_submit_vote(multiplayer.get_remote_sender_id(), target_peer_id)
 
 @rpc("authority", "call_local", "reliable")
-func _sync_phase(phase_value: int) -> void:
+func _sync_phase(phase_value: int, round_value: int = -1) -> void:
 	if phase_value < GameManager.MatchPhase.BOOT or phase_value > GameManager.MatchPhase.MATCH_END:
 		return
+	if round_value >= 0:
+		GameManager.round_number = round_value
 	GameManager.set_phase(phase_value)
 	phase_synced.emit(phase_value)
+
+@rpc("authority", "call_remote", "reliable")
+func _receive_night_action_result(accepted: bool, target_peer_id: int) -> void:
+	night_action_result_received.emit(accepted, target_peer_id)
 
 @rpc("authority", "call_local", "reliable")
 func _sync_night_resolution(killed_peer_ids: Array[int]) -> void:
@@ -371,6 +469,13 @@ func _sync_rematch() -> void:
 @rpc("authority", "call_remote", "reliable")
 func _receive_private_investigation(target_peer_id: int, is_heretic: bool) -> void:
 	private_investigation_received.emit(target_peer_id, is_heretic)
+
+func _on_peer_left(peer_id: int) -> void:
+	public_alive_by_peer[peer_id] = false
+	if not multiplayer.is_server():
+		return
+	if _apply_peer_disconnect(peer_id):
+		_resume_after_disconnect()
 
 func _on_lobby_state_changed(state: StringName) -> void:
 	if state in [&"steam_ready", &"offline", &"host_disconnected", &"connection_failed"]:

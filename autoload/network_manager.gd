@@ -16,8 +16,13 @@ const GAME_TAG_VALUE: String = "GodsAndLiarsMVP"
 const LOBBY_NAME_KEY: String = "name"
 const LOBBY_KIND_KEY: String = "kind"
 const LOBBY_KIND_MATCH: String = "match"
+const MATCH_STATE_KEY: String = "match_state"
+const MATCH_STATE_OPEN: String = "open"
+const MATCH_STATE_STARTED: String = "started"
+const OPEN_SLOTS_KEY: String = "open_slots"
 
 const STEAM_LOBBY_TYPE_PUBLIC := 2
+const STEAM_LOBBY_TYPE_INVISIBLE := 3
 const STEAM_LOBBY_COMPARISON_EQUAL := 0
 const STEAM_LOBBY_DISTANCE_WORLDWIDE := 3
 const STEAM_RESULT_OK := 1
@@ -30,8 +35,10 @@ var peers: Dictionary = {}
 var _steam: Object = null
 var _last_ready_request_ms: Dictionary = {}
 var _pending_create_match: bool = false
+var _pending_create_lobby_type: int = STEAM_LOBBY_TYPE_PUBLIC
 var _pending_join_match_id: int = 0
 var _pending_match_search: bool = false
+var _reserved_party_steam_ids: Array[int] = []
 
 func _ready() -> void:
 	Steamworks.steam_ready.connect(_bind_steam_callbacks)
@@ -58,11 +65,23 @@ func _connect_steam_signal(signal_name: StringName, method: Callable) -> void:
 		_steam.connect(signal_name, method)
 
 func host_lobby() -> void:
-	if not _require_steam() or _pending_create_match:
+	_begin_host_lobby(STEAM_LOBBY_TYPE_PUBLIC, [])
+
+func host_quick_match_lobby(party_member_ids: Array[int]) -> void:
+	var reserved_ids: Array[int] = []
+	for steam_id in party_member_ids:
+		if steam_id > 0 and steam_id != Steamworks.steam_id:
+			reserved_ids.append(steam_id)
+	_begin_host_lobby(STEAM_LOBBY_TYPE_INVISIBLE, reserved_ids)
+
+func _begin_host_lobby(lobby_type: int, reserved_ids: Array[int]) -> void:
+	if not _require_steam() or _pending_create_match or lobby_id != 0:
 		return
 	_pending_create_match = true
+	_pending_create_lobby_type = lobby_type
+	_reserved_party_steam_ids = reserved_ids.duplicate()
 	lobby_state_changed.emit(&"creating")
-	_steam.call("createLobby", STEAM_LOBBY_TYPE_PUBLIC, MAX_PLAYERS)
+	_steam.call("createLobby", lobby_type, MAX_PLAYERS)
 
 func join_lobby(target_lobby_id: int) -> void:
 	if not _require_steam() or target_lobby_id <= 0:
@@ -128,10 +147,12 @@ func register_peer(peer_id: int, steam_id: int = 0, display_name: String = "", s
 		bool(previous.get("ready", false)),
 		resolved_seat,
 	)
+	_reserved_party_steam_ids.erase(steam_id)
 	if is_new:
 		peer_joined.emit(peer_id)
 	else:
 		peer_updated.emit(peer_id)
+	_publish_match_capacity()
 
 func unregister_peer(peer_id: int) -> void:
 	if not peers.has(peer_id):
@@ -139,6 +160,7 @@ func unregister_peer(peer_id: int) -> void:
 	peers.erase(peer_id)
 	_last_ready_request_ms.erase(peer_id)
 	peer_left.emit(peer_id)
+	_publish_match_capacity()
 
 func set_peer_ready(peer_id: int, ready: bool) -> void:
 	if lobby_started or not peers.has(peer_id):
@@ -183,8 +205,26 @@ func request_host_start() -> void:
 func all_peers_ready() -> bool:
 	return LobbyRules.all_ready(peers, TECHNICAL_START_MIN_PLAYERS)
 
+func advertised_open_slots() -> int:
+	return maxi(0, MAX_PLAYERS - peers.size() - _reserved_party_steam_ids.size())
+
+func _publish_match_capacity() -> void:
+	if not is_host or _steam == null or lobby_id == 0:
+		return
+	var open_slots := advertised_open_slots()
+	_steam.call("setLobbyData", lobby_id, OPEN_SLOTS_KEY, str(open_slots))
+	_steam.call(
+		"setLobbyData",
+		lobby_id,
+		MATCH_STATE_KEY,
+		MATCH_STATE_STARTED if lobby_started else MATCH_STATE_OPEN,
+	)
+	if _steam.has_method("setLobbyJoinable"):
+		_steam.call("setLobbyJoinable", lobby_id, not lobby_started and open_slots > 0)
+
 func _clear_pending_operations() -> void:
 	_pending_create_match = false
+	_pending_create_lobby_type = STEAM_LOBBY_TYPE_PUBLIC
 	_pending_join_match_id = 0
 	_pending_match_search = false
 
@@ -194,6 +234,7 @@ func _clear_session_state() -> void:
 	lobby_started = false
 	peers.clear()
 	_last_ready_request_ms.clear()
+	_reserved_party_steam_ids.clear()
 	_clear_pending_operations()
 
 func _teardown_lobby(final_state: StringName) -> void:
@@ -238,6 +279,7 @@ func _on_lobby_created(result: int, new_lobby_id: int) -> void:
 		return
 	_pending_create_match = false
 	if result != STEAM_RESULT_OK:
+		_reserved_party_steam_ids.clear()
 		lobby_error.emit("Steam could not create lobby (result %s)." % result)
 		lobby_state_changed.emit(&"steam_ready")
 		return
@@ -253,12 +295,14 @@ func _on_lobby_created(result: int, new_lobby_id: int) -> void:
 	)
 	_steam.call("setLobbyData", new_lobby_id, GAME_TAG_KEY, GAME_TAG_VALUE)
 	_steam.call("setLobbyData", new_lobby_id, LOBBY_KIND_KEY, LOBBY_KIND_MATCH)
+	_steam.call("setLobbyData", new_lobby_id, MATCH_STATE_KEY, MATCH_STATE_OPEN)
 	var peer = _create_steam_peer()
 	if peer == null:
 		_teardown_lobby(&"steam_ready")
 		return
 	multiplayer.multiplayer_peer = peer
 	register_peer(1, Steamworks.steam_id, Steamworks.persona_name)
+	_publish_match_capacity()
 	lobby_state_changed.emit(&"hosting")
 
 func _on_lobby_joined(joined_lobby_id: int, _permissions: int, _locked, response: int) -> void:
@@ -378,6 +422,7 @@ func _start_lobby() -> void:
 	if lobby_started:
 		return
 	lobby_started = true
+	_publish_match_capacity()
 	GameManager.set_phase(GameManager.MatchPhase.READY)
 	lobby_state_changed.emit(&"starting")
 	lobby_start_requested.emit()

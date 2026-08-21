@@ -7,6 +7,10 @@ func before_test() -> void:
 func after_test() -> void:
 	NetworkManager.reset()
 
+func test_steam_lobby_filters_use_equal_and_worldwide() -> void:
+	assert_int(NetworkManager.STEAM_LOBBY_COMPARISON_EQUAL).is_equal(0)
+	assert_int(NetworkManager.STEAM_LOBBY_DISTANCE_WORLDWIDE).is_equal(3)
+
 func test_ready_requires_two_players() -> void:
 	NetworkManager.register_peer(1, 1001, "Host")
 	NetworkManager.set_peer_ready(1, true)

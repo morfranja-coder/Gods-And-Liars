@@ -7,7 +7,7 @@ The player-facing model is:
 
 `Party -> Quick Match -> Match Found -> Match Lobby -> Role Reveal -> Match -> Rematch`
 
-Steam lobbies remain an implementation detail. The public UI should not be a server browser.
+Steam lobbies remain an implementation detail. The public UI is not a server browser.
 
 ## 1. Party
 A Party is a persistent group of 1–8 players who want to stay together.
@@ -17,9 +17,9 @@ Rules:
 - a Party is never split by matchmaking;
 - the Party leader starts or cancels Quick Match;
 - all Party members are moved into the same final Match Lobby;
-- leaving a match should return the player to their Party when possible.
+- leaving a match should preserve the Party when possible.
 
-`PartyState` is the transport-independent source model. Steam friend invites / Party Lobby transport are the next wiring layer.
+`PartyState` is the transport-independent source model. `PartyManager` owns the Steam Party Lobby lifecycle.
 
 ## 2. Match target
 For the current Mafia stage:
@@ -37,7 +37,7 @@ Valid compositions include:
 
 A composition is valid only when the complete Parties total exactly 8. Parties are never split to make the number fit.
 
-`MatchSession.MIN_PLAYERS` and `MatchSession.MAX_PLAYERS` are therefore both locked to 8 for the current commercial flow.
+`MatchSession.MIN_PLAYERS` and `MatchSession.MAX_PLAYERS` are locked to 8 for the current commercial flow.
 
 ## 3. Progressive / expansive search
 Quick Match starts narrow and expands with elapsed queue time:
@@ -51,34 +51,68 @@ The distance constants mirror the Steam lobby distance tiers. Expansion changes 
 
 `QuickMatchRules.distance_tier_for_elapsed()` owns the deterministic timing rule. `MatchmakingManager` owns runtime queue state.
 
-## 4. Matchmaking strategy
-The Steam-facing implementation should prefer an existing forming Match Lobby that can accept the entire Party.
+## 4. Steam lobby separation
+Steam lobby types are deliberately separated.
 
-Candidate priority:
-1. exact fill to 8;
-2. smallest remaining number of seats after the Party joins;
-3. older waiting match / Party;
-4. closest currently allowed distance tier.
+### Party Lobby
+- Steam type: `FriendsOnly`.
+- Metadata `game=GodsAndLiarsMVP` and `kind=party`.
+- Steam lobby owner is the Party leader.
+- Steam invite overlay is used to invite friends.
+- Member names are mirrored through lobby member data.
+- Party leader publishes `target_match_id` only after a Match Lobby is created or a reservation is accepted.
 
-If no compatible forming Match Lobby exists, the Party leader may create a forming Match Lobby and publish its available capacity.
+### Match Lobby
+- Quick Match uses Steam type `Invisible`.
+- Metadata `game=GodsAndLiarsMVP`, `kind=match`.
+- Capacity is exactly 8.
+- `match_state=open|started` prevents started matches from returning in searches.
+- `open_slots` subtracts both connected peers and Party seats already reserved while members are in transit.
 
-A reservation step must be added before moving multi-player Parties so two Parties cannot race for the same remaining seats.
+The Party Lobby remains alive while members join the invisible Match Lobby.
 
-## 5. Steam lobby separation
-Do not reuse one lobby object for every concept.
+## 5. Matchmaking strategy
+The leader presses **Buscar partida**.
 
-Planned separation:
-- Party Lobby: friends/group membership and invitations; no gameplay authority;
-- Match Lobby: exactly up to 8 players; owns the SteamMultiplayerPeer match transport;
-- matchmaking metadata: mode, build compatibility, state, occupied/reserved slots, Party reservation.
+1. Search only compatible `kind=match`, `match_state=open` lobbies.
+2. Reject candidates that cannot fit the complete Party.
+3. Prefer the smallest sufficient `open_slots` value.
+4. Repeat the search while progressively expanding the distance tier.
+5. If no compatible match is observed after a short deterministic backoff, create an invisible Match Lobby as an anchor.
+6. Once a candidate reservation succeeds or an anchor is created, publish `target_match_id` to the Party Lobby.
+7. Party members detect the target and join it automatically.
 
-This separation is important because Party membership must survive matchmaking and should not be destroyed merely because the player joins a match.
+The short Steam-ID-derived anchor jitter reduces the probability that several waiting Parties create anchors in the same instant.
 
-## 6. Host authority
+## 6. Host-authoritative Party reservation
+The Match host arbitrates Party capacity; clients do not reserve seats by merely reading `open_slots`.
+
+Every client joining a Match Lobby publishes member metadata:
+- `party_size`
+- `party_token`
+
+The first member of an external Party is normally its leader. Before adding that peer to the authoritative roster, the host checks whether the entire Party fits.
+
+If it fits:
+- leader is accepted;
+- host reserves `party_size - 1` remaining seats under the Party token;
+- advertised `open_slots` immediately excludes those seats;
+- subsequent members carrying the same Party token consume the reservation one by one.
+
+If it does not fit:
+- the reservation is rejected;
+- the peer is disconnected from the Match transport;
+- the leader resumes Quick Match search;
+- the Party is not split.
+
+When a Party creates an anchor itself, the host already knows the Steam IDs of its own Party members and removes those in-transit seats from advertised capacity immediately.
+
+## 7. Host authority
 The final Match Lobby remains host-authoritative for the MVP.
 
 The host owns:
 - authoritative peer roster;
+- Party slot reservations;
 - roles;
 - night actions;
 - votes;
@@ -86,29 +120,29 @@ The host owns:
 - winner;
 - rematch state.
 
-Host migration remains out of the current MVP. Party leader and Match host do not have to be the same person in the future.
+Host migration remains outside the current MVP.
 
-## 7. Rematch / retention loop
+## 8. Player-facing lobby UI
+The old Create / Refresh / Lobby List / Join browser is removed from the normal flow.
+
+Primary actions are:
+- **Invitar amigos**
+- **Buscar partida**
+- **Cancelar búsqueda**
+
+The screen shows Party membership separately from the forming Match roster. READY/START controls appear only after entering a Match Lobby. START remains host-only and requires exactly 8 connected READY players.
+
+## 9. Rematch / retention loop
 After a match:
 - players may rematch with the same 8;
 - players may leave back to their original Party;
-- a retained temporary group may queue again to fill missing seats.
+- a retained temporary group can later queue again to fill missing seats.
 
-Example: 8 play, 2 leave, 6 remain -> Quick Match searches for a Party of 2 or compatible complete Parties totaling 2.
+Example: 8 play, 2 leave, 6 remain -> Quick Match searches for compatible complete Parties totaling 2.
 
-## 8. Current implementation status
-Implemented now:
-- exact 8-player commercial match lock;
-- PartyState domain model;
-- exact-fill Party composition rules;
-- progressive CLOSE -> DEFAULT -> FAR -> WORLDWIDE timing;
-- MatchmakingManager queue state and candidate composition logic;
-- tests for 5+3, 4+2+1+1, party limits and expansion timing;
-- Steam Match Lobby capacity aligned to 8.
+## 10. Current hardening item
+Without a dedicated matchmaking backend, two Parties can theoretically create anchor Match Lobbies nearly simultaneously after both fail to observe a candidate in the same Steam search window. The deterministic backoff reduces this race but does not mathematically eliminate it.
 
-Next wiring step:
-- Steam Party Lobby / friend invites;
-- Match Lobby metadata and reservation tokens;
-- Party leader moves all members atomically into selected Match Lobby;
-- replace the current public lobby-browser UI with Party + Quick Match UI;
-- end-to-end real Steam test with 8 accounts.
+Before public matchmaking, add deterministic anchor convergence: an anchor containing only its originating Party continues discovering other compatible anchors, and a deterministic lobby-ID priority decides which anchor survives while the other Party migrates.
+
+This is a matchmaking hardening item; it does not change the Mafia gameplay state machine.

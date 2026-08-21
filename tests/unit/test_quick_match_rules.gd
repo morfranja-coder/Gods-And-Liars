@@ -25,7 +25,9 @@ func test_exact_fit_finds_five_plus_three() -> void:
 		{"id": 101, "party_size": 2, "wait_ms": 8000},
 		{"id": 102, "party_size": 3, "wait_ms": 5000},
 	]
-	assert_array(QuickMatchRules.find_exact_fit(5, candidates)).contains_exactly([102])
+	var result := QuickMatchRules.find_exact_fit(5, candidates)
+	assert_int(result.size()).is_equal(1)
+	assert_int(result[0]).is_equal(102)
 
 func test_exact_fit_can_combine_multiple_parties() -> void:
 	var candidates: Array[Dictionary] = [
@@ -33,4 +35,8 @@ func test_exact_fit_can_combine_multiple_parties() -> void:
 		{"id": 202, "party_size": 1, "wait_ms": 9000},
 		{"id": 203, "party_size": 1, "wait_ms": 6000},
 	]
-	assert_array(QuickMatchRules.find_exact_fit(4, candidates)).contains_exactly([201, 202, 203])
+	var result := QuickMatchRules.find_exact_fit(4, candidates)
+	assert_int(result.size()).is_equal(3)
+	assert_bool(result.has(201)).is_true()
+	assert_bool(result.has(202)).is_true()
+	assert_bool(result.has(203)).is_true()

@@ -10,6 +10,7 @@ const STATE_IDLE := &"idle"
 const STATE_SEARCHING := &"searching"
 const STATE_RESERVING := &"reserving"
 const STATE_HOSTING := &"hosting"
+const STATE_ANCHORING := &"anchoring"
 const STATE_MATCH_FOUND := &"match_found"
 
 const SEARCH_INTERVAL_MS := 2500
@@ -22,6 +23,7 @@ const LOBBY_KIND_MATCH := "match"
 const MATCH_STATE_KEY := "match_state"
 const MATCH_STATE_OPEN := "open"
 const OPEN_SLOTS_KEY := "open_slots"
+const ANCHOR_PARTY_SIZE_KEY := "anchor_party_size"
 const STEAM_LOBBY_COMPARISON_EQUAL := 0
 
 var state: StringName = STATE_IDLE
@@ -45,8 +47,14 @@ func _ready() -> void:
 		_bind_steam_callbacks()
 
 func _process(_delta: float) -> void:
-	if state != STATE_SEARCHING or not _steam_search_enabled:
+	if not _steam_search_enabled:
 		return
+	if state == STATE_SEARCHING:
+		_process_searching()
+	elif state == STATE_ANCHORING:
+		_process_anchoring()
+
+func _process_searching() -> void:
 	var elapsed_ms: int = maxi(0, Time.get_ticks_msec() - queue_started_ms)
 	var next_tier: int = QuickMatchRules.distance_tier_for_elapsed(elapsed_ms)
 	if next_tier != current_distance_tier:
@@ -58,6 +66,20 @@ func _process(_delta: float) -> void:
 		_request_match_lobbies()
 	if elapsed_ms >= _anchor_after_ms and NetworkManager.lobby_id == 0 and not _search_pending:
 		_host_anchor_match()
+
+func _process_anchoring() -> void:
+	if NetworkManager.lobby_id <= 0 or NetworkManager.lobby_started:
+		return
+	if not AnchorConvergenceRules.is_pure_anchor(
+		local_party_size,
+		NetworkManager.advertised_open_slots(),
+	):
+		state = STATE_MATCH_FOUND
+		queue_state_changed.emit(state)
+		return
+	var now_ms := Time.get_ticks_msec()
+	if not _search_pending and now_ms - _last_search_ms >= SEARCH_INTERVAL_MS:
+		_request_match_lobbies()
 
 func _bind_steam_callbacks() -> void:
 	_steam = Steamworks.get_api()
@@ -111,7 +133,7 @@ func start_quick_match(party_size: int) -> bool:
 func cancel_quick_match() -> void:
 	if state == STATE_IDLE:
 		return
-	if state in [STATE_RESERVING, STATE_MATCH_FOUND] and NetworkManager.lobby_id != 0:
+	if state in [STATE_RESERVING, STATE_ANCHORING, STATE_MATCH_FOUND] and NetworkManager.lobby_id != 0:
 		NetworkManager.leave_lobby()
 	if _steam_search_enabled and PartyManager.is_local_leader():
 		PartyManager.clear_match_target()
@@ -146,7 +168,9 @@ func consider_candidates(candidates: Array[Dictionary]) -> Array[int]:
 	return party_ids
 
 func _request_match_lobbies(force: bool = false) -> void:
-	if not _steam_search_enabled or state != STATE_SEARCHING or _steam == null or _search_pending:
+	if not _steam_search_enabled or state not in [STATE_SEARCHING, STATE_ANCHORING]:
+		return
+	if _steam == null or _search_pending:
 		return
 	var now_ms := Time.get_ticks_msec()
 	if not force and now_ms - _last_search_ms < SEARCH_INTERVAL_MS:
@@ -176,9 +200,15 @@ func _request_match_lobbies(force: bool = false) -> void:
 	_steam.call("requestLobbyList")
 
 func _on_lobby_match_list(lobbies: Array) -> void:
-	if not _search_pending or state != STATE_SEARCHING:
+	if not _search_pending:
 		return
 	_search_pending = false
+	if state == STATE_SEARCHING:
+		_handle_search_results(lobbies)
+	elif state == STATE_ANCHORING:
+		_handle_anchor_results(lobbies)
+
+func _handle_search_results(lobbies: Array) -> void:
 	var candidate := _choose_match_candidate(lobbies)
 	if candidate.is_empty():
 		return
@@ -190,6 +220,17 @@ func _on_lobby_match_list(lobbies: Array) -> void:
 	queue_state_changed.emit(state)
 	match_candidate_found.emit(_candidate_lobby_id, open_slots)
 	NetworkManager.join_lobby(_candidate_lobby_id)
+
+func _handle_anchor_results(lobbies: Array) -> void:
+	var candidate := _choose_anchor_convergence_target(lobbies)
+	if candidate.is_empty():
+		return
+	_candidate_lobby_id = int(candidate.get("lobby_id", 0))
+	if _candidate_lobby_id <= 0:
+		return
+	state = STATE_RESERVING
+	queue_state_changed.emit(state)
+	PartyManager.set_match_target(_candidate_lobby_id)
 
 func _choose_match_candidate(lobbies: Array) -> Dictionary:
 	var best: Dictionary = {}
@@ -211,6 +252,35 @@ func _choose_match_candidate(lobbies: Array) -> Dictionary:
 			best = {"lobby_id": candidate_id, "open_slots": open_slots}
 		elif open_slots == best_open_slots and candidate_id < int(best.get("lobby_id", candidate_id)):
 			best = {"lobby_id": candidate_id, "open_slots": open_slots}
+	return best
+
+func _choose_anchor_convergence_target(lobbies: Array) -> Dictionary:
+	var best: Dictionary = {}
+	var local_lobby_id := NetworkManager.lobby_id
+	for raw_lobby_id in lobbies:
+		var remote_lobby_id := int(raw_lobby_id)
+		if remote_lobby_id <= 0 or remote_lobby_id == local_lobby_id:
+			continue
+		var raw_party_size := str(_steam.call("getLobbyData", remote_lobby_id, ANCHOR_PARTY_SIZE_KEY))
+		var raw_open_slots := str(_steam.call("getLobbyData", remote_lobby_id, OPEN_SLOTS_KEY))
+		if not raw_party_size.is_valid_int() or not raw_open_slots.is_valid_int():
+			continue
+		var remote_party_size := int(raw_party_size)
+		var remote_open_slots := int(raw_open_slots)
+		if not AnchorConvergenceRules.should_migrate(
+			local_lobby_id,
+			local_party_size,
+			remote_lobby_id,
+			remote_party_size,
+			remote_open_slots,
+		):
+			continue
+		if best.is_empty() or remote_lobby_id < int(best.get("lobby_id", remote_lobby_id)):
+			best = {
+				"lobby_id": remote_lobby_id,
+				"party_size": remote_party_size,
+				"open_slots": remote_open_slots,
+			}
 	return best
 
 func _host_anchor_match() -> void:
@@ -238,10 +308,11 @@ func _on_party_reservation_result(accepted: bool) -> void:
 
 func _on_network_lobby_state_changed(network_state: StringName) -> void:
 	if state == STATE_HOSTING and network_state == &"hosting":
-		state = STATE_MATCH_FOUND
+		state = STATE_ANCHORING
 		queue_state_changed.emit(state)
 		if PartyManager.is_local_leader():
 			PartyManager.set_match_target(NetworkManager.lobby_id)
+		_request_match_lobbies(true)
 	elif state == STATE_RESERVING and network_state in [&"connection_failed", &"host_disconnected"]:
 		_candidate_lobby_id = 0
 		state = STATE_SEARCHING
@@ -252,9 +323,23 @@ func _on_party_match_target_changed(target_lobby_id: int) -> void:
 		return
 	if NetworkManager.lobby_id == target_lobby_id:
 		return
-	if NetworkManager.lobby_id != 0:
+	if NetworkManager.lobby_started:
 		return
-	state = STATE_MATCH_FOUND
+	if NetworkManager.lobby_id != 0:
+		NetworkManager.leave_lobby()
+		call_deferred("_join_party_target_after_leave", target_lobby_id)
+		return
+	_join_party_target_after_leave(target_lobby_id)
+
+func _join_party_target_after_leave(target_lobby_id: int) -> void:
+	if target_lobby_id <= 0 or NetworkManager.lobby_id != 0:
+		return
+	if PartyManager.match_target_lobby_id != target_lobby_id:
+		return
+	if PartyManager.is_local_leader():
+		state = STATE_RESERVING
+	else:
+		state = STATE_MATCH_FOUND
 	queue_state_changed.emit(state)
 	NetworkManager.join_lobby(target_lobby_id)
 

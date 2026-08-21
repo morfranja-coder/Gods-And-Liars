@@ -3,27 +3,41 @@ extends Node
 signal party_changed
 signal party_error(message: String)
 signal party_lobby_state_changed(state_name: StringName)
+signal match_target_changed(match_lobby_id: int)
 
 const GAME_TAG_KEY := "game"
 const GAME_TAG_VALUE := "GodsAndLiarsMVP"
 const LOBBY_KIND_KEY := "kind"
 const LOBBY_KIND_PARTY := "party"
 const MEMBER_NAME_KEY := "display_name"
+const MATCH_TARGET_KEY := "target_match_id"
 const STEAM_LOBBY_TYPE_FRIENDS_ONLY := 1
 const STEAM_RESULT_OK := 1
 const STEAM_CHAT_ENTER_SUCCESS := 1
+const TARGET_POLL_INTERVAL_MS := 500
 
 var state := PartyState.new()
 var party_lobby_id: int = 0
+var match_target_lobby_id: int = 0
 var _steam: Object = null
 var _pending_create: bool = false
 var _pending_join_id: int = 0
+var _last_target_poll_ms: int = 0
 
 func _ready() -> void:
 	Steamworks.steam_ready.connect(_bind_steam_callbacks)
 	Steamworks.steam_unavailable.connect(_on_steam_unavailable)
 	if Steamworks.initialized:
 		_bind_steam_callbacks()
+
+func _process(_delta: float) -> void:
+	if _steam == null or party_lobby_id == 0:
+		return
+	var now_ms := Time.get_ticks_msec()
+	if now_ms - _last_target_poll_ms < TARGET_POLL_INTERVAL_MS:
+		return
+	_last_target_poll_ms = now_ms
+	_sync_match_target_from_lobby()
 
 func _bind_steam_callbacks() -> void:
 	_steam = Steamworks.get_api()
@@ -41,8 +55,10 @@ func _connect_steam_signal(signal_name: StringName, method: Callable) -> void:
 
 func reset_to_solo() -> void:
 	party_lobby_id = 0
+	match_target_lobby_id = 0
 	_pending_create = false
 	_pending_join_id = 0
+	_last_target_poll_ms = 0
 	if not Steamworks.initialized or Steamworks.steam_id <= 0:
 		state = PartyState.new()
 		party_changed.emit()
@@ -95,6 +111,22 @@ func open_invite_overlay() -> bool:
 		return false
 	_steam.call("activateGameOverlayInviteDialog", party_lobby_id)
 	return true
+
+func set_match_target(target_lobby_id: int) -> bool:
+	if target_lobby_id < 0 or not is_local_leader():
+		return false
+	match_target_lobby_id = target_lobby_id
+	if party_lobby_id != 0 and _steam != null:
+		_steam.call("setLobbyData", party_lobby_id, MATCH_TARGET_KEY, str(target_lobby_id))
+	match_target_changed.emit(target_lobby_id)
+	return true
+
+func clear_match_target() -> void:
+	if is_local_leader():
+		set_match_target(0)
+	else:
+		match_target_lobby_id = 0
+		match_target_changed.emit(0)
 
 func apply_snapshot(party_id: int, leader_steam_id: int, members: Dictionary) -> bool:
 	var next_state := PartyState.new()
@@ -158,6 +190,16 @@ func _publish_local_member_data() -> void:
 		return
 	_steam.call("setLobbyMemberData", party_lobby_id, MEMBER_NAME_KEY, Steamworks.persona_name)
 
+func _sync_match_target_from_lobby() -> void:
+	if _steam == null or party_lobby_id == 0:
+		return
+	var raw_target := str(_steam.call("getLobbyData", party_lobby_id, MATCH_TARGET_KEY))
+	var target_id := int(raw_target) if raw_target.is_valid_int() else 0
+	if target_id == match_target_lobby_id:
+		return
+	match_target_lobby_id = target_id
+	match_target_changed.emit(match_target_lobby_id)
+
 func _on_lobby_created(result: int, new_lobby_id: int) -> void:
 	if not _pending_create:
 		return
@@ -169,6 +211,7 @@ func _on_lobby_created(result: int, new_lobby_id: int) -> void:
 	party_lobby_id = new_lobby_id
 	_steam.call("setLobbyData", new_lobby_id, GAME_TAG_KEY, GAME_TAG_VALUE)
 	_steam.call("setLobbyData", new_lobby_id, LOBBY_KIND_KEY, LOBBY_KIND_PARTY)
+	_steam.call("setLobbyData", new_lobby_id, MATCH_TARGET_KEY, "0")
 	_publish_local_member_data()
 	_refresh_from_steam_lobby()
 	party_lobby_state_changed.emit(&"ready")
@@ -186,6 +229,7 @@ func _on_lobby_joined(joined_lobby_id: int, _permissions: int, _locked, response
 	party_lobby_id = joined_lobby_id
 	_publish_local_member_data()
 	_refresh_from_steam_lobby()
+	_sync_match_target_from_lobby()
 	party_lobby_state_changed.emit(&"ready")
 
 func _on_lobby_chat_update(
@@ -197,6 +241,7 @@ func _on_lobby_chat_update(
 	if updated_lobby_id != party_lobby_id:
 		return
 	_refresh_from_steam_lobby()
+	_sync_match_target_from_lobby()
 
 func _on_join_requested(requested_lobby_id: int, _friend_id: int) -> void:
 	if _steam == null or requested_lobby_id <= 0:
@@ -214,7 +259,9 @@ func _on_steam_unavailable(_reason: String) -> void:
 	_steam = null
 	state = PartyState.new()
 	party_lobby_id = 0
+	match_target_lobby_id = 0
 	_pending_create = false
 	_pending_join_id = 0
+	_last_target_poll_ms = 0
 	party_changed.emit()
 	party_lobby_state_changed.emit(&"offline")

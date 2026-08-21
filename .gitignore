@@ -8,6 +8,9 @@ addons/gdUnit4/
 addons/godot_state_charts/
 addons/godotsteam/
 
+# Local tooling/runtime downloads
+.tools/
+
 # Builds
 build/
 dist/

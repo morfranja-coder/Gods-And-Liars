@@ -24,6 +24,8 @@ func _ready() -> void:
 	if int(response.get("status", 1)) != 0:
 		mark_unavailable("Steam init failed: %s" % response)
 		return
+	if _steam.has_method("initRelayNetworkAccess"):
+		_steam.call("initRelayNetworkAccess")
 	steam_id = int(_steam.call("getSteamID"))
 	persona_name = str(_steam.call("getPersonaName"))
 	initialized = true
@@ -36,12 +38,10 @@ func _process(_delta: float) -> void:
 func get_api() -> Object:
 	return _steam
 
-func mark_ready(id: int, name: String) -> void:
-	steam_id = id
-	persona_name = name
-	initialized = true
-	steam_ready.emit()
-
 func mark_unavailable(reason: String) -> void:
 	initialized = false
+	steam_id = 0
+	persona_name = ""
+	lobby_id = 0
+	_steam = null
 	steam_unavailable.emit(reason)

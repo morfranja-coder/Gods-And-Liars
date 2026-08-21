@@ -21,6 +21,7 @@ static func run(
 	var session := _build_session(seed_value)
 	if session == null:
 		return {"completed": false, "blocked": false, "reason": "prepare_failed", "rounds": 0}
+	var effective_fault_peer_id := _resolve_fault_peer_id(session, fault, fault_peer_id)
 	var brains := _build_brains(session)
 	var rounds := 0
 	var fault_consumed := false
@@ -29,7 +30,13 @@ static func run(
 		if not winner.is_empty():
 			return _result(session, winner, rounds, true, false, fault_consumed)
 		rounds += 1
-		var night_result := _run_night(session, brains, fault, fault_peer_id, fault_consumed)
+		var night_result := _run_night(
+			session,
+			brains,
+			fault,
+			effective_fault_peer_id,
+			fault_consumed,
+		)
 		fault_consumed = fault_consumed or bool(night_result.get("fault_consumed", false))
 		if bool(night_result.get("blocked", false)):
 			return _result(session, session.winner(), rounds, false, true, fault_consumed)
@@ -37,14 +44,20 @@ static func run(
 		if not winner.is_empty():
 			return _result(session, winner, rounds, true, false, fault_consumed)
 		if fault == Fault.DISCONNECT_AFTER_NIGHT and not fault_consumed:
-			var disconnected := session.get_player(fault_peer_id)
+			var disconnected := session.get_player(effective_fault_peer_id)
 			if disconnected != null and disconnected.alive:
 				disconnected.alive = false
 				fault_consumed = true
 				winner = session.winner()
 				if not winner.is_empty():
 					return _result(session, winner, rounds, true, false, fault_consumed)
-		var vote_result := _run_vote(session, brains, fault, fault_peer_id, fault_consumed)
+		var vote_result := _run_vote(
+			session,
+			brains,
+			fault,
+			effective_fault_peer_id,
+			fault_consumed,
+		)
 		fault_consumed = fault_consumed or bool(vote_result.get("fault_consumed", false))
 		if bool(vote_result.get("blocked", false)):
 			return _result(session, session.winner(), rounds, false, true, fault_consumed)
@@ -62,6 +75,23 @@ static func _build_session(seed_value: int) -> MatchSession:
 		var player := session.get_player(peer_id)
 		player.ready = true
 	return session if session.prepare_match() else null
+
+static func _resolve_fault_peer_id(session: MatchSession, fault: Fault, requested_peer_id: int) -> int:
+	if requested_peer_id > 0:
+		return requested_peer_id
+	for player in session.players:
+		if not player.alive:
+			continue
+		if fault == Fault.AFK_NIGHT:
+			if player.role in [
+				PlayerState.Role.HERETIC,
+				PlayerState.Role.HEALER,
+				PlayerState.Role.INQUISITOR,
+			]:
+				return player.peer_id
+		else:
+			return player.peer_id
+	return 0
 
 static func _build_brains(session: MatchSession) -> Dictionary:
 	var brains: Dictionary = {}

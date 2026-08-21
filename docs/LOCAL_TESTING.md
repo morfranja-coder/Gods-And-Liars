@@ -2,27 +2,27 @@
 
 This document is for the Windows development workstation.
 
-## Engine separation
+## Engine
 
-Gods & Liars remains a Godot 4.7 project. `project.godot` declares Godot 4.7 and the Steam runtime gate is pinned to GodotSteam 4.20 / Godot 4.7 / Steamworks SDK 1.64.
+Gods & Liars uses Godot 4.7 for development, local QA, MCP, CI and runtime validation. `project.godot` declares Godot 4.7 and the Steam runtime gate is pinned to GodotSteam 4.20 / Godot 4.7 / Steamworks SDK 1.64.
 
-Godot 4.6 is installed side-by-side only as an auxiliary editor/MCP target. Do not resave Gods & Liars scenes or `project.godot` from Godot 4.6.
+Do not use Godot 4.6 for this project.
 
-## 1. Install Godot 4.6 + QA MCP
+## 1. Install Godot 4.7 + QA MCP
 
 From the repository root in PowerShell:
 
 ```powershell
-.\tools\setup-local-godot46-mcp.ps1
+.\tools\setup-local-godot47-mcp.ps1
 ```
 
-This installs the official Godot 4.6 stable Windows x86_64 editor under the current user's LocalAppData and registers a separate Codex MCP named:
+This installs the official Godot 4.7 stable Windows x86_64 editor under the current user's LocalAppData and registers a Codex MCP named:
 
 ```text
-godot46-visual
+godot47-visual
 ```
 
-The MCP is pinned to Godot MCP Enhanced 0.26.0 and is configured as a QA-oriented local tool. It does not change the Gods & Liars engine target.
+The MCP is pinned to Godot MCP Enhanced 0.26.0 and is configured as a QA-oriented local tool.
 
 Requirements:
 

@@ -21,6 +21,7 @@ const MATCH_STATE_KEY: String = "match_state"
 const MATCH_STATE_OPEN: String = "open"
 const MATCH_STATE_STARTED: String = "started"
 const OPEN_SLOTS_KEY: String = "open_slots"
+const ANCHOR_PARTY_SIZE_KEY: String = "anchor_party_size"
 const MEMBER_PARTY_SIZE_KEY: String = "party_size"
 const MEMBER_PARTY_TOKEN_KEY: String = "party_token"
 
@@ -322,6 +323,7 @@ func _on_lobby_created(result: int, new_lobby_id: int) -> void:
 	_steam.call("setLobbyData", new_lobby_id, GAME_TAG_KEY, GAME_TAG_VALUE)
 	_steam.call("setLobbyData", new_lobby_id, LOBBY_KIND_KEY, LOBBY_KIND_MATCH)
 	_steam.call("setLobbyData", new_lobby_id, MATCH_STATE_KEY, MATCH_STATE_OPEN)
+	_steam.call("setLobbyData", new_lobby_id, ANCHOR_PARTY_SIZE_KEY, str(PartyManager.size()))
 	_publish_local_match_party_data(new_lobby_id)
 	var peer = _create_steam_peer()
 	if peer == null:
@@ -529,6 +531,5 @@ func _remove_peer(peer_id: int) -> void:
 	unregister_peer(peer_id)
 
 func _on_steam_unavailable(reason: String) -> void:
-	_clear_pending_operations()
 	lobby_error.emit(reason)
 	lobby_state_changed.emit(&"offline")

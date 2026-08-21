@@ -14,14 +14,12 @@ func test_start_requires_everyone_ready() -> void:
 	peers[2]["ready"] = true
 	assert_bool(LobbyRules.can_start(true, true, peers)).is_true()
 
-func test_gameplay_start_requires_match_minimum() -> void:
-	var peers := {
-		1: LobbyRules.make_peer(1001, "One", true),
-		2: LobbyRules.make_peer(1002, "Two", true),
-		3: LobbyRules.make_peer(1003, "Three", true),
-	}
+func test_gameplay_start_requires_exactly_eight_ready_players() -> void:
+	var peers: Dictionary = {}
+	for peer_id in range(1, QuickMatchRules.TARGET_PLAYERS):
+		peers[peer_id] = LobbyRules.make_peer(1000 + peer_id, "P%d" % peer_id, true)
 	assert_bool(LobbyRules.can_start(true, true, peers, MatchSession.MIN_PLAYERS)).is_false()
-	peers[4] = LobbyRules.make_peer(1004, "Four", true)
+	peers[QuickMatchRules.TARGET_PLAYERS] = LobbyRules.make_peer(1008, "P8", true)
 	assert_bool(LobbyRules.can_start(true, true, peers, MatchSession.MIN_PLAYERS)).is_true()
 
 func test_client_cannot_start_even_when_everyone_ready() -> void:
@@ -51,3 +49,9 @@ func test_existing_peer_can_be_refreshed_when_lobby_is_full() -> void:
 		2: LobbyRules.make_peer(1002, "Two"),
 	}
 	assert_bool(LobbyRules.can_register_peer(peers, 2, 2)).is_true()
+
+func test_match_roster_is_capped_at_eight_even_if_transport_allows_more() -> void:
+	var peers: Dictionary = {}
+	for peer_id in range(1, QuickMatchRules.TARGET_PLAYERS + 1):
+		peers[peer_id] = LobbyRules.make_peer(2000 + peer_id, "P%d" % peer_id)
+	assert_bool(LobbyRules.can_register_peer(peers, 9, 10)).is_false()

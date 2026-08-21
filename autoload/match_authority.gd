@@ -3,6 +3,7 @@ extends Node
 signal private_role_received(role: int)
 signal role_reveal_failed(reason: String)
 signal phase_synced(phase: int)
+signal phase_timeout_triggered(phase: int)
 signal night_action_accepted(actor_peer_id: int, target_peer_id: int)
 signal night_action_result_received(accepted: bool, target_peer_id: int)
 signal night_resolution_received(killed_peer_ids: Array[int])
@@ -22,10 +23,27 @@ var _heretic_targets: Dictionary = {}
 var _healer_target_peer_id: int = 0
 var _inquisitor_target_peer_id: int = 0
 var _votes: Dictionary = {}
+var _phase_deadline_ms: int = 0
+var _phase_deadline_phase: int = -1
 
 func _ready() -> void:
 	NetworkManager.lobby_state_changed.connect(_on_lobby_state_changed)
 	NetworkManager.peer_left.connect(_on_peer_left)
+
+func _process(_delta: float) -> void:
+	if _phase_deadline_ms <= 0 or _session == null:
+		return
+	if not multiplayer.is_server() or not NetworkManager.is_host:
+		return
+	if int(GameManager.phase) != _phase_deadline_phase:
+		_clear_phase_timeout()
+		return
+	if Time.get_ticks_msec() < _phase_deadline_ms:
+		return
+	var expired_phase := GameManager.phase
+	_clear_phase_timeout()
+	phase_timeout_triggered.emit(int(expired_phase))
+	_handle_phase_timeout(expired_phase)
 
 func reset() -> void:
 	local_role = PlayerState.Role.UNASSIGNED
@@ -36,6 +54,7 @@ func reset() -> void:
 	_role_acknowledged.clear()
 	_votes.clear()
 	_reset_night_actions()
+	_clear_phase_timeout()
 
 func begin_role_reveal() -> bool:
 	if not multiplayer.is_server() or not NetworkManager.is_host or _roles_dispatched:
@@ -305,8 +324,12 @@ func _valid_vote_count() -> int:
 			count += 1
 	return count
 
-func _resolve_vote() -> void:
-	var sacrificed_peer_id := VoteRules.resolve(_session.players, _votes)
+func _resolve_vote(use_partial_votes: bool = false) -> void:
+	var sacrificed_peer_id := (
+		VoteRules.resolve_partial(_session.players, _votes)
+		if use_partial_votes
+		else VoteRules.resolve(_session.players, _votes)
+	)
 	_broadcast_phase(GameManager.MatchPhase.SACRIFICE)
 	if sacrificed_peer_id > 0:
 		_session.sacrifice(sacrificed_peer_id)
@@ -339,6 +362,35 @@ func _living_player_count() -> int:
 
 func _broadcast_phase(phase_value: GameManager.MatchPhase) -> void:
 	_sync_phase.rpc(int(phase_value), GameManager.round_number)
+	_arm_phase_timeout(phase_value)
+
+func _arm_phase_timeout(phase_value: GameManager.MatchPhase) -> void:
+	if not multiplayer.is_server() or not NetworkManager.is_host:
+		_clear_phase_timeout()
+		return
+	_phase_deadline_phase = int(phase_value)
+	_phase_deadline_ms = PhaseTimeoutPolicy.deadline_ms(phase_value, Time.get_ticks_msec())
+	if _phase_deadline_ms == 0:
+		_phase_deadline_phase = -1
+
+func _clear_phase_timeout() -> void:
+	_phase_deadline_ms = 0
+	_phase_deadline_phase = -1
+
+func _handle_phase_timeout(expired_phase: GameManager.MatchPhase) -> void:
+	if _session == null or GameManager.phase != expired_phase:
+		return
+	match expired_phase:
+		GameManager.MatchPhase.ROLE_REVEAL:
+			_start_night()
+		GameManager.MatchPhase.HERETIC_ACTION, \
+		GameManager.MatchPhase.HEALER_ACTION, \
+		GameManager.MatchPhase.INQUISITOR_ACTION:
+			_advance_night_phase()
+		GameManager.MatchPhase.DAY_DISCUSSION:
+			request_begin_voting()
+		GameManager.MatchPhase.VOTING:
+			_resolve_vote(true)
 
 func _reset_night_actions() -> void:
 	_heretic_targets.clear()
@@ -353,6 +405,7 @@ func _reset_for_rematch() -> void:
 	_role_acknowledged.clear()
 	_votes.clear()
 	_reset_night_actions()
+	_clear_phase_timeout()
 	_initialize_public_alive()
 	GameManager.round_number = 0
 	GameManager.set_phase(GameManager.MatchPhase.READY)
@@ -458,6 +511,7 @@ func _sync_match_end(winner_value: String) -> void:
 	if winner not in [&"faithful", &"heretics"]:
 		return
 	public_winner = winner
+	_clear_phase_timeout()
 	GameManager.end_match(winner)
 	match_end_received.emit(winner)
 

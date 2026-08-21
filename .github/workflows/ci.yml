@@ -137,6 +137,30 @@ jobs:
           $editor = "${{ steps.godotsteam.outputs.editor }}"
           ./tools/build-windows.ps1 -GodotBinary $editor -Output "build/steam-windows/GodsAndLiars.exe"
 
+      - name: Assemble and validate Steam Windows runtime
+        shell: pwsh
+        run: |
+          $out = "build/steam-windows"
+          $steamDll = ".tools/godotsteam/templates-expanded/win64/steam_api64.dll"
+          if (-not (Test-Path $steamDll)) { throw "steam_api64.dll missing from pinned GodotSteam runtime" }
+          if (-not (Test-Path "steam_appid.txt")) { throw "steam_appid.txt missing from repository" }
+          Copy-Item $steamDll "$out/steam_api64.dll" -Force
+          Copy-Item "steam_appid.txt" "$out/steam_appid.txt" -Force
+
+          $required = @(
+            "$out/GodsAndLiars.exe",
+            "$out/steam_api64.dll",
+            "$out/steam_appid.txt"
+          )
+          foreach ($file in $required) {
+            if (-not (Test-Path $file)) { throw "Steam Windows artifact missing required file: $file" }
+            if ((Get-Item $file).Length -le 0) { throw "Steam Windows artifact contains empty file: $file" }
+          }
+
+          $appId = (Get-Content "$out/steam_appid.txt" -Raw).Trim()
+          if ($appId -ne "480") { throw "Expected development Steam App ID 480, got '$appId'" }
+          Write-Host "GREEN: complete Steam Windows runtime assembled"
+
       - name: Upload Steam Windows artifact
         uses: actions/upload-artifact@v4
         with:

@@ -73,6 +73,7 @@ Steam lobby types are deliberately separated.
 - Capacity is exactly 8.
 - `match_state=open|started` prevents started matches from returning in searches.
 - `open_slots` subtracts both connected peers and Party seats already reserved while members are in transit.
+- `anchor_party_size` records the Party size that created an anchor and is used to identify pure anchors for convergence.
 
 The Party Lobby remains alive while members join the invisible Match Lobby.
 
@@ -107,12 +108,35 @@ If it fits:
 If it does not fit:
 - the reservation is rejected;
 - the peer is disconnected from the Match transport;
-- the leader resumes Quick Match search;
+- the leader clears the stale Party target and resumes Quick Match search;
 - the Party is not split.
 
 When a Party creates an anchor itself, the host already knows the Steam IDs of its own Party members and removes those in-transit seats from advertised capacity immediately.
 
-## 7. Host authority
+## 7. Anchor convergence
+Anchor convergence prevents two compatible Parties from remaining stranded in separate Match Lobbies when both created anchors during the same Steam search window.
+
+Rules:
+- only `match_state=open` anchors participate;
+- a local anchor continues periodic discovery while it contains only its originating Party;
+- an anchor is considered pure when `open_slots == 8 - anchor_party_size`;
+- compatible pure anchors may merge only if their complete Parties fit within 8 players;
+- the lower Steam Lobby ID wins deterministically;
+- only the Party in the higher Lobby ID migrates, so reciprocal migration cannot occur;
+- the losing Party updates `target_match_id`, leaves its old anchor and joins the winning anchor as one Party;
+- the winning Match host applies the normal authoritative Party reservation before accepting the group;
+- once another Party begins joining an anchor, it stops being pure and convergence stops for that Match Lobby;
+- if the reservation loses a last-moment capacity race, the stale target is cleared and Quick Match resumes.
+
+Examples:
+- 5-player anchor + 3-player anchor -> converge to one 8-player Match Lobby;
+- 4 + 4 -> converge;
+- 6 + 3 -> do not converge;
+- an anchor whose advertised capacity already shows another Party/reservation -> do not migrate it as a pure anchor.
+
+`AnchorConvergenceRules` owns the deterministic decision and is covered by unit tests.
+
+## 8. Host authority
 The final Match Lobby remains host-authoritative for the MVP.
 
 The host owns:
@@ -127,7 +151,7 @@ The host owns:
 
 Host migration remains outside the current MVP.
 
-## 8. Player-facing lobby UI
+## 9. Player-facing lobby UI
 The old Create / Refresh / Lobby List / Join browser is removed from the normal flow.
 
 Primary actions are:
@@ -137,7 +161,7 @@ Primary actions are:
 
 The screen shows Party membership separately from the forming Match roster. READY/START controls appear only after entering a Match Lobby. START remains host-only and requires exactly 8 connected READY players.
 
-## 9. Rematch / retention loop
+## 10. Rematch / retention loop
 After a match:
 - players may rematch with the same 8;
 - players may leave back to their original Party;
@@ -148,10 +172,3 @@ After a match:
 Example: 8 play, 2 leave, 6 choose to stay together -> those 6 form a Party and Quick Match searches for compatible complete Parties totaling 2.
 
 The post-match retention flow should collect each player's explicit in-game opt-in before creating or joining the retained Party.
-
-## 10. Current hardening item
-Without a dedicated matchmaking backend, two Parties can theoretically create anchor Match Lobbies nearly simultaneously after both fail to observe a candidate in the same Steam search window. The deterministic backoff reduces this race but does not mathematically eliminate it.
-
-Before public matchmaking, add deterministic anchor convergence: an anchor containing only its originating Party continues discovering other compatible anchors, and a deterministic lobby-ID priority decides which anchor survives while the other Party migrates.
-
-This is a matchmaking hardening item; it does not change the Mafia gameplay state machine.

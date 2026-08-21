@@ -87,15 +87,15 @@ func _can_receive_voice(sender_id: int, compressed: PackedByteArray) -> bool:
 func _valid_decompressed_voice(decompressed: Dictionary) -> bool:
 	if int(decompressed.get("result", -1)) != VOICE_RESULT_OK:
 		return false
-	var byte_count := int(decompressed.get("size", 0))
+	var raw: PackedByteArray = decompressed.get("uncompressed", PackedByteArray())
+	var byte_count := int(decompressed.get("size", raw.size()))
 	if not VoicePolicy.accepts_decompressed_size(byte_count):
 		return false
-	var raw: PackedByteArray = decompressed.get("uncompressed", PackedByteArray())
 	return not raw.is_empty()
 
 func _push_decompressed_voice(sender_id: int, decompressed: Dictionary) -> void:
-	var byte_count := int(decompressed.get("size", 0))
 	var raw: PackedByteArray = decompressed.get("uncompressed", PackedByteArray())
+	var byte_count := int(decompressed.get("size", raw.size()))
 	var usable_bytes := mini(byte_count, raw.size())
 	var frame_count := usable_bytes >> 1
 	var frames := PackedVector2Array()

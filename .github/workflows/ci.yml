@@ -17,8 +17,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Gitleaks
-        uses: gitleaks/gitleaks-action@v2
+      - name: Install pinned Gitleaks CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          GITLEAKS_VERSION="8.30.1"
+          ARCHIVE="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          URL="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${ARCHIVE}"
+          curl -fsSL "$URL" -o "/tmp/${ARCHIVE}"
+          tar -xzf "/tmp/${ARCHIVE}" -C /tmp gitleaks
+          sudo install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Scan repository history for secrets
+        run: gitleaks detect --source . --redact --verbose
 
   godot-quality:
     name: Godot quality gate

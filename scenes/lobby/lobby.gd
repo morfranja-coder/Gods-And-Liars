@@ -1,12 +1,15 @@
 extends Control
 
 const TABLE_SCENE := "res://scenes/table/table.tscn"
+const DIAGNOSTICS_REFRESH_SECONDS := 0.5
 
 var _invite_when_party_ready: bool = false
+var _diagnostics_elapsed: float = 0.0
 
 @onready var status_label: Label = %StatusLabel
 @onready var identity_label: Label = %IdentityLabel
 @onready var voice_label: Label = %VoiceLabel
+@onready var diagnostics_label: Label = %DiagnosticsLabel
 @onready var party_label: Label = %PartyLabel
 @onready var players_label: Label = %PlayersLabel
 @onready var invite_button: Button = %InviteButton
@@ -41,11 +44,22 @@ func _ready() -> void:
 	Steamworks.steam_unavailable.connect(_on_steam_unavailable)
 	VoiceChat.local_talking_changed.connect(_on_local_talking_changed)
 	VoiceChat.remote_talking.connect(_on_remote_talking)
+	diagnostics_label.visible = OS.is_debug_build()
 	_refresh_identity()
 	_refresh_party()
 	_refresh_players()
 	_refresh_queue_status()
+	_refresh_diagnostics()
 	_update_buttons()
+
+func _process(delta: float) -> void:
+	if not diagnostics_label.visible:
+		return
+	_diagnostics_elapsed += delta
+	if _diagnostics_elapsed < DIAGNOSTICS_REFRESH_SECONDS:
+		return
+	_diagnostics_elapsed = 0.0
+	_refresh_diagnostics()
 
 func _refresh_identity() -> void:
 	if Steamworks.initialized:
@@ -55,6 +69,7 @@ func _refresh_identity() -> void:
 	else:
 		identity_label.text = "Steam: no disponible"
 		status_label.text = "Abrí este build con Steam iniciado."
+	_refresh_diagnostics()
 	_update_buttons()
 
 func _refresh_party() -> void:
@@ -65,10 +80,12 @@ func _refresh_party() -> void:
 		var leader_text := "  ★ LÍDER" if steam_id == PartyManager.state.leader_steam_id else ""
 		lines.append("• %s%s" % [display_name, leader_text])
 	party_label.text = "\n".join(lines)
+	_refresh_diagnostics()
 
 func _refresh_players() -> void:
 	if NetworkManager.peers.is_empty():
 		players_label.text = "PARTIDA — 0/8\nEsperando Match..."
+		_refresh_diagnostics()
 		return
 	var lines: PackedStringArray = ["PARTIDA — %d/8" % NetworkManager.peers.size()]
 	var ids := NetworkManager.peers.keys()
@@ -84,6 +101,7 @@ func _refresh_players() -> void:
 		var seat_text := "S%02d" % (seat_id + 1) if SeatAllocator.is_valid_seat(seat_id) else "SIN ASIENTO"
 		lines.append("• %s  [%s%s / %s] — %s" % [display_name, peer_id, host_text, seat_text, ready_text])
 	players_label.text = "\n".join(lines)
+	_refresh_diagnostics()
 
 func _refresh_queue_status() -> void:
 	match MatchmakingManager.state:
@@ -96,11 +114,42 @@ func _refresh_queue_status() -> void:
 			status_label.text = "Partida compatible encontrada. Reservando lugar para todo el grupo..."
 		MatchmakingManager.STATE_HOSTING:
 			status_label.text = "No había una partida compatible. Creando una para completar 8/8..."
+		MatchmakingManager.STATE_ANCHORING:
+			status_label.text = "Match creado. Buscando anchors compatibles para converger..."
 		MatchmakingManager.STATE_MATCH_FOUND:
 			status_label.text = "Partida encontrada. Reuniendo jugadores..."
 		_:
 			if Steamworks.initialized and NetworkManager.lobby_id == 0:
 				status_label.text = "Armá tu grupo o buscá una partida rápida."
+	_refresh_diagnostics()
+
+func _refresh_diagnostics() -> void:
+	if not is_instance_valid(diagnostics_label) or not diagnostics_label.visible:
+		return
+	var steam_id: int = Steamworks.steam_id if Steamworks.initialized else 0
+	var party_lobby_id: int = PartyManager.party_lobby_id
+	var target_lobby_id: int = PartyManager.match_target_lobby_id
+	var match_lobby_id: int = NetworkManager.lobby_id
+	var peer_count: int = NetworkManager.peers.size()
+	var open_slots: int = NetworkManager.advertised_open_slots() if NetworkManager.is_host else -1
+	var host_text := "yes" if NetworkManager.is_host else "no"
+	var started_text := "yes" if NetworkManager.lobby_started else "no"
+	var slots_text := str(open_slots) if open_slots >= 0 else "remote"
+	diagnostics_label.text = (
+		"DEV NET · steam=%d · party=%d · target=%d · match=%d · queue=%s · scope=%s · peers=%d/8 · open=%s · host=%s · started=%s"
+		% [
+			steam_id,
+			party_lobby_id,
+			target_lobby_id,
+			match_lobby_id,
+			str(MatchmakingManager.state),
+			MatchmakingManager.search_scope_name(),
+			peer_count,
+			slots_text,
+			host_text,
+			started_text,
+		]
+	)
 
 func _update_buttons() -> void:
 	var steam_ok := Steamworks.initialized

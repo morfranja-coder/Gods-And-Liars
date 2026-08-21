@@ -116,7 +116,7 @@ func _select_from_screen_position(screen_position: Vector2) -> void:
 		return
 	var origin := camera.project_ray_origin(screen_position)
 	var end := origin + camera.project_ray_normal(screen_position) * RAY_LENGTH
-	var query := PhysicsRayQueryParameters3D.create(origin, end, SELECTION_MASK)
+	var query := _make_selection_query(origin, end)
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	if hit.is_empty():
 		return
@@ -126,6 +126,12 @@ func _select_from_screen_position(screen_position: Vector2) -> void:
 		return
 	selected_peer_id = peer_id
 	target_selected.emit(peer_id)
+
+func _make_selection_query(origin: Vector3, end: Vector3) -> PhysicsRayQueryParameters3D:
+	var query := PhysicsRayQueryParameters3D.create(origin, end, SELECTION_MASK)
+	query.collide_with_areas = true
+	query.collide_with_bodies = false
+	return query
 
 func _peer_id_from_collider(collider: Node) -> int:
 	var current := collider

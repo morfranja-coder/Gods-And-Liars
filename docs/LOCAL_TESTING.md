@@ -32,6 +32,18 @@ Requirements:
 
 Use Codex only for visual/runtime QA in this project. Programming and repository changes remain outside that QA role.
 
+After setup, run the workstation preflight:
+
+```powershell
+.\tools\check-local-qa-prereqs.ps1
+```
+
+Expected final line:
+
+```text
+GREEN: local QA workstation prerequisites are ready.
+```
+
 ## 2. Get the Steam-capable Windows artifact
 
 Open the latest green GitHub Actions run for branch `phase-0-bootstrap` and download:

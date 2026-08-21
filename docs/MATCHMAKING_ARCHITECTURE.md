@@ -17,7 +17,10 @@ Rules:
 - a Party is never split by matchmaking;
 - the Party leader starts or cancels Quick Match;
 - all Party members are moved into the same final Match Lobby;
-- leaving a match should preserve the Party when possible.
+- leaving a match should preserve the Party when possible;
+- Party membership is independent from Steam friendship.
+
+A player does not need to add another player as a Steam friend to remain grouped with them after a match. Steam friendship is only a convenience for the normal friend-invite overlay.
 
 `PartyState` is the transport-independent source model. `PartyManager` owns the Steam Party Lobby lifecycle.
 
@@ -55,10 +58,12 @@ The distance constants mirror the Steam lobby distance tiers. Expansion changes 
 Steam lobby types are deliberately separated.
 
 ### Party Lobby
-- Steam type: `FriendsOnly`.
+- Steam type: `Private`.
 - Metadata `game=GodsAndLiarsMVP` and `kind=party`.
 - Steam lobby owner is the Party leader.
-- Steam invite overlay is used to invite friends.
+- Membership is invitation-based, not friendship-based.
+- The Steam friend overlay remains available as a convenience for inviting existing friends.
+- `InviteUserToLobby` can target exact Steam IDs already known from the current match roster, which supports post-match retained groups even when those players are not Steam friends.
 - Member names are mirrored through lobby member data.
 - Party leader publishes `target_match_id` only after a Match Lobby is created or a reservation is accepted.
 
@@ -136,9 +141,13 @@ The screen shows Party membership separately from the forming Match roster. READ
 After a match:
 - players may rematch with the same 8;
 - players may leave back to their original Party;
-- a retained temporary group can later queue again to fill missing seats.
+- players who were not previously grouped may choose **Seguir juntos**;
+- the retained players form a new Private Party through exact-Steam-ID invitations, without requiring Steam friendship;
+- the retained Party can queue again to fill missing seats.
 
-Example: 8 play, 2 leave, 6 remain -> Quick Match searches for compatible complete Parties totaling 2.
+Example: 8 play, 2 leave, 6 choose to stay together -> those 6 form a Party and Quick Match searches for compatible complete Parties totaling 2.
+
+The post-match retention flow should collect each player's explicit in-game opt-in before creating or joining the retained Party.
 
 ## 10. Current hardening item
 Without a dedicated matchmaking backend, two Parties can theoretically create anchor Match Lobbies nearly simultaneously after both fail to observe a candidate in the same Steam search window. The deterministic backoff reduces this race but does not mathematically eliminate it.

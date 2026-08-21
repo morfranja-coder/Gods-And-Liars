@@ -128,12 +128,14 @@ static func _run_night(
 	var heretic_targets: Array[int] = []
 	var healer_target := 0
 	var inquisitor_target := 0
+	var consumed := false
 	for player in session.players:
 		if not player.alive:
 			continue
 		if fault == Fault.AFK_NIGHT and not fault_consumed and player.peer_id == fault_peer_id:
 			if player.role in [PlayerState.Role.HERETIC, PlayerState.Role.HEALER, PlayerState.Role.INQUISITOR]:
-				return {"blocked": true, "fault_consumed": true}
+				consumed = true
+				continue
 		var brain: QABotBrain = brains[player.peer_id]
 		var target := brain.choose_night_target(session.players, player.peer_id)
 		match player.role:
@@ -145,7 +147,7 @@ static func _run_night(
 			PlayerState.Role.INQUISITOR:
 				inquisitor_target = target
 	NightResolver.resolve_many(session.players, heretic_targets, healer_target, inquisitor_target)
-	return {"blocked": false, "fault_consumed": false}
+	return {"blocked": false, "fault_consumed": consumed}
 
 static func _run_vote(
 	session: MatchSession,
@@ -165,8 +167,6 @@ static func _run_vote(
 			continue
 		if not fault_consumed and player.peer_id == fault_peer_id:
 			if fault == Fault.INVALID_VOTE:
-				if VoteRules.can_vote(session.players, player.peer_id, player.peer_id):
-					return {"blocked": true, "fault_consumed": true}
 				consumed = true
 				continue
 			elif fault == Fault.DUPLICATE_VOTE:
@@ -178,9 +178,14 @@ static func _run_vote(
 				continue
 		votes[player.peer_id] = target
 	var expected_votes := VoteRules.living_count(session.players)
+	var sacrificed_peer_id := 0
 	if votes.size() < expected_votes:
-		return {"blocked": true, "fault_consumed": consumed}
-	var sacrificed_peer_id := VoteRules.resolve(session.players, votes)
+		if fault == Fault.INVALID_VOTE and consumed:
+			sacrificed_peer_id = VoteRules.resolve_partial(session.players, votes)
+		else:
+			return {"blocked": true, "fault_consumed": consumed}
+	else:
+		sacrificed_peer_id = VoteRules.resolve(session.players, votes)
 	if sacrificed_peer_id > 0:
 		session.sacrifice(sacrificed_peer_id)
 	return {"blocked": false, "fault_consumed": consumed}

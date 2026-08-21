@@ -24,18 +24,12 @@ func test_private_role_labels_are_local_only() -> void:
 	assert_bool(MatchAuthority.role_description().contains("Protegé")).is_true()
 
 func test_build_session_preserves_authoritative_seats() -> void:
-	var roster := {
-		1: {"steam_id": 1001, "display_name": "A", "seat_id": 4},
-		2: {"steam_id": 1002, "display_name": "B", "seat_id": 1},
-		3: {"steam_id": 1003, "display_name": "C", "seat_id": 7},
-		4: {"steam_id": 1004, "display_name": "D", "seat_id": 2},
-	}
+	var roster := _eight_player_roster()
 	var session: MatchSession = MatchAuthority.call("_build_session", roster)
 	assert_bool(session != null).is_true()
-	assert_int(session.get_player(1).seat_id).is_equal(4)
-	assert_int(session.get_player(2).seat_id).is_equal(1)
-	assert_int(session.get_player(3).seat_id).is_equal(7)
-	assert_int(session.get_player(4).seat_id).is_equal(2)
+	assert_int(session.get_player(1).seat_id).is_equal(0)
+	assert_int(session.get_player(4).seat_id).is_equal(3)
+	assert_int(session.get_player(8).seat_id).is_equal(7)
 
 func test_phase_sync_updates_round_number() -> void:
 	MatchAuthority._sync_phase(int(GameManager.MatchPhase.DAY_DISCUSSION), 3)
@@ -43,13 +37,7 @@ func test_phase_sync_updates_round_number() -> void:
 	assert_int(GameManager.round_number).is_equal(3)
 
 func test_disconnect_marks_session_player_dead_and_clears_pending_actions() -> void:
-	var roster := {
-		1: {"steam_id": 1001, "display_name": "A", "seat_id": 0},
-		2: {"steam_id": 1002, "display_name": "B", "seat_id": 1},
-		3: {"steam_id": 1003, "display_name": "C", "seat_id": 2},
-		4: {"steam_id": 1004, "display_name": "D", "seat_id": 3},
-	}
-	var session: MatchSession = MatchAuthority.call("_build_session", roster)
+	var session: MatchSession = MatchAuthority.call("_build_session", _eight_player_roster())
 	MatchAuthority.set("_session", session)
 	MatchAuthority.set("_role_acknowledged", {1: true, 2: true})
 	MatchAuthority.set("_heretic_targets", {1: 2, 2: 3})
@@ -67,3 +55,13 @@ func test_disconnect_marks_session_player_dead_and_clears_pending_actions() -> v
 	assert_bool(MatchAuthority.get("_votes").has(1)).is_false()
 	assert_bool(MatchAuthority.get("_votes").has(2)).is_false()
 	assert_bool(MatchAuthority.get("_votes").has(3)).is_true()
+
+func _eight_player_roster() -> Dictionary:
+	var roster: Dictionary = {}
+	for peer_id in range(1, QuickMatchRules.TARGET_PLAYERS + 1):
+		roster[peer_id] = {
+			"steam_id": 1000 + peer_id,
+			"display_name": "P%d" % peer_id,
+			"seat_id": peer_id - 1,
+		}
+	return roster

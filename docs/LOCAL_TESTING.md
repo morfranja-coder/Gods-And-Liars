@@ -82,8 +82,8 @@ Validate:
 
 - the process opens without an immediate crash;
 - Steam initializes;
-- the lobby screen loads;
-- hosting a lobby does not throw an error;
+- the current lobby / transitional entry screen loads;
+- hosting a match lobby does not throw an error;
 - the client identity/name is populated;
 - closing/leaving returns cleanly.
 
@@ -99,49 +99,60 @@ Expected log location:
 
 Use two different Steam accounts. Prefer two computers.
 
-Host:
-
-```powershell
-.\tools\run-steam-qa-client.ps1 `
-  -BuildDir "C:\GodsAndLiars-QA\host" `
-  -ClientLabel "host"
-```
-
-Second machine/client:
-
-```powershell
-.\tools\run-steam-qa-client.ps1 `
-  -BuildDir "C:\GodsAndLiars-QA\client2" `
-  -ClientLabel "client2"
-```
-
 Validate:
 
-- host creates lobby;
-- client can discover/join it;
+- host creates a match lobby;
+- second client can discover/join it;
 - both see the same identities and seat assignments;
 - READY synchronizes;
 - PTT voice on `V` works;
 - disconnect/leave returns cleanly to lobby state.
 
-Two clients are intentionally insufficient to press gameplay START. The full Mafia match requires four players.
+Two clients are intentionally insufficient to press gameplay START. This layer validates transport and voice only.
 
-## 5. Layer C — four-client full Mafia acceptance
+## 5. Layer C — rule/failure QA with fewer than eight
 
-Use four distinct Steam accounts. Run the same launcher with labels `host`, `client2`, `client3`, and `client4`.
+Four clients or synthetic peers may still be used to exercise isolated networking, disconnect, vote, night-action and privacy paths where the test harness does not require a valid commercial match start.
 
-Execute the complete checklist in `docs/PHASE_8_STEAM_4CLIENT_CHECKLIST.md`.
+This is no longer a complete Mafia acceptance gate.
 
-The four logs must agree on public state transitions while private events remain private:
+## 6. Layer D — eight-client full Mafia acceptance
+
+The current commercial Mafia match target is exactly eight players. Use eight distinct Steam accounts for the real end-to-end acceptance run.
+
+Run clients labeled:
+
+```text
+host
+client2
+client3
+client4
+client5
+client6
+client7
+client8
+```
+
+Execute `docs/PHASE_8_STEAM_8CLIENT_CHECKLIST.md`.
+
+The eight logs must agree on public state transitions while private events remain private:
 
 - each client receives only its own role;
 - only the Inquisitor log receives `local_investigation`;
 - night deaths are identical across all logs;
 - vote resolution is identical across all logs;
 - match winner is identical across all logs;
-- rematch resets life/roles while retaining lobby/peers/seats.
+- rematch resets life/roles while retaining the final Match Lobby peers/seats.
 
-## 6. Assets from Blender
+## 7. Party + Quick Match transition
+
+The old lobby browser is transitional/debug infrastructure. The commercial entry architecture is documented in `docs/MATCHMAKING_ARCHITECTURE.md`:
+
+`Party -> Quick Match -> Match Found -> Match Lobby -> Match`
+
+Progressive search expands CLOSE -> DEFAULT -> FAR -> WORLDWIDE while preserving complete Parties and the exact target of eight players.
+
+## 8. Assets from Blender
 
 Rigged character assets should be exported as GLB/glTF 2.0 following `docs/ASSET_CONTRACT.md`.
 

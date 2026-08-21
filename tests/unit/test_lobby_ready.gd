@@ -73,3 +73,20 @@ func test_duplicate_steam_identity_is_rejected_while_connected() -> void:
 	NetworkManager.register_peer(2, 1002, "Guest")
 	NetworkManager.register_peer(7, 1002, "Impostor")
 	assert_bool(NetworkManager.peers.has(7)).is_false()
+
+func test_anchor_party_reservations_are_removed_from_advertised_slots() -> void:
+	NetworkManager.register_peer(1, 1001, "Host")
+	NetworkManager.set("_reserved_party_steam_ids", [1002, 1003, 1004, 1005])
+	assert_int(NetworkManager.advertised_open_slots()).is_equal(3)
+
+func test_external_party_reservation_prevents_slot_theft_while_members_join() -> void:
+	for peer_id in range(1, 7):
+		NetworkManager.register_peer(peer_id, 2000 + peer_id, "P%d" % peer_id)
+	NetworkManager.set("_party_reservations", {9001: 2})
+	assert_int(NetworkManager.advertised_open_slots()).is_equal(0)
+
+func test_full_roster_never_advertises_negative_capacity() -> void:
+	for peer_id in range(1, 9):
+		NetworkManager.register_peer(peer_id, 3000 + peer_id, "P%d" % peer_id)
+	NetworkManager.set("_party_reservations", {9002: 3})
+	assert_int(NetworkManager.advertised_open_slots()).is_equal(0)

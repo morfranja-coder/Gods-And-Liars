@@ -29,7 +29,7 @@ theme_override_constants/separation = 16
 
 [node name="Title" type="Label" parent="Margin/VBox"]
 layout_mode = 2
-text = "GODS & LIARS — RITUAL LOBBY"
+text = "GODS & LIARS — PARTY / QUICK MATCH"
 theme_override_font_sizes/font_size = 30
 
 [node name="IdentityLabel" type="Label" parent="Margin/VBox"]
@@ -48,56 +48,66 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Voz: mantené V para hablar"
 
-[node name="Buttons" type="HBoxContainer" parent="Margin/VBox"]
+[node name="PartyButtons" type="HBoxContainer" parent="Margin/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="CreateButton" type="Button" parent="Margin/VBox/Buttons"]
+[node name="InviteButton" type="Button" parent="Margin/VBox/PartyButtons"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Crear ritual"
+text = "Invitar amigos"
 
-[node name="RefreshButton" type="Button" parent="Margin/VBox/Buttons"]
+[node name="QuickMatchButton" type="Button" parent="Margin/VBox/PartyButtons"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Refrescar"
+text = "Buscar partida"
 
-[node name="JoinButton" type="Button" parent="Margin/VBox/Buttons"]
+[node name="CancelSearchButton" type="Button" parent="Margin/VBox/PartyButtons"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Unirse"
+text = "Cancelar búsqueda"
 
-[node name="ReadyButton" type="Button" parent="Margin/VBox/Buttons"]
+[node name="LeavePartyButton" type="Button" parent="Margin/VBox/PartyButtons"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Salir del grupo"
+
+[node name="MatchButtons" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="ReadyButton" type="Button" parent="Margin/VBox/MatchButtons"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Listo"
 
-[node name="StartButton" type="Button" parent="Margin/VBox/Buttons"]
+[node name="StartButton" type="Button" parent="Margin/VBox/MatchButtons"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Iniciar"
+text = "Iniciar ritual"
 
-[node name="LeaveButton" type="Button" parent="Margin/VBox/Buttons"]
+[node name="LeaveMatchButton" type="Button" parent="Margin/VBox/MatchButtons"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Salir del ritual"
+text = "Salir de la partida"
 
 [node name="Columns" type="HBoxContainer" parent="Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 24
 
-[node name="LobbyList" type="ItemList" parent="Margin/VBox/Columns"]
+[node name="PartyLabel" type="Label" parent="Margin/VBox/Columns"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(600, 360)
+custom_minimum_size = Vector2(480, 360)
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 3
-select_mode = 0
+text = "TU GRUPO — 1/8"
+autowrap_mode = 2
 
 [node name="PlayersLabel" type="Label" parent="Margin/VBox/Columns"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(320, 360)
+custom_minimum_size = Vector2(480, 360)
 layout_mode = 2
-text = "Jugadores conectados: 0"
+size_flags_horizontal = 3
+text = "PARTIDA — 0/8"
 autowrap_mode = 2

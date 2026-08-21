@@ -8,9 +8,9 @@ signal lobby_list_updated(lobbies: Array)
 signal lobby_error(message: String)
 signal lobby_start_requested
 
-const MAX_PLAYERS: int = 10
+const MAX_PLAYERS: int = QuickMatchRules.TARGET_PLAYERS
 const TECHNICAL_START_MIN_PLAYERS: int = LobbyRules.TECHNICAL_START_MIN_PLAYERS
-const GAMEPLAY_START_MIN_PLAYERS: int = MatchSession.MIN_PLAYERS
+const GAMEPLAY_START_PLAYERS: int = QuickMatchRules.TARGET_PLAYERS
 const GAME_TAG_KEY: String = "game"
 const GAME_TAG_VALUE: String = "GodsAndLiarsMVP"
 const LOBBY_NAME_KEY: String = "name"
@@ -67,7 +67,12 @@ func join_lobby(target_lobby_id: int) -> void:
 func refresh_lobbies() -> void:
 	if not _require_steam():
 		return
-	_steam.call("addRequestLobbyListStringFilter", GAME_TAG_KEY, GAME_TAG_VALUE, STEAM_LOBBY_COMPARISON_EQUAL)
+	_steam.call(
+		"addRequestLobbyListStringFilter",
+		GAME_TAG_KEY,
+		GAME_TAG_VALUE,
+		STEAM_LOBBY_COMPARISON_EQUAL,
+	)
 	_steam.call("addRequestLobbyListDistanceFilter", STEAM_LOBBY_DISTANCE_WORLDWIDE)
 	_steam.call("addRequestLobbyListResultCountFilter", 50)
 	_steam.call("requestLobbyList")
@@ -143,15 +148,20 @@ func request_local_ready(ready: bool) -> void:
 func can_host_start() -> bool:
 	if lobby_started:
 		return false
-	return LobbyRules.can_start(is_host, multiplayer.is_server(), peers, GAMEPLAY_START_MIN_PLAYERS)
+	return LobbyRules.can_start_exact(
+		is_host,
+		multiplayer.is_server(),
+		peers,
+		GAMEPLAY_START_PLAYERS,
+	)
 
 func request_host_start() -> void:
 	if lobby_started:
 		return
 	if not can_host_start():
 		lobby_error.emit(
-			"El host solo puede iniciar cuando hay al menos %d jugadores y todos están listos."
-			% GAMEPLAY_START_MIN_PLAYERS
+			"La partida requiere exactamente %d jugadores y todos deben estar listos."
+			% GAMEPLAY_START_PLAYERS
 		)
 		return
 	_start_lobby.rpc()
@@ -178,7 +188,9 @@ func _teardown_lobby(final_state: StringName) -> void:
 
 func _require_steam() -> bool:
 	if not Steamworks.initialized or _steam == null:
-		lobby_error.emit("Steam is not available. Run the project with a GodotSteam editor while Steam is open.")
+		lobby_error.emit(
+			"Steam is not available. Run the project with a GodotSteam editor while Steam is open."
+		)
 		return false
 	if not ClassDB.class_exists("SteamMultiplayerPeer"):
 		lobby_error.emit("SteamMultiplayerPeer is unavailable in this Godot build.")
@@ -210,7 +222,12 @@ func _on_lobby_created(result: int, new_lobby_id: int) -> void:
 	Steamworks.lobby_id = new_lobby_id
 	is_host = true
 	lobby_started = false
-	_steam.call("setLobbyData", new_lobby_id, LOBBY_NAME_KEY, "%s's Ritual" % Steamworks.persona_name)
+	_steam.call(
+		"setLobbyData",
+		new_lobby_id,
+		LOBBY_NAME_KEY,
+		"%s's Ritual" % Steamworks.persona_name,
+	)
 	_steam.call("setLobbyData", new_lobby_id, GAME_TAG_KEY, GAME_TAG_VALUE)
 	var peer = _create_steam_peer()
 	if peer == null:
@@ -222,7 +239,9 @@ func _on_lobby_created(result: int, new_lobby_id: int) -> void:
 
 func _on_lobby_joined(joined_lobby_id: int, _permissions: int, _locked, response: int) -> void:
 	if response != STEAM_CHAT_ENTER_SUCCESS:
-		lobby_error.emit("Steam could not join lobby %s (response %s)." % [joined_lobby_id, response])
+		lobby_error.emit(
+			"Steam could not join lobby %s (response %s)." % [joined_lobby_id, response]
+		)
 		lobby_state_changed.emit(&"steam_ready")
 		return
 	lobby_id = joined_lobby_id

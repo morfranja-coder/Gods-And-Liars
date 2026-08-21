@@ -2,25 +2,32 @@ param(
     [string]$InstallRoot = (Join-Path $env:LOCALAPPDATA "GodsAndLiars/Godot46"),
     [string]$McpName = "godot46-visual",
     [string]$McpVersion = "0.26.0",
+    [string]$GodotVersion = "4.6.3",
     [switch]$SkipMcpRegistration
 )
 
 $ErrorActionPreference = "Stop"
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$runningOnWindows = $env:OS -eq "Windows_NT"
 
-if (-not $IsWindows) {
+if (-not $runningOnWindows) {
     throw "This helper is intended for the local Windows workstation."
 }
 
-$downloadUrl = "https://downloads.godotengine.org/?flavor=stable&platform=windows.64&slug=win64.exe.zip&version=4.6"
+$archiveName = "Godot_v$GodotVersion-stable_win64.exe.zip"
+$editorName = "Godot_v$GodotVersion-stable_win64.exe"
+$downloadUrl = (
+    "https://downloads.godotengine.org/?flavor=stable" +
+    "&platform=windows.64&slug=win64.exe.zip&version=$GodotVersion"
+)
 $downloads = Join-Path $InstallRoot "downloads"
-$archive = Join-Path $downloads "Godot_v4.6-stable_win64.exe.zip"
+$archive = Join-Path $downloads $archiveName
 $editorDir = Join-Path $InstallRoot "editor"
 
 New-Item -ItemType Directory -Path $downloads -Force | Out-Null
 
-Write-Host "== Gods & Liars local Godot 4.6 + MCP setup =="
-Write-Host "[1/4] Downloading official Godot 4.6 stable (Windows x86_64)"
+Write-Host "== Gods & Liars local Godot $GodotVersion + MCP setup =="
+Write-Host "[1/4] Downloading official Godot $GodotVersion stable (Windows x86_64)"
 if (-not (Test-Path $archive)) {
     Invoke-WebRequest -Uri $downloadUrl -OutFile $archive
 }
@@ -28,22 +35,23 @@ else {
     Write-Host "[cached] $archive"
 }
 
-Write-Host "[2/4] Extracting Godot 4.6"
+Write-Host "[2/4] Extracting Godot $GodotVersion"
 if (Test-Path $editorDir) {
     Remove-Item -Path $editorDir -Recurse -Force
 }
 New-Item -ItemType Directory -Path $editorDir -Force | Out-Null
 Expand-Archive -Path $archive -DestinationPath $editorDir -Force
 
-$godot = Get-ChildItem -Path $editorDir -Recurse -File -Filter "Godot_v4.6-stable_win64.exe" |
+$godot = Get-ChildItem -Path $editorDir -Recurse -File -Filter $editorName |
     Select-Object -First 1
 if ($null -eq $godot) {
-    throw "Could not locate Godot_v4.6-stable_win64.exe after extraction."
+    throw "Could not locate $editorName after extraction."
 }
 
 $versionOutput = (& $godot.FullName --version | Out-String).Trim()
-if ($LASTEXITCODE -ne 0 -or $versionOutput -notmatch "^4\.6") {
-    throw "Godot 4.6 validation failed. Reported version: '$versionOutput'"
+$expectedPrefix = [regex]::Escape($GodotVersion)
+if ($LASTEXITCODE -ne 0 -or $versionOutput -notmatch "^$expectedPrefix") {
+    throw "Godot $GodotVersion validation failed. Reported version: '$versionOutput'"
 }
 Write-Host "[ok] Godot: $versionOutput"
 Write-Host "[ok] Path: $($godot.FullName)"
@@ -101,7 +109,7 @@ else {
 }
 
 Write-Host ""
-Write-Host "GREEN: Godot 4.6 local setup is ready."
+Write-Host "GREEN: Godot $GodotVersion local setup is ready."
 Write-Host "IMPORTANT: Gods & Liars remains a Godot 4.7 project."
-Write-Host "Do not resave project.godot or game scenes with Godot 4.6."
-Write-Host "The '$McpName' server is a separate QA MCP bound specifically to Godot 4.6."
+Write-Host "Do not resave project.godot or game scenes with Godot 4.6.x."
+Write-Host "The '$McpName' server is a separate QA MCP bound specifically to Godot $GodotVersion."

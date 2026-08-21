@@ -1,8 +1,8 @@
 class_name MatchSession
 extends RefCounted
 
-const MAX_PLAYERS := 10
-const MIN_PLAYERS := 4
+const MAX_PLAYERS := QuickMatchRules.TARGET_PLAYERS
+const MIN_PLAYERS := QuickMatchRules.TARGET_PLAYERS
 
 var players: Array[PlayerState] = []
 var rng := RandomNumberGenerator.new()
@@ -33,7 +33,7 @@ func get_player(peer_id: int) -> PlayerState:
 	return null
 
 func can_start() -> bool:
-	if players.size() < MIN_PLAYERS:
+	if players.size() != MIN_PLAYERS:
 		return false
 	for player in players:
 		if not player.ready:
@@ -41,7 +41,7 @@ func can_start() -> bool:
 	return true
 
 func prepare_match() -> bool:
-	if players.size() < MIN_PLAYERS:
+	if players.size() != MIN_PLAYERS:
 		return false
 	for player in players:
 		player.reset_for_match()

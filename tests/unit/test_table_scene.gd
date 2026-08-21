@@ -42,6 +42,20 @@ func test_peer_update_does_not_duplicate_avatar() -> void:
 	assert_int(table.find_children("Peer_1", "Node3D", true, false).size()).is_equal(1)
 	table.queue_free()
 
+func test_selection_query_targets_avatar_areas_only() -> void:
+	var table := TABLE_SCENE.instantiate()
+	add_child(table)
+	await get_tree().process_frame
+	var query: PhysicsRayQueryParameters3D = table.call(
+		"_make_selection_query",
+		Vector3.ZERO,
+		Vector3.FORWARD,
+	)
+	assert_bool(query.collide_with_areas).is_true()
+	assert_bool(query.collide_with_bodies).is_false()
+	assert_int(query.collision_mask).is_equal(2)
+	table.queue_free()
+
 func test_table_mounts_private_role_overlay() -> void:
 	var table := TABLE_SCENE.instantiate()
 	add_child(table)

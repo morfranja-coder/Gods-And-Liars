@@ -1,7 +1,6 @@
 param(
-    [string]$Godot46InstallRoot = (Join-Path $env:LOCALAPPDATA "GodsAndLiars/Godot46"),
-    [string]$McpName = "godot46-visual",
-    [string]$GodotVersion = "4.6.3"
+    [string]$Godot47InstallRoot = (Join-Path $env:LOCALAPPDATA "GodsAndLiars/Godot47"),
+    [string]$McpName = "godot47-visual"
 )
 
 $ErrorActionPreference = "Stop"
@@ -51,22 +50,20 @@ Report-Check "npx" ($null -ne $npx) $(if ($npx) { $npx.Source } else { "npx.cmd 
 $codex = Get-Command codex -ErrorAction SilentlyContinue
 Report-Check "Codex CLI" ($null -ne $codex) $(if ($codex) { $codex.Source } else { "codex not found in PATH" })
 
-$editorName = "Godot_v$GodotVersion-stable_win64.exe"
-$godot46 = Get-ChildItem `
-    -Path (Join-Path $Godot46InstallRoot "editor") `
+$godot47 = Get-ChildItem `
+    -Path (Join-Path $Godot47InstallRoot "editor") `
     -Recurse `
     -File `
-    -Filter $editorName `
+    -Filter "Godot_v4.7-stable_win64.exe" `
     -ErrorAction SilentlyContinue |
     Select-Object -First 1
-$godot46Ok = $false
-$godot46Detail = "not installed"
-if ($godot46) {
-    $godot46Detail = (& $godot46.FullName --version | Out-String).Trim()
-    $expectedPrefix = [regex]::Escape($GodotVersion)
-    $godot46Ok = $LASTEXITCODE -eq 0 -and $godot46Detail -match "^$expectedPrefix"
+$godot47Ok = $false
+$godot47Detail = "not installed"
+if ($godot47) {
+    $godot47Detail = (& $godot47.FullName --version | Out-String).Trim()
+    $godot47Ok = $LASTEXITCODE -eq 0 -and $godot47Detail -match "^4\.7"
 }
-Report-Check "Godot $GodotVersion" $godot46Ok $godot46Detail
+Report-Check "Godot 4.7" $godot47Ok $godot47Detail
 
 $mcpOk = $false
 $mcpDetail = "not configured"
@@ -77,7 +74,7 @@ if ($codex) {
         $mcpDetail = "registered as '$McpName'"
     }
 }
-Report-Check "Godot 4.6 MCP" $mcpOk $mcpDetail
+Report-Check "Godot 4.7 MCP" $mcpOk $mcpDetail
 
 Write-Host ""
 if ($failures.Count -gt 0) {
@@ -89,5 +86,5 @@ if ($failures.Count -gt 0) {
 }
 
 Write-Host "GREEN: local QA workstation prerequisites are ready."
-Write-Host "Reminder: Gods & Liars itself remains a Godot 4.7 project."
+Write-Host "Gods & Liars development, QA and MCP are standardized on Godot 4.7."
 exit 0

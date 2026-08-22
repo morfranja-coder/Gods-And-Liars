@@ -30,7 +30,7 @@ The gameplay host never uses the regular client-leave RPC.
 
 When the host requests leave, `MatchLeaveManager` enters a pending host-leave state and calls `HostMigrationManager.request_voluntary_host_exit()`.
 
-That migration call now performs only the ownership handoff. It does not tear down the old host by itself.
+That migration call performs only the ownership handoff. It does not tear down the old host by itself.
 
 The sequence is:
 
@@ -42,17 +42,25 @@ The sequence is:
 6. the remaining clients observe the old gameplay server disappearing and continue through the existing 3E–3H migration pipeline;
 7. the old host's Party Lobby remains untouched.
 
-If the transfer cannot be started or Steam rejects it, `leave_pending` is cleared and the host remains in the match. The failure path is intentionally handled before local teardown so a failed voluntary transfer cannot destroy the match.
+## 4C — Failed host leave / migration boundary
 
-### 4B safety rules
+A failed voluntary handoff **before ownership changes** must not invoke the terminal host-migration fallback. At that point the original host is still the valid gameplay authority and the safest action is to cancel only the leave attempt.
 
-- host leave requires a valid Match Lobby and active multiplayer peer;
-- only the current host can enter the host-leave path;
-- duplicate host-leave requests are rejected while one is pending;
-- ownership transfer happens before local host teardown;
-- a rejected transfer leaves the old host connected;
-- the Party is preserved;
-- the existing migration pipeline, not the old host, reconstructs authority for the seven remaining players.
+When `request_voluntary_host_exit()` fails because the backup/snapshot is unavailable, Steam is unavailable, `setLobbyOwner` is unavailable, or Steam rejects the transfer:
+
+- `leave_pending` is cleared;
+- the host-leave flag is cleared;
+- the Match Lobby remains joined;
+- the current `SteamMultiplayerPeer` remains active;
+- `NetworkManager.is_host` is unchanged;
+- Match state and phase are not reset;
+- Party state and Party match target are untouched;
+- the concrete failure reason is stored for UI and emitted through `leave_rejected` / `host_leave_cancelled`;
+- the host may retry leaving later after the backup becomes valid again.
+
+If Steam has already accepted the ownership handoff and the old host subsequently leaves, responsibility changes: failures while the remaining seven players promote/reconnect/restore are handled by the existing 3I fallback on those clients. The old host does not attempt to reclaim authority.
+
+An empty transfer failure reason is normalized to a safe message explicitly stating that the match remains active.
 
 ## Exit gates
 
@@ -79,4 +87,16 @@ If the transfer cannot be started or Steam rejects it, `leave_pending` is cleare
 - transfer failure keeps the host connected;
 - transfer success releases the old host locally;
 - remaining players are left to the 3E–3H migration flow;
+- CI stays green.
+
+### 4C
+
+4C is complete when:
+
+- a pre-handoff migration failure cancels only the pending leave;
+- the original host remains authoritative and connected;
+- no Party or Match state is destroyed by the failed leave request;
+- a useful error is retained for UI;
+- the leave operation becomes retryable immediately after cancellation;
+- post-handoff migration failures remain owned by the 3I fallback;
 - CI stays green.

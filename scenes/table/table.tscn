@@ -22,3 +22,39 @@ current = true
 [node name="DayVoteUI" parent="." instance=ExtResource("4")]
 
 [node name="MatchEndUI" parent="." instance=ExtResource("5")]
+
+[node name="LeaveUI" type="CanvasLayer" parent="."]
+layer = 20
+
+[node name="Margin" type="MarginContainer" parent="LeaveUI"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -330.0
+offset_top = 24.0
+offset_right = -24.0
+offset_bottom = 104.0
+grow_horizontal = 0
+
+[node name="VBox" type="VBoxContainer" parent="LeaveUI/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="LeaveMatchButton" type="Button" parent="LeaveUI/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Abandonar partida"
+
+[node name="LeaveStatusLabel" type="Label" parent="LeaveUI/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = ""
+horizontal_alignment = 2
+autowrap_mode = 2
+
+[node name="LeaveConfirmDialog" type="ConfirmationDialog" parent="LeaveUI"]
+unique_name_in_owner = true
+title = "Abandonar partida"
+dialog_text = "¿Seguro que querés abandonar esta partida?"
+ok_button_text = "Abandonar"
+cancel_button_text = "Cancelar"

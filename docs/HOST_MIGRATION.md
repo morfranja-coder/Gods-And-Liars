@@ -88,9 +88,39 @@ The rule is intentionally transport-independent. Steam lobby ownership transfer,
 - invalid Steam IDs are ignored;
 - CI stays green.
 
+## 3C — Backup authority
+
+`HostMigrationManager` owns the secret backup copy used by later migration gates.
+
+Rules:
+
+- the current host chooses the initial backup using the 3B successor rule;
+- once selected, the backup remains fixed while that Steam identity is still connected, even if that player dies in-game;
+- a replacement backup is elected only if the current backup disconnects;
+- this minimizes how many clients ever receive the complete secret role map;
+- the host captures a `MatchSnapshot` at most every 250 ms and sends only when the serialized authoritative state changed;
+- snapshots are delivered by reliable authority RPC only to the elected backup peer;
+- each snapshot carries a monotonically increasing sequence number;
+- stale or duplicate sequences are ignored;
+- the receiver validates both the intended SteamID and the complete `MatchSnapshot` before storing it;
+- non-selected clients never receive the snapshot RPC;
+- lobby/session teardown clears stored backup state.
+
+The backup snapshot is passive in 3C. It does not yet promote the client, recreate networking or restore authority. Those actions belong to 3D–3H.
+
+## 3C exit gate
+
+3C is complete when:
+
+- the current backup remains stable while connected;
+- disconnecting it deterministically elects a replacement;
+- only the intended Steam identity accepts a backup snapshot;
+- malformed and stale snapshots cannot replace the stored backup;
+- the latest valid backup can be queried locally for later promotion;
+- CI stays green.
+
 ## Next gates
 
-- 3C — backup authority and secret snapshot replication to the elected successor only;
 - 3D — voluntary Steam lobby ownership transfer;
 - 3E — unexpected host-loss recovery;
 - 3F — recreate `SteamMultiplayerPeer`;

@@ -20,6 +20,7 @@ HostMigrationTransport="*res://autoload/host_migration_transport.gd"
 HostMigrationReconnect="*res://autoload/host_migration_reconnect.gd"
 HostMigrationRestore="*res://autoload/host_migration_restore.gd"
 HostMigrationFallback="*res://autoload/host_migration_fallback.gd"
+MatchLeaveManager="*res://autoload/match_leave_manager.gd"
 QAEventLog="*res://autoload/qa_event_log.gd"
 
 [display]

@@ -19,6 +19,7 @@ var _diagnostics_elapsed: float = 0.0
 @onready var start_button: Button = %StartButton
 @onready var leave_match_button: Button = %LeaveMatchButton
 @onready var leave_party_button: Button = %LeavePartyButton
+@onready var leave_match_confirm_dialog: ConfirmationDialog = %LeaveMatchConfirmDialog
 
 func _ready() -> void:
 	invite_button.pressed.connect(_on_invite_pressed)
@@ -27,6 +28,7 @@ func _ready() -> void:
 	ready_button.pressed.connect(_on_ready_pressed)
 	start_button.pressed.connect(_on_start_pressed)
 	leave_match_button.pressed.connect(_on_leave_match_pressed)
+	leave_match_confirm_dialog.confirmed.connect(_on_leave_match_confirmed)
 	leave_party_button.pressed.connect(_on_leave_party_pressed)
 	PartyManager.party_changed.connect(_on_party_changed)
 	PartyManager.party_error.connect(_on_party_error)
@@ -40,6 +42,8 @@ func _ready() -> void:
 	NetworkManager.peer_updated.connect(_on_peer_changed)
 	NetworkManager.peer_left.connect(_on_peer_changed)
 	NetworkManager.lobby_start_requested.connect(_on_lobby_start_requested)
+	MatchLeaveManager.leave_started.connect(_on_match_leave_started)
+	MatchLeaveManager.leave_rejected.connect(_on_match_leave_rejected)
 	Steamworks.steam_ready.connect(_refresh_identity)
 	Steamworks.steam_unavailable.connect(_on_steam_unavailable)
 	VoiceChat.local_talking_changed.connect(_on_local_talking_changed)
@@ -51,6 +55,7 @@ func _ready() -> void:
 	_refresh_queue_status()
 	_refresh_diagnostics()
 	_update_buttons()
+	_show_pending_leave_feedback()
 
 func _process(delta: float) -> void:
 	if not diagnostics_label.visible:
@@ -60,6 +65,15 @@ func _process(delta: float) -> void:
 		return
 	_diagnostics_elapsed = 0.0
 	_refresh_diagnostics()
+
+func _show_pending_leave_feedback() -> void:
+	var message := MatchLeaveManager.consume_last_leave_message()
+	if not message.is_empty():
+		status_label.text = message
+		return
+	var error_message := MatchLeaveManager.consume_last_leave_error()
+	if not error_message.is_empty():
+		status_label.text = error_message
 
 func _refresh_identity() -> void:
 	if Steamworks.initialized:
@@ -166,6 +180,7 @@ func _update_buttons() -> void:
 	start_button.visible = in_match and NetworkManager.is_host and not started
 	start_button.disabled = not NetworkManager.can_host_start()
 	leave_match_button.visible = in_match and not started
+	leave_match_button.disabled = MatchLeaveManager.leave_pending
 	leave_party_button.visible = PartyManager.party_lobby_id != 0 and not in_match and not searching
 
 func _on_invite_pressed() -> void:
@@ -193,12 +208,38 @@ func _on_start_pressed() -> void:
 	NetworkManager.request_host_start()
 
 func _on_leave_match_pressed() -> void:
+	if NetworkManager.lobby_id == 0 or MatchLeaveManager.leave_pending:
+		return
+	leave_match_confirm_dialog.dialog_text = (
+		"¿Seguro que querés salir de este Match Lobby? Tu grupo se conservará."
+		if not NetworkManager.lobby_started
+		else "¿Seguro que querés abandonar esta partida?"
+	)
+	leave_match_confirm_dialog.popup_centered()
+
+func _on_leave_match_confirmed() -> void:
+	if NetworkManager.lobby_id == 0:
+		return
+	if NetworkManager.lobby_started:
+		MatchLeaveManager.request_leave_match()
+		return
 	NetworkManager.leave_lobby()
-	if PartyManager.is_local_leader():
-		PartyManager.clear_match_target()
 	MatchmakingManager.reset()
+	GameManager.reset_match()
 	status_label.text = "Saliste de la partida. Tu grupo se mantiene."
 	_refresh_players()
+	_update_buttons()
+
+func _on_match_leave_started() -> void:
+	leave_match_button.disabled = true
+	status_label.text = (
+		"Transfiriendo host antes de salir..."
+		if NetworkManager.is_host
+		else "Abandonando partida..."
+	)
+
+func _on_match_leave_rejected(reason: String) -> void:
+	status_label.text = reason
 	_update_buttons()
 
 func _on_leave_party_pressed() -> void:

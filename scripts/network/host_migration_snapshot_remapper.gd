@@ -59,7 +59,13 @@ static func _remap_dictionary(
 		if new_key <= 0:
 			continue
 		var value = source[raw_key]
-		result[new_key] = _remap_target_reference(int(value), peer_map) if remap_values else value
+		if remap_values:
+			var new_value := _remap_target_reference(int(value), peer_map)
+			if new_value <= 0:
+				continue
+			result[new_key] = new_value
+		else:
+			result[new_key] = value
 	return result
 
 static func _remap_identity_reference(peer_id: int, peer_map: Dictionary) -> int:

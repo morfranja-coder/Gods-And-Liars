@@ -118,24 +118,36 @@ func is_valid() -> bool:
 		return false
 	if players.size() != MatchSession.MAX_PLAYERS:
 		return false
+	return _players_are_valid(players)
+
+static func _players_are_valid(source: Array[Dictionary]) -> bool:
 	var peer_ids: Dictionary = {}
 	var steam_ids: Dictionary = {}
 	var seat_ids: Dictionary = {}
-	for data in players:
+	for data in source:
+		if not _player_data_is_valid(data):
+			return false
 		var peer_id := int(data.get("peer_id", 0))
 		var steam_id := int(data.get("steam_id", 0))
 		var seat_id := int(data.get("seat_id", -1))
-		var role := int(data.get("role", -1))
-		if peer_id <= 0 or steam_id <= 0 or not SeatAllocator.is_valid_seat(seat_id):
-			return false
-		if role < int(PlayerState.Role.UNASSIGNED) or role > int(PlayerState.Role.INQUISITOR):
-			return false
 		if peer_ids.has(peer_id) or steam_ids.has(steam_id) or seat_ids.has(seat_id):
 			return false
 		peer_ids[peer_id] = true
 		steam_ids[steam_id] = true
 		seat_ids[seat_id] = true
 	return true
+
+static func _player_data_is_valid(data: Dictionary) -> bool:
+	var peer_id := int(data.get("peer_id", 0))
+	var steam_id := int(data.get("steam_id", 0))
+	var seat_id := int(data.get("seat_id", -1))
+	var role := int(data.get("role", -1))
+	if peer_id <= 0 or steam_id <= 0 or not SeatAllocator.is_valid_seat(seat_id):
+		return false
+	return (
+		role >= int(PlayerState.Role.UNASSIGNED)
+		and role <= int(PlayerState.Role.INQUISITOR)
+	)
 
 static func _serialize_players(source: Array[PlayerState]) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []

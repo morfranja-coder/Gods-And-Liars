@@ -14,6 +14,19 @@ static func can_request_non_host_leave(
 		and not leave_pending
 	)
 
+static func can_request_host_leave(
+	lobby_id: int,
+	is_host: bool,
+	has_multiplayer_peer: bool,
+	leave_pending: bool,
+) -> bool:
+	return (
+		lobby_id > 0
+		and is_host
+		and has_multiplayer_peer
+		and not leave_pending
+	)
+
 static func server_accepts_leave(
 	sender_peer_id: int,
 	claimed_steam_id: int,

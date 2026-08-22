@@ -12,6 +12,9 @@ var backup_sequence: int = 0
 var _last_sent_json: String = ""
 var _last_refresh_ms: int = 0
 
+func _ready() -> void:
+	NetworkManager.lobby_state_changed.connect(_on_lobby_state_changed)
+
 func _process(_delta: float) -> void:
 	if not multiplayer.is_server() or not NetworkManager.is_host:
 		return
@@ -112,3 +115,7 @@ func _receive_backup_snapshot(
 	backup_sequence = sequence
 	backup_snapshot = parsed
 	backup_snapshot_received.emit(sequence)
+
+func _on_lobby_state_changed(state: StringName) -> void:
+	if state in [&"steam_ready", &"offline", &"connection_failed"]:
+		reset()

@@ -2,6 +2,8 @@ extends Node
 
 signal backup_authority_changed(steam_id: int)
 signal backup_snapshot_received(sequence: int)
+signal voluntary_transfer_completed(steam_id: int)
+signal voluntary_transfer_failed(reason: String)
 
 const SNAPSHOT_REFRESH_INTERVAL_MS := 250
 
@@ -38,6 +40,36 @@ func reset() -> void:
 
 func has_valid_backup_snapshot() -> bool:
 	return backup_snapshot != null and backup_snapshot.is_valid()
+
+func request_voluntary_host_exit() -> bool:
+	if not multiplayer.is_server() or not NetworkManager.is_host:
+		return _fail_voluntary_transfer("Only the active host can transfer lobby ownership.")
+	var steam := Steamworks.get_api()
+	if steam == null:
+		return _fail_voluntary_transfer("Steam API is unavailable.")
+	if not VoluntaryHostTransferRules.can_transfer(
+		NetworkManager.lobby_id,
+		Steamworks.steam_id,
+		backup_authority_steam_id,
+		backup_authority_peer_id,
+		NetworkManager.peers,
+		has_valid_backup_snapshot(),
+	):
+		return _fail_voluntary_transfer("No valid backup authority is ready for host transfer.")
+	if not steam.has_method("setLobbyOwner"):
+		return _fail_voluntary_transfer("Steam lobby ownership transfer is unavailable.")
+	var transferred := bool(
+		steam.call("setLobbyOwner", NetworkManager.lobby_id, backup_authority_steam_id)
+	)
+	if not transferred:
+		return _fail_voluntary_transfer("Steam rejected the lobby ownership transfer.")
+	voluntary_transfer_completed.emit(backup_authority_steam_id)
+	NetworkManager.leave_lobby()
+	return true
+
+func _fail_voluntary_transfer(reason: String) -> bool:
+	voluntary_transfer_failed.emit(reason)
+	return false
 
 func _refresh_backup_authority() -> void:
 	var next_steam_id := BackupAuthorityRules.keep_or_choose_backup(

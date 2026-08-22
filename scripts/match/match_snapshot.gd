@@ -38,11 +38,11 @@ static func from_runtime(
 	snapshot.public_winner = str(winner)
 	snapshot.roles_dispatched = roles_were_dispatched
 	snapshot.players = _serialize_players(session.players)
-	snapshot.role_acknowledged = _normalize_int_dictionary(role_acks)
-	snapshot.heretic_targets = _normalize_int_dictionary(heretic_action_targets)
+	snapshot.role_acknowledged = _normalize_dictionary(role_acks)
+	snapshot.heretic_targets = _normalize_dictionary(heretic_action_targets)
 	snapshot.healer_target_peer_id = healer_target
 	snapshot.inquisitor_target_peer_id = inquisitor_target
-	snapshot.votes = _normalize_int_dictionary(current_votes)
+	snapshot.votes = _normalize_dictionary(current_votes)
 	return snapshot if snapshot.is_valid() else null
 
 static func from_dictionary(data: Dictionary) -> MatchSnapshot:
@@ -58,11 +58,13 @@ static func from_dictionary(data: Dictionary) -> MatchSnapshot:
 		for raw_player in raw_players:
 			if raw_player is Dictionary:
 				snapshot.players.append(raw_player.duplicate(true))
-	snapshot.role_acknowledged = _normalize_int_dictionary(data.get("role_acknowledged", {}))
-	snapshot.heretic_targets = _normalize_int_dictionary(data.get("heretic_targets", {}))
+	snapshot.role_acknowledged = _normalize_dictionary(
+		data.get("role_acknowledged", {})
+	)
+	snapshot.heretic_targets = _normalize_dictionary(data.get("heretic_targets", {}))
 	snapshot.healer_target_peer_id = int(data.get("healer_target_peer_id", 0))
 	snapshot.inquisitor_target_peer_id = int(data.get("inquisitor_target_peer_id", 0))
-	snapshot.votes = _normalize_int_dictionary(data.get("votes", {}))
+	snapshot.votes = _normalize_dictionary(data.get("votes", {}))
 	return snapshot if snapshot.is_valid() else null
 
 static func from_json(json_text: String) -> MatchSnapshot:
@@ -102,7 +104,7 @@ func restore_session() -> MatchSession:
 			return null
 		var player := session.get_player(peer_id)
 		player.seat_id = int(data.get("seat_id", -1))
-		player.role = int(data.get("role", int(PlayerState.Role.UNASSIGNED))) as PlayerState.Role
+		player.role = int(data.get("role", int(PlayerState.Role.UNASSIGNED)))
 		player.alive = bool(data.get("alive", true))
 		player.ready = bool(data.get("ready", false))
 		player.selected_target_peer_id = int(data.get("selected_target_peer_id", 0))
@@ -149,18 +151,27 @@ static func _serialize_players(source: Array[PlayerState]) -> Array[Dictionary]:
 			"selected_target_peer_id": player.selected_target_peer_id,
 			"vote_target_peer_id": player.vote_target_peer_id,
 		})
-	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a["peer_id"]) < int(b["peer_id"]))
+	result.sort_custom(_player_data_precedes)
 	return result
 
-static func _normalize_int_dictionary(source) -> Dictionary:
+static func _player_data_precedes(a: Dictionary, b: Dictionary) -> bool:
+	return int(a.get("peer_id", 0)) < int(b.get("peer_id", 0))
+
+static func _normalize_dictionary(source) -> Dictionary:
 	var result: Dictionary = {}
 	if not source is Dictionary:
 		return result
 	for raw_key in source.keys():
 		var key := int(raw_key)
 		var value = source[raw_key]
-		result[key] = int(value) if value is int or value is float or str(value).is_valid_int() else bool(value)
+		if value is bool:
+			result[key] = value
+		elif value is int or value is float or str(value).is_valid_int():
+			result[key] = int(value)
 	return result
 
 static func _valid_phase(value: int) -> bool:
-	return value >= int(GameManager.MatchPhase.BOOT) and value <= int(GameManager.MatchPhase.MATCH_END)
+	return (
+		value >= int(GameManager.MatchPhase.BOOT)
+		and value <= int(GameManager.MatchPhase.MATCH_END)
+	)

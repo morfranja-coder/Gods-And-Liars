@@ -105,13 +105,26 @@ If it fits:
 - advertised `open_slots` immediately excludes those seats;
 - subsequent members carrying the same Party token consume the reservation one by one.
 
-If it does not fit:
+External Party reservations have a fixed 15-second completion window measured from the first accepted member. The deadline is not extended as later members arrive.
+
+If the Party does not complete before that deadline:
+- the remaining reserved seats are released immediately;
+- the Party token is invalidated for that Match Lobby so late members cannot recreate the stale reservation;
+- already-connected members carrying that token are notified that the reservation failed and are removed from the Match Lobby;
+- the Party leader clears the stale Match target and resumes Quick Match search;
+- the Party remains intact instead of being silently split across the failed Match Lobby and another match.
+
+If the Party does complete, the reservation and its deadline are removed as soon as the final reserved member is consumed.
+
+If the Party never fit in the first place:
 - the reservation is rejected;
 - the peer is disconnected from the Match transport;
 - the leader clears the stale Party target and resumes Quick Match search;
 - the Party is not split.
 
-When a Party creates an anchor itself, the host already knows the Steam IDs of its own Party members and removes those in-transit seats from advertised capacity immediately.
+When a Party creates an anchor itself, the host already knows the Steam IDs of its own Party members and removes those in-transit seats from advertised capacity immediately. Those originating-Party seats are distinct from external Party reservations: they preserve the local Party while its own members migrate into its anchor.
+
+`PartyReservationPolicy` owns the deterministic expiration window. `NetworkManager` owns runtime deadlines, stale cleanup and capacity republishing.
 
 ## 7. Anchor convergence
 Anchor convergence prevents two compatible Parties from remaining stranded in separate Match Lobbies when both created anchors during the same Steam search window.

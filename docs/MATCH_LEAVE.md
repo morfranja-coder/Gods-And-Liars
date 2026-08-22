@@ -74,13 +74,44 @@ Leaving a Match and leaving a Party are separate operations.
 - Party leader SteamID;
 - complete Party member map.
 
-`MatchLeaveManager` captures this invariant immediately before it tears down the local Match transport. After `NetworkManager.leave_lobby()`, `MatchmakingManager.reset()` and `GameManager.reset_match()`, it captures Party state again and verifies exact equality.
+`MatchLeaveManager` captures this invariant immediately before it tears down the local Match transport. After local cleanup it captures Party state again and verifies exact equality.
 
 A mismatch emits `party_preservation_failed` and a QA-visible engine error. Match leave itself still completes so a preservation diagnostic cannot strand the player inside a broken Match transport.
 
 The invariant deliberately includes `match_target_lobby_id`: an individual player leaving does not rewrite Party-wide routing metadata while other Party members may still be in the same Match.
 
 No Match-leave path calls `PartyManager.leave_party()`, `PartyManager.reset_to_solo()` or replaces `PartyManager.state`.
+
+## 4E — Explicit local match cleanup
+
+A successful Match leave must not depend on autoload signal ordering to clear stale state.
+
+`MatchLeaveManager._cleanup_local_match_state()` performs cleanup in a fixed order:
+
+1. stop local Steam voice recording and clear buffered remote voice;
+2. close the Match `SteamMultiplayerPeer` and leave the Match Lobby;
+3. reset `MatchAuthority`, including the local private role, Heretic teammate, public alive map, authoritative session, accepted actions, votes and phase deadline;
+4. reset `HostMigrationManager`, including backup identity, secret snapshot, sequence and recovery state;
+5. reset host-promotion and reconnect migration state, including `promotion_attempted` and old→new peer mappings;
+6. clear stale terminal migration fallback text/state;
+7. reset local matchmaking to idle;
+8. reset `GameManager` to Lobby with round `0`.
+
+`MatchLeaveCleanupRules` then verifies the postcondition. A successful cleanup must have:
+
+- no Match Lobby ID;
+- empty local Match roster;
+- local role `UNASSIGNED`;
+- empty public alive map;
+- no backup authority identity;
+- no reconnect peer-ID mappings;
+- matchmaking state `idle`;
+- round `0`;
+- phase `LOBBY`.
+
+A failed postcondition emits `local_cleanup_failed` and a QA-visible engine error, but still returns the user to Lobby instead of trapping them in a half-closed Match.
+
+Party state is intentionally absent from the cleanup list and remains protected by the separate 4D invariant.
 
 ## Exit gates
 
@@ -131,4 +162,17 @@ No Match-leave path calls `PartyManager.leave_party()`, `PartyManager.reset_to_s
 - Party match target remains unchanged;
 - an accidental future Party mutation is surfaced through a runtime invariant failure;
 - both host and non-host Match exits use the same preservation check;
+- CI stays green.
+
+### 4E
+
+4E is complete when:
+
+- Match transport and roster are empty locally after leave;
+- all private/public match authority state is reset explicitly;
+- voice recording and buffered voice are cleared;
+- migration backup/promotion/reconnect/fallback residue is cleared;
+- matchmaking is idle and GameManager is back at Lobby round `0`;
+- the complete cleanup postcondition is unit-tested;
+- the 4D Party invariant still passes across the same cleanup path;
 - CI stays green.

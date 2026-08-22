@@ -16,8 +16,8 @@ static func remap(
 	data["players"] = _remap_players(snapshot.players, peer_map)
 	data["role_acknowledged"] = _remap_dictionary(snapshot.role_acknowledged, peer_map, false)
 	data["heretic_targets"] = _remap_dictionary(snapshot.heretic_targets, peer_map, true)
-	data["healer_target_peer_id"] = _remap_reference(snapshot.healer_target_peer_id, peer_map)
-	data["inquisitor_target_peer_id"] = _remap_reference(snapshot.inquisitor_target_peer_id, peer_map)
+	data["healer_target_peer_id"] = _remap_target_reference(snapshot.healer_target_peer_id, peer_map)
+	data["inquisitor_target_peer_id"] = _remap_target_reference(snapshot.inquisitor_target_peer_id, peer_map)
 	data["votes"] = _remap_dictionary(snapshot.votes, peer_map, true)
 	return MatchSnapshot.from_dictionary(data)
 
@@ -29,12 +29,12 @@ static func _remap_players(
 	for source in players:
 		var data := source.duplicate(true)
 		var old_peer_id := int(source.get("peer_id", 0))
-		data["peer_id"] = _remap_reference(old_peer_id, peer_map)
-		data["selected_target_peer_id"] = _remap_reference(
+		data["peer_id"] = _remap_identity_reference(old_peer_id, peer_map)
+		data["selected_target_peer_id"] = _remap_target_reference(
 			int(source.get("selected_target_peer_id", 0)),
 			peer_map,
 		)
-		data["vote_target_peer_id"] = _remap_reference(
+		data["vote_target_peer_id"] = _remap_target_reference(
 			int(source.get("vote_target_peer_id", 0)),
 			peer_map,
 		)
@@ -55,14 +55,19 @@ static func _remap_dictionary(
 		var old_key := int(raw_key)
 		if old_key == OLD_HOST_PEER_ID:
 			continue
-		var new_key := _remap_reference(old_key, peer_map)
+		var new_key := _remap_identity_reference(old_key, peer_map)
 		if new_key <= 0:
 			continue
 		var value = source[raw_key]
-		result[new_key] = _remap_reference(int(value), peer_map) if remap_values else value
+		result[new_key] = _remap_target_reference(int(value), peer_map) if remap_values else value
 	return result
 
-static func _remap_reference(peer_id: int, peer_map: Dictionary) -> int:
+static func _remap_identity_reference(peer_id: int, peer_map: Dictionary) -> int:
 	if peer_id <= 0:
+		return 0
+	return int(peer_map.get(peer_id, 0))
+
+static func _remap_target_reference(peer_id: int, peer_map: Dictionary) -> int:
+	if peer_id <= 0 or peer_id == OLD_HOST_PEER_ID:
 		return 0
 	return int(peer_map.get(peer_id, 0))

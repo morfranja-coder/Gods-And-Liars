@@ -124,6 +124,21 @@ Before gameplay has started there is no authoritative match snapshot to migrate,
 
 When a successful active-match leave changes back to the Lobby scene, the persisted `MatchLeaveManager` success/error message is consumed and displayed there.
 
+## 4G — Integrated acceptance contract
+
+`MatchLeaveAcceptanceRules` combines the previously separate leave gates into one testable acceptance matrix.
+
+For a started match:
+
+- a valid non-host routes to the reliable client-leave handshake;
+- a valid host routes to host migration;
+- duplicate/pending requests, missing transport or invalid Match Lobby are rejected;
+- pre-match staging does not accidentally enter the runtime migration/leave pipeline;
+- a pre-handoff host-transfer failure is considered non-terminal only while ownership has not changed and the original host remains connected;
+- a successful local exit is accepted only when **both** the complete Party invariant is preserved and all Match-local cleanup postconditions are satisfied.
+
+The 4G tests intentionally stay transport-independent and deterministic in headless CI. Real Steam behavior remains covered by the later two-account smoke test, where `setLobbyOwner`, transport teardown and reconnect are exercised against Steam itself.
+
 ## Exit gates
 
 ### 4A
@@ -179,4 +194,13 @@ When a successful active-match leave changes back to the Lobby scene, the persis
 - pending leave disables repeat clicks;
 - failure is visible and non-destructive;
 - successful leave feedback survives the scene change;
+- CI stays green.
+
+### 4G
+
+- integrated acceptance tests cover client route, host route, duplicate/invalid rejection and pre-match separation;
+- pre-handoff transfer failure remains non-terminal;
+- a successful exit requires Party preservation and complete local cleanup simultaneously;
+- Party mutation or Match-state residue fails the acceptance contract;
+- real Steam transfer/reconnect remains reserved for the two-account smoke gate;
 - CI stays green.

@@ -20,6 +20,10 @@ func consume_last_reason() -> String:
 	last_reason = ""
 	return reason
 
+func reset_after_match_leave() -> void:
+	last_reason = ""
+	fallback_active = false
+
 func request_fallback(reason: String) -> void:
 	if not HostMigrationFallbackRules.should_start(fallback_active):
 		return

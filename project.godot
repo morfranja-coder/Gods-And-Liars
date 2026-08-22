@@ -1,4 +1,4 @@
-; Engine configuration file.
+; Engine configuration file
 ; Gods & Liars — 72h MVP
 config_version=5
 
@@ -17,6 +17,7 @@ GameManager="*res://autoload/game_manager.gd"
 MatchAuthority="*res://autoload/match_authority.gd"
 HostMigrationManager="*res://autoload/host_migration_manager.gd"
 HostMigrationTransport="*res://autoload/host_migration_transport.gd"
+HostMigrationReconnect="*res://autoload/host_migration_reconnect.gd"
 QAEventLog="*res://autoload/qa_event_log.gd"
 
 [display]

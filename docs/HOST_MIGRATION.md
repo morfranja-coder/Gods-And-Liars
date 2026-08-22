@@ -44,7 +44,7 @@ Validation rejects:
 
 A full `MatchSnapshot` contains the complete secret role map. It must **not** be replicated to every player.
 
-Future gate 3C will assign one trusted successor/backup authority and send the authoritative snapshot only to that successor. Normal clients continue to receive only the private information they are allowed to know.
+Gate 3C assigns one trusted successor/backup authority and sends the authoritative snapshot only to that successor. Normal clients continue to receive only the private information they are allowed to know.
 
 ## Timing rule
 
@@ -60,4 +60,40 @@ The snapshot stores `phase_remaining_ms`, not `Time.get_ticks_msec()` from the c
 - malformed/incompatible snapshots are rejected;
 - CI stays green.
 
-Network transport, successor election and automatic promotion are intentionally outside 3A.
+## 3B — Deterministic successor election
+
+`HostSuccessorRules` selects the next game host without depending on transient Godot peer IDs.
+
+Canonical rules:
+
+- the current host is always excluded;
+- candidates must have a valid positive SteamID;
+- connected living players are preferred;
+- among living candidates, the lowest SteamID wins;
+- if no living candidate exists, connected dead/spectator players are allowed as fallback and the lowest SteamID wins;
+- if no candidate exists, successor SteamID is `0` and migration must fall back safely;
+- `peer_id` is never used as the election tie-break because peer IDs may change while the multiplayer transport is reconstructed.
+
+The rule is intentionally transport-independent. Steam lobby ownership transfer, backup snapshot delivery and transport recreation happen in later gates.
+
+## 3B exit gate
+
+3B is complete when:
+
+- every client supplied the same roster/alive state chooses the same successor SteamID;
+- current host exclusion is tested;
+- player insertion order and peer ID values do not affect the winner;
+- living candidates outrank dead candidates;
+- dead candidates provide a deterministic fallback;
+- invalid Steam IDs are ignored;
+- CI stays green.
+
+## Next gates
+
+- 3C — backup authority and secret snapshot replication to the elected successor only;
+- 3D — voluntary Steam lobby ownership transfer;
+- 3E — unexpected host-loss recovery;
+- 3F — recreate `SteamMultiplayerPeer`;
+- 3G — reconnect remaining peers;
+- 3H — restore snapshot and resume phase/deadline;
+- 3I — safe fallback when migration cannot complete.

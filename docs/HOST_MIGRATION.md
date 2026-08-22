@@ -95,6 +95,8 @@ The rule is intentionally transport-independent. Steam lobby ownership transfer,
 Rules:
 
 - the current host chooses the initial backup using the 3B successor rule;
+- the selected backup SteamID is public session metadata so every client knows the intended successor;
+- the complete secret snapshot remains private and is sent only to the selected backup;
 - once selected, the backup remains fixed while that Steam identity is still connected, even if that player dies in-game;
 - a replacement backup is elected only if the current backup disconnects;
 - this minimizes how many clients ever receive the complete secret role map;
@@ -147,10 +149,43 @@ This gate transfers the Steam lobby owner deterministically but does not yet kee
 - a rejected Steam transfer does not tear down the host;
 - CI stays green.
 
+## 3E — Unexpected host-loss recovery
+
+`HostMigrationManager` now owns the `server_disconnected` recovery path while a valid migration target exists.
+
+The old behavior destroyed the multiplayer transport, left the Steam lobby and cleared the roster immediately. During host migration this is no longer allowed. On an unexpected host loss:
+
+- only the failed `SteamMultiplayerPeer` transport is detached;
+- the Steam lobby membership, lobby ID, roster and current match state remain in memory;
+- the complete backup snapshot remains stored only on the selected backup;
+- clients enter `host_migration_recovering` instead of `host_disconnected`;
+- every client already knows the selected backup SteamID from the public backup-authority identity sync;
+- clients poll the current Steam lobby owner every 200 ms;
+- if Steam assigns lobby ownership directly to the selected backup, that backup is marked `host_migration_promotion_ready` only when it also holds a valid snapshot;
+- other clients remain in `host_migration_waiting`;
+- if Steam temporarily assigns ownership to another remaining player, that temporary owner calls `setLobbyOwner` to hand the lobby to the selected backup;
+- the recovery window is bounded to 8 seconds;
+- timeout enters `host_migration_timed_out` but does not yet decide the final user-facing fallback; that belongs to 3I.
+
+If no valid backup identity exists when the transport dies, the legacy safe teardown path is retained.
+
+3E deliberately stops before recreating the gameplay server. A client being Steam lobby owner is not yet equivalent to being the Godot multiplayer authority. Gate 3F performs that promotion.
+
+## 3E exit gate
+
+3E is complete when:
+
+- a host crash no longer destroys lobby/roster state while migration is possible;
+- the selected backup can distinguish itself from observers;
+- a backup without a valid snapshot cannot promote;
+- a temporary Steam lobby owner deterministically hands ownership to the selected backup;
+- promotion readiness requires Steam ownership to match the selected backup identity;
+- recovery has a bounded timeout;
+- CI stays green.
+
 ## Next gates
 
-- 3E — unexpected host-loss recovery;
-- 3F — recreate `SteamMultiplayerPeer`;
+- 3F — recreate `SteamMultiplayerPeer` and promote the backup to gameplay server;
 - 3G — reconnect remaining peers;
 - 3H — restore snapshot and resume phase/deadline;
 - 3I — safe fallback when migration cannot complete.

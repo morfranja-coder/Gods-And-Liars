@@ -39,6 +39,16 @@ func test_host_can_request_leave_only_with_active_transport() -> void:
 		MatchLeaveRules.can_request_host_leave(9001, true, true, true)
 	).is_false()
 
+func test_host_transfer_error_keeps_concrete_reason() -> void:
+	var message := MatchLeaveRules.normalize_host_transfer_error("Steam rejected transfer.")
+	assert_bool(message.contains("Steam rejected transfer.")).is_true()
+	assert_bool(message.contains("partida sigue activa")).is_true()
+
+func test_empty_host_transfer_error_uses_safe_default() -> void:
+	assert_str(MatchLeaveRules.normalize_host_transfer_error("   ")).is_equal(
+		MatchLeaveRules.DEFAULT_HOST_TRANSFER_ERROR
+	)
+
 func test_server_accepts_matching_remote_identity() -> void:
 	var roster := {
 		1: {"steam_id": 7001},

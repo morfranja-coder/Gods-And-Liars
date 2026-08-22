@@ -18,6 +18,7 @@ MatchAuthority="*res://autoload/match_authority.gd"
 HostMigrationManager="*res://autoload/host_migration_manager.gd"
 HostMigrationTransport="*res://autoload/host_migration_transport.gd"
 HostMigrationReconnect="*res://autoload/host_migration_reconnect.gd"
+HostMigrationRestore="*res://autoload/host_migration_restore.gd"
 QAEventLog="*res://autoload/qa_event_log.gd"
 
 [display]

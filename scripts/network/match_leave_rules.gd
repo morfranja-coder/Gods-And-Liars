@@ -1,6 +1,8 @@
 class_name MatchLeaveRules
 extends RefCounted
 
+const DEFAULT_HOST_TRANSFER_ERROR := "No se pudo transferir el host. La partida sigue activa."
+
 static func can_request_non_host_leave(
 	lobby_id: int,
 	is_host: bool,
@@ -26,6 +28,12 @@ static func can_request_host_leave(
 		and has_multiplayer_peer
 		and not leave_pending
 	)
+
+static func normalize_host_transfer_error(reason: String) -> String:
+	var clean_reason := reason.strip_edges()
+	if clean_reason.is_empty():
+		return DEFAULT_HOST_TRANSFER_ERROR
+	return "No se pudo transferir el host: %s La partida sigue activa." % clean_reason
 
 static func server_accepts_leave(
 	sender_peer_id: int,

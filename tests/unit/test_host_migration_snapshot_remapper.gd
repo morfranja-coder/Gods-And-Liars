@@ -35,6 +35,21 @@ func test_remap_drops_actions_owned_by_disconnected_host() -> void:
 	assert_bool(remapped.heretic_targets.has(HostMigrationSnapshotRemapper.DISCONNECTED_HOST_PEER_ID)).is_false()
 	assert_bool(remapped.votes.has(HostMigrationSnapshotRemapper.DISCONNECTED_HOST_PEER_ID)).is_false()
 
+func test_remap_drops_actions_targeting_disconnected_host() -> void:
+	var snapshot := _build_snapshot()
+	snapshot.heretic_targets[2] = 1
+	snapshot.healer_target_peer_id = 1
+	snapshot.inquisitor_target_peer_id = 1
+	snapshot.votes[3] = 1
+	var remapped := HostMigrationSnapshotRemapper.remap(
+		snapshot,
+		{2: 1, 3: 7, 4: 8, 5: 9, 6: 10, 7: 11, 8: 12},
+	)
+	assert_bool(remapped.heretic_targets.has(1)).is_false()
+	assert_int(remapped.healer_target_peer_id).is_equal(0)
+	assert_int(remapped.inquisitor_target_peer_id).is_equal(0)
+	assert_bool(remapped.votes.has(7)).is_false()
+
 func _build_snapshot() -> MatchSnapshot:
 	var session := MatchSession.new(7)
 	for peer_id in range(1, 9):

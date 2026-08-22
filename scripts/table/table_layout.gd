@@ -1,7 +1,7 @@
 class_name TableLayout
 extends RefCounted
 
-const SEAT_COUNT := 10
+const SEAT_COUNT := QuickMatchRules.TARGET_PLAYERS
 const RADIUS_X := 4.8
 const RADIUS_Z := 3.4
 

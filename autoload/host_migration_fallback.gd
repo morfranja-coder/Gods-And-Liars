@@ -21,12 +21,10 @@ func consume_last_reason() -> String:
 	return reason
 
 func request_fallback(reason: String) -> void:
-	if fallback_active:
+	if not HostMigrationFallbackRules.should_start(fallback_active):
 		return
 	fallback_active = true
-	last_reason = reason.strip_edges()
-	if last_reason.is_empty():
-		last_reason = "No se pudo completar la transferencia de host."
+	last_reason = HostMigrationFallbackRules.normalize_reason(reason)
 	fallback_started.emit(last_reason)
 	_cleanup_match_session()
 	call_deferred("_return_to_lobby")
@@ -34,8 +32,7 @@ func request_fallback(reason: String) -> void:
 func _cleanup_match_session() -> void:
 	if NetworkManager.lobby_id != 0 or multiplayer.multiplayer_peer != null:
 		NetworkManager.leave_lobby()
-	if PartyManager.is_local_leader():
-		PartyManager.clear_match_target()
+	PartyManager.clear_match_target()
 	MatchmakingManager.reset()
 	GameManager.reset_match()
 

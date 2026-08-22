@@ -2,6 +2,7 @@ extends Node
 
 signal reconnect_started(host_steam_id: int)
 signal reconnect_identity_restored(old_peer_id: int, new_peer_id: int, steam_id: int)
+signal reconnect_completed(connected_players: int)
 signal reconnect_failed(reason: String)
 
 const TRANSPORT_READY_KEY := "migration_transport_ready"
@@ -153,6 +154,19 @@ func _rekey_roster_peer(old_peer_id: int, new_peer_id: int, steam_id: int) -> vo
 	old_to_new_peer_ids[old_peer_id] = new_peer_id
 	NetworkManager.peer_updated.emit(new_peer_id)
 	reconnect_identity_restored.emit(old_peer_id, new_peer_id, steam_id)
+	_check_reconnect_complete()
+
+func _check_reconnect_complete() -> void:
+	if not NetworkManager.is_host or not HostMigrationManager.has_valid_backup_snapshot():
+		return
+	var expected := HostMigrationReconnectRules.expected_remaining_players(
+		HostMigrationManager.backup_snapshot
+	)
+	if old_to_new_peer_ids.size() < expected:
+		return
+	reconnect_active = false
+	NetworkManager.lobby_state_changed.emit(&"host_migration_reconnected")
+	reconnect_completed.emit(old_to_new_peer_ids.size())
 
 func _fail(reason: String) -> void:
 	reconnect_failed.emit(reason)

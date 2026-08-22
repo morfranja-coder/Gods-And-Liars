@@ -46,7 +46,7 @@ Exit gate: Parties and solo players can be combined into one 8-player Match Lobb
 
 ## FASE 3 — Table scene + avatars
 - Fixed ritual table scene.
-- 10 deterministic seat markers retained for layout extensibility; current match uses seats 1–8.
+- Exactly 8 deterministic seat markers, derived from the same `QuickMatchRules.TARGET_PLAYERS` source of truth used by matchmaking.
 - Spawn one avatar per peer.
 - Camera and basic interaction target selection.
 - Placeholder modular body/tunic/mask accepted.

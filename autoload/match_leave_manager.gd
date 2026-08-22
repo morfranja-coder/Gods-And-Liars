@@ -49,7 +49,7 @@ func _request_client_leave(client_steam_id: int) -> void:
 		_client_leave_rejected.rpc_id(sender_peer_id, "Identidad de abandono inválida.")
 		return
 	_client_leave_accepted.rpc_id(sender_peer_id)
-	NetworkManager.call("_remove_peer").rpc(sender_peer_id)
+	NetworkManager._remove_peer.rpc(sender_peer_id)
 
 @rpc("authority", "reliable")
 func _client_leave_accepted() -> void:

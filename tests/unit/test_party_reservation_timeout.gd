@@ -22,8 +22,14 @@ func test_expired_tokens_are_deterministic_and_sorted() -> void:
 		9001: 1000,
 		9002: 2000,
 	}
-	assert_array(PartyReservationPolicy.expired_tokens(deadlines, 1999)).is_equal([9001])
-	assert_array(PartyReservationPolicy.expired_tokens(deadlines, 3000)).is_equal([9001, 9002, 9003])
+	var first_expired := PartyReservationPolicy.expired_tokens(deadlines, 1999)
+	assert_int(first_expired.size()).is_equal(1)
+	assert_int(first_expired[0]).is_equal(9001)
+	var all_expired := PartyReservationPolicy.expired_tokens(deadlines, 3000)
+	assert_int(all_expired.size()).is_equal(3)
+	assert_int(all_expired[0]).is_equal(9001)
+	assert_int(all_expired[1]).is_equal(9002)
+	assert_int(all_expired[2]).is_equal(9003)
 
 func test_cleanup_releases_slots_and_removes_partial_party_member() -> void:
 	NetworkManager.register_peer(1, 1001, "Host")

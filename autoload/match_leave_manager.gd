@@ -9,15 +9,19 @@ const LOBBY_SCENE := "res://scenes/lobby/lobby.tscn"
 
 var leave_pending: bool = false
 var last_leave_message: String = ""
+var _host_leave_pending: bool = false
 
 func _ready() -> void:
 	NetworkManager.lobby_state_changed.connect(_on_lobby_state_changed)
+	HostMigrationManager.voluntary_transfer_completed.connect(_on_voluntary_transfer_completed)
+	HostMigrationManager.voluntary_transfer_failed.connect(_on_voluntary_transfer_failed)
 
 func request_leave_match() -> bool:
 	if NetworkManager.is_host:
-		host_leave_requires_migration.emit()
-		leave_rejected.emit("El host debe transferir autoridad antes de abandonar.")
-		return false
+		return _request_host_leave()
+	return _request_non_host_leave()
+
+func _request_non_host_leave() -> bool:
 	if not MatchLeaveRules.can_request_non_host_leave(
 		NetworkManager.lobby_id,
 		NetworkManager.is_host,
@@ -27,9 +31,29 @@ func request_leave_match() -> bool:
 		leave_rejected.emit("No hay una partida activa que pueda abandonarse.")
 		return false
 	leave_pending = true
+	_host_leave_pending = false
 	leave_started.emit()
 	_request_client_leave.rpc_id(1, Steamworks.steam_id)
 	return true
+
+func _request_host_leave() -> bool:
+	if not MatchLeaveRules.can_request_host_leave(
+		NetworkManager.lobby_id,
+		NetworkManager.is_host,
+		multiplayer.multiplayer_peer != null,
+		leave_pending,
+	):
+		leave_rejected.emit("El host no puede iniciar el abandono en este estado.")
+		return false
+	leave_pending = true
+	_host_leave_pending = true
+	leave_started.emit()
+	host_leave_requires_migration.emit()
+	if HostMigrationManager.request_voluntary_host_exit():
+		return true
+	leave_pending = false
+	_host_leave_pending = false
+	return false
 
 func consume_last_leave_message() -> String:
 	var message := last_leave_message
@@ -53,20 +77,38 @@ func _request_client_leave(client_steam_id: int) -> void:
 
 @rpc("authority", "reliable")
 func _client_leave_accepted() -> void:
-	if not leave_pending:
+	if not leave_pending or _host_leave_pending:
 		return
-	call_deferred("_complete_local_leave")
+	call_deferred("_complete_local_leave", false)
 
 @rpc("authority", "reliable")
 func _client_leave_rejected(reason: String) -> void:
 	leave_pending = false
+	_host_leave_pending = false
 	leave_rejected.emit(reason)
 
-func _complete_local_leave() -> void:
+func _on_voluntary_transfer_completed(_successor_steam_id: int) -> void:
+	if not leave_pending or not _host_leave_pending:
+		return
+	call_deferred("_complete_local_leave", true)
+
+func _on_voluntary_transfer_failed(reason: String) -> void:
+	if not leave_pending or not _host_leave_pending:
+		return
+	leave_pending = false
+	_host_leave_pending = false
+	leave_rejected.emit("No se pudo transferir el host: %s" % reason)
+
+func _complete_local_leave(was_host: bool) -> void:
 	if not leave_pending:
 		return
 	leave_pending = false
-	last_leave_message = "Abandonaste la partida. Tu grupo se mantiene."
+	_host_leave_pending = false
+	last_leave_message = (
+		"Transferiste el host y abandonaste la partida. Tu grupo se mantiene."
+		if was_host
+		else "Abandonaste la partida. Tu grupo se mantiene."
+	)
 	NetworkManager.leave_lobby()
 	MatchmakingManager.reset()
 	GameManager.reset_match()
@@ -81,3 +123,4 @@ func _complete_local_leave() -> void:
 func _on_lobby_state_changed(state: StringName) -> void:
 	if state in [&"offline", &"connection_failed"]:
 		leave_pending = false
+		_host_leave_pending = false

@@ -117,3 +117,10 @@ layout_mode = 2
 size_flags_horizontal = 3
 text = "PARTIDA — 0/8"
 autowrap_mode = 2
+
+[node name="LeaveMatchConfirmDialog" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Salir de la partida"
+dialog_text = "¿Seguro que querés salir de esta partida?"
+ok_button_text = "Salir"
+cancel_button_text = "Cancelar"

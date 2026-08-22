@@ -291,11 +291,18 @@ func _host_anchor_match() -> void:
 	NetworkManager.host_quick_match_lobby(PartyManager.member_ids())
 
 func _on_party_reservation_result(accepted: bool) -> void:
-	if state != STATE_RESERVING:
-		return
-	if not accepted:
+	if accepted:
+		if state != STATE_RESERVING:
+			return
+		state = STATE_MATCH_FOUND
+		queue_state_changed.emit(state)
 		if PartyManager.is_local_leader():
-			PartyManager.clear_match_target()
+			PartyManager.set_match_target(NetworkManager.lobby_id)
+		return
+	if state not in [STATE_RESERVING, STATE_MATCH_FOUND]:
+		return
+	if PartyManager.is_local_leader():
+		PartyManager.clear_match_target()
 		if NetworkManager.lobby_id != 0:
 			NetworkManager.leave_lobby()
 		_candidate_lobby_id = 0
@@ -303,10 +310,11 @@ func _on_party_reservation_result(accepted: bool) -> void:
 		queue_state_changed.emit(state)
 		_request_match_lobbies(true)
 		return
-	state = STATE_MATCH_FOUND
+	if NetworkManager.lobby_id != 0:
+		NetworkManager.leave_lobby()
+	_candidate_lobby_id = 0
+	reset()
 	queue_state_changed.emit(state)
-	if PartyManager.is_local_leader():
-		PartyManager.set_match_target(NetworkManager.lobby_id)
 
 func _on_network_lobby_state_changed(network_state: StringName) -> void:
 	if state == STATE_HOSTING and network_state == &"hosting":

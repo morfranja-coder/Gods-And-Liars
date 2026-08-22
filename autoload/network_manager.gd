@@ -443,10 +443,9 @@ func _expire_connected_party_members(party_token: int) -> void:
 			_peer_party_tokens.erase(peer_id)
 
 func _try_reserve_party(peer_id: int, client_steam_id: int) -> bool:
-	if client_steam_id in _reserved_party_steam_ids:
-		return true
-	if _steam == null or lobby_id == 0:
-		return false
+	var is_reserved_member := client_steam_id in _reserved_party_steam_ids
+	if is_reserved_member or _steam == null or lobby_id == 0:
+		return is_reserved_member
 	var raw_size := str(
 		_steam.call("getLobbyMemberData", lobby_id, client_steam_id, MEMBER_PARTY_SIZE_KEY)
 	)

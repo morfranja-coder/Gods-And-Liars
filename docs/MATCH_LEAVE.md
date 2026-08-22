@@ -74,105 +74,109 @@ Leaving a Match and leaving a Party are separate operations.
 - Party leader SteamID;
 - complete Party member map.
 
-`MatchLeaveManager` captures this invariant immediately before it tears down the local Match transport. After local cleanup it captures Party state again and verifies exact equality.
+`MatchLeaveManager` captures this invariant immediately before it tears down the local Match transport. After local Match cleanup it captures Party state again and verifies exact equality.
 
 A mismatch emits `party_preservation_failed` and a QA-visible engine error. Match leave itself still completes so a preservation diagnostic cannot strand the player inside a broken Match transport.
 
-The invariant deliberately includes `match_target_lobby_id`: an individual player leaving does not rewrite Party-wide routing metadata while other Party members may still be in the same Match.
-
 No Match-leave path calls `PartyManager.leave_party()`, `PartyManager.reset_to_solo()` or replaces `PartyManager.state`.
 
-## 4E — Explicit local match cleanup
+## 4E — Explicit local cleanup
 
-A successful Match leave must not depend on autoload signal ordering to clear stale state.
+Successful Match leave uses one deterministic cleanup sequence instead of relying on autoload signal ordering.
 
-`MatchLeaveManager._cleanup_local_match_state()` performs cleanup in a fixed order:
+The local client explicitly clears:
 
-1. stop local Steam voice recording and clear buffered remote voice;
-2. close the Match `SteamMultiplayerPeer` and leave the Match Lobby;
-3. reset `MatchAuthority`, including the local private role, Heretic teammate, public alive map, authoritative session, accepted actions, votes and phase deadline;
-4. reset `HostMigrationManager`, including backup identity, secret snapshot, sequence and recovery state;
-5. reset host-promotion and reconnect migration state, including `promotion_attempted` and old→new peer mappings;
-6. clear stale terminal migration fallback text/state;
-7. reset local matchmaking to idle;
-8. reset `GameManager` to Lobby with round `0`.
+- active voice capture/playback state;
+- Match Lobby and `SteamMultiplayerPeer`;
+- local Match roster;
+- private role and Heretic teammate data;
+- public alive/dead map and winner;
+- authoritative `MatchSession`, acknowledgements, night actions, votes and deadlines;
+- host-migration backup/snapshot state;
+- host-promotion and reconnect state/maps;
+- stale host-migration fallback reason;
+- matchmaking state;
+- local round and phase back to Lobby.
 
-`MatchLeaveCleanupRules` then verifies the postcondition. A successful cleanup must have:
+`MatchLeaveCleanupRules` validates the postcondition: no Match lobby, peers, role, public alive map, migration backup/reconnect map or active matchmaking state may remain, and local round/phase must be reset. Party state is intentionally outside this cleanup and remains protected by 4D.
 
-- no Match Lobby ID;
-- empty local Match roster;
-- local role `UNASSIGNED`;
-- empty public alive map;
-- no backup authority identity;
-- no reconnect peer-ID mappings;
-- matchmaking state `idle`;
-- round `0`;
-- phase `LOBBY`.
+## 4F — Leave button / UI integration
 
-A failed postcondition emits `local_cleanup_failed` and a QA-visible engine error, but still returns the user to Lobby instead of trapping them in a half-closed Match.
+The real UI never performs an unconfirmed destructive leave.
 
-Party state is intentionally absent from the cleanup list and remains protected by the separate 4D invariant.
+### Active match / table
+
+`scenes/table/table.tscn` exposes a top-right `Abandonar partida` control and a `ConfirmationDialog`.
+
+- regular clients see a confirmation that their Party will be preserved;
+- the host sees an explicit warning that authority will be transferred before leaving;
+- confirming calls only `MatchLeaveManager.request_leave_match()`;
+- while the request is pending the button is disabled;
+- a regular client sees `Abandonando partida...`;
+- the host sees `Transfiriendo host...`;
+- a rejected leave re-enables the button and displays the concrete reason without removing the player from the match.
+
+### Pre-match Match Lobby
+
+The existing Lobby `Salir de la partida` button now also requires confirmation.
+
+Before gameplay has started there is no authoritative match snapshot to migrate, so leaving this staging Match Lobby uses the simple Match-Lobby teardown path rather than host migration. It resets only local Match/matchmaking state and preserves the Party. The old direct button path that also cleared Party match routing metadata is removed.
+
+When a successful active-match leave changes back to the Lobby scene, the persisted `MatchLeaveManager` success/error message is consumed and displayed there.
 
 ## Exit gates
 
 ### 4A
 
-4A is complete when:
-
 - a non-host with an active Match Lobby can request leave;
 - duplicate pending leave requests are rejected;
 - the host validates RPC sender ↔ SteamID identity;
 - peer `1` cannot use the non-host leave RPC;
-- the authoritative roster removal occurs before the client tears down its local transport;
-- existing disconnect gameplay rules mark the player dead and continue the match for everyone else;
-- the leaving player's Party remains intact;
+- authoritative roster removal occurs before local teardown;
+- disconnect gameplay rules continue the match for everyone else;
+- Party remains intact;
 - CI stays green.
 
 ### 4B
 
-4B is complete when:
-
 - a valid host can request leave through migration;
-- the host cannot use the non-host RPC path;
 - Steam ownership transfer is requested before teardown;
 - transfer failure keeps the host connected;
 - transfer success releases the old host locally;
-- remaining players are left to the 3E–3H migration flow;
+- remaining players continue through 3E–3H;
 - CI stays green.
 
 ### 4C
 
-4C is complete when:
-
 - a pre-handoff migration failure cancels only the pending leave;
 - the original host remains authoritative and connected;
-- no Party or Match state is destroyed by the failed leave request;
+- no Party or Match state is destroyed;
 - a useful error is retained for UI;
-- the leave operation becomes retryable immediately after cancellation;
-- post-handoff migration failures remain owned by the 3I fallback;
+- retry is possible after cancellation;
+- post-handoff failures remain owned by 3I;
 - CI stays green.
 
 ### 4D
 
-4D is complete when:
-
-- Party Lobby ID survives successful Match leave unchanged;
-- logical Party ID and leader SteamID remain unchanged;
-- Party membership remains byte-for-byte equivalent at the data-model level;
-- Party match target remains unchanged;
-- an accidental future Party mutation is surfaced through a runtime invariant failure;
-- both host and non-host Match exits use the same preservation check;
+- Party Lobby ID, Party ID, leader, members and match target survive successful Match leave unchanged;
+- accidental Party mutation is surfaced through a runtime invariant failure;
+- host and non-host exits use the same preservation check;
 - CI stays green.
 
 ### 4E
 
-4E is complete when:
+- local Match transport, roster, private/public gameplay state, migration state, voice state and matchmaking state are explicitly reset;
+- the cleanup postcondition is validated;
+- Party state remains excluded from cleanup;
+- CI stays green.
 
-- Match transport and roster are empty locally after leave;
-- all private/public match authority state is reset explicitly;
-- voice recording and buffered voice are cleared;
-- migration backup/promotion/reconnect/fallback residue is cleared;
-- matchmaking is idle and GameManager is back at Lobby round `0`;
-- the complete cleanup postcondition is unit-tested;
-- the 4D Party invariant still passes across the same cleanup path;
+### 4F
+
+- active-match leave is reachable from the table UI;
+- staging Match Lobby leave remains reachable from Lobby UI;
+- both require confirmation;
+- active-match host/client paths route through `MatchLeaveManager`;
+- pending leave disables repeat clicks;
+- failure is visible and non-destructive;
+- successful leave feedback survives the scene change;
 - CI stays green.

@@ -4,7 +4,8 @@ FASE 3 covers the synchronized ritual table, fixed seats and modular technical a
 
 ## Automated/code gate
 
-- Exactly 10 deterministic seat markers exist.
+- Exactly 8 deterministic seat markers exist.
+- `TableLayout.SEAT_COUNT` is derived from `QuickMatchRules.TARGET_PLAYERS`, so table geometry and commercial matchmaking cannot drift apart.
 - The host assigns `seat_id`; clients render that synchronized value instead of recalculating locally.
 - Seats are unique while a peer is connected and can be reused after disconnect.
 - The lobby roster displays the synchronized seat number.
@@ -34,11 +35,12 @@ Use two PCs / two Steam accounts.
 2. Both machines change to the ritual table scene.
 3. Both machines show the same roster players at the same seat positions.
 4. No two players occupy the same seat.
-5. Player names appear above the correct technical avatars.
-6. Clicking another avatar selects that peer locally without moving either avatar.
-7. Disconnect the client before a new match, reconnect, and verify the host assigns an available seat cleanly.
-8. Replace one technical avatar slot with a contract-compliant GLB and verify table/network code does not need modification.
+5. All 8 commercial seats are distributed around the full ritual table with no unused 9th/10th layout gaps.
+6. Player names appear above the correct technical avatars.
+7. Clicking another avatar selects that peer locally without moving either avatar.
+8. Disconnect the client before a new match, reconnect, and verify the host assigns an available seat cleanly.
+9. Replace one technical avatar slot with a contract-compliant GLB and verify table/network code does not need modification.
 
 ## Exit gate
 
-FASE 3 is CLOSED when CI is green and steps 1–7 pass on real Steam clients. Step 8 is the art-pipeline integration gate and may use the first rigged production GLB when available.
+FASE 3 is CLOSED when CI is green and steps 1–8 pass on real Steam clients. Step 9 is the art-pipeline integration gate and may use the first rigged production GLB when available.

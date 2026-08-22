@@ -6,6 +6,7 @@ signal leave_rejected(reason: String)
 signal host_leave_requires_migration
 signal host_leave_cancelled(reason: String)
 signal party_preservation_failed
+signal local_cleanup_failed
 
 const LOBBY_SCENE := "res://scenes/lobby/lobby.tscn"
 
@@ -128,6 +129,30 @@ func _capture_party_invariant() -> Dictionary:
 		PartyManager.state.members,
 	)
 
+func _cleanup_local_match_state() -> void:
+	VoiceChat.reset_for_match_leave()
+	NetworkManager.leave_lobby()
+	MatchAuthority.reset()
+	HostMigrationManager.reset()
+	HostMigrationTransport.reset()
+	HostMigrationReconnect.reset()
+	HostMigrationFallback.reset_after_match_leave()
+	MatchmakingManager.reset()
+	GameManager.reset_match()
+
+func _local_cleanup_is_valid() -> bool:
+	return MatchLeaveCleanupRules.is_clean(
+		NetworkManager.lobby_id,
+		NetworkManager.peers.size(),
+		int(MatchAuthority.local_role),
+		MatchAuthority.public_alive_by_peer.size(),
+		HostMigrationManager.backup_authority_steam_id,
+		HostMigrationReconnect.old_to_new_peer_ids.size(),
+		MatchmakingManager.state,
+		GameManager.round_number,
+		int(GameManager.phase),
+	)
+
 func _complete_local_leave(was_host: bool) -> void:
 	if not leave_pending:
 		return
@@ -140,9 +165,10 @@ func _complete_local_leave(was_host: bool) -> void:
 		if was_host
 		else "Abandonaste la partida. Tu grupo se mantiene."
 	)
-	NetworkManager.leave_lobby()
-	MatchmakingManager.reset()
-	GameManager.reset_match()
+	_cleanup_local_match_state()
+	if not _local_cleanup_is_valid():
+		push_error("Match leave local cleanup postcondition failed.")
+		local_cleanup_failed.emit()
 	if not MatchLeavePartyInvariant.is_preserved(party_before, _capture_party_invariant()):
 		push_error("Match leave mutated Party state; Party preservation invariant failed.")
 		party_preservation_failed.emit()

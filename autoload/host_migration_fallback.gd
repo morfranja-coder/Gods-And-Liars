@@ -44,8 +44,18 @@ func _return_to_lobby() -> void:
 	var current := tree.current_scene
 	if current == null or current.scene_file_path != LOBBY_SCENE:
 		tree.change_scene_to_file(LOBBY_SCENE)
+		await tree.process_frame
+	_show_reason_in_lobby()
 	fallback_active = false
 	fallback_completed.emit(last_reason)
+
+func _show_reason_in_lobby() -> void:
+	var current := get_tree().current_scene
+	if current == null:
+		return
+	var status_label := current.get_node_or_null("%StatusLabel") as Label
+	if status_label != null:
+		status_label.text = "La partida terminó de forma segura: %s Tu grupo se mantiene." % last_reason
 
 func _on_recovery_timed_out(_backup_steam_id: int) -> void:
 	request_fallback("La transferencia de host agotó el tiempo de recuperación.")

@@ -9,6 +9,10 @@ const RAY_LENGTH := 100.0
 var selected_peer_id: int = 0
 var _avatars: Dictionary = {}
 
+@onready var leave_match_button: Button = %LeaveMatchButton
+@onready var leave_status_label: Label = %LeaveStatusLabel
+@onready var leave_confirm_dialog: ConfirmationDialog = %LeaveConfirmDialog
+
 func _ready() -> void:
 	_build_placeholder_table()
 	_build_seat_markers()
@@ -17,6 +21,10 @@ func _ready() -> void:
 	NetworkManager.peer_updated.connect(_on_roster_changed)
 	MatchAuthority.night_resolution_received.connect(_on_night_resolution_received)
 	MatchAuthority.vote_resolution_received.connect(_on_vote_resolution_received)
+	MatchLeaveManager.leave_started.connect(_on_leave_started)
+	MatchLeaveManager.leave_rejected.connect(_on_leave_rejected)
+	leave_match_button.pressed.connect(_on_leave_match_pressed)
+	leave_confirm_dialog.confirmed.connect(_on_leave_confirmed)
 	_refresh_roster()
 	if multiplayer.is_server() and NetworkManager.is_host:
 		MatchAuthority.call_deferred("begin_role_reveal")
@@ -28,6 +36,32 @@ func _unhandled_input(event: InputEvent) -> void:
 	if mouse_event.button_index != MOUSE_BUTTON_LEFT or not mouse_event.pressed:
 		return
 	_select_from_screen_position(mouse_event.position)
+
+func _on_leave_match_pressed() -> void:
+	if MatchLeaveManager.leave_pending:
+		return
+	leave_confirm_dialog.dialog_text = (
+		"Sos el host. Se transferirá la autoridad antes de salir. ¿Querés continuar?"
+		if NetworkManager.is_host
+		else "¿Seguro que querés abandonar esta partida? Tu grupo se conservará."
+	)
+	leave_confirm_dialog.popup_centered()
+
+func _on_leave_confirmed() -> void:
+	if MatchLeaveManager.request_leave_match():
+		leave_match_button.disabled = true
+		leave_status_label.text = (
+			"Transfiriendo host..."
+			if NetworkManager.is_host
+			else "Abandonando partida..."
+		)
+
+func _on_leave_started() -> void:
+	leave_match_button.disabled = true
+
+func _on_leave_rejected(reason: String) -> void:
+	leave_match_button.disabled = false
+	leave_status_label.text = reason
 
 func _build_placeholder_table() -> void:
 	var table := MeshInstance3D.new()

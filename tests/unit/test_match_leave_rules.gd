@@ -22,6 +22,23 @@ func test_leave_requires_lobby_peer_and_no_pending_request() -> void:
 		MatchLeaveRules.can_request_non_host_leave(9001, false, true, true)
 	).is_false()
 
+func test_host_can_request_leave_only_with_active_transport() -> void:
+	assert_bool(
+		MatchLeaveRules.can_request_host_leave(9001, true, true, false)
+	).is_true()
+	assert_bool(
+		MatchLeaveRules.can_request_host_leave(0, true, true, false)
+	).is_false()
+	assert_bool(
+		MatchLeaveRules.can_request_host_leave(9001, false, true, false)
+	).is_false()
+	assert_bool(
+		MatchLeaveRules.can_request_host_leave(9001, true, false, false)
+	).is_false()
+	assert_bool(
+		MatchLeaveRules.can_request_host_leave(9001, true, true, true)
+	).is_false()
+
 func test_server_accepts_matching_remote_identity() -> void:
 	var roster := {
 		1: {"steam_id": 7001},

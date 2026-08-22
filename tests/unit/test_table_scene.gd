@@ -11,13 +11,14 @@ func after_test() -> void:
 	NetworkManager.reset()
 	MatchAuthority.reset()
 
-func test_table_builds_ten_seat_markers() -> void:
+func test_table_builds_exactly_eight_seat_markers() -> void:
 	var table := TABLE_SCENE.instantiate()
 	add_child(table)
 	await get_tree().process_frame
 	var seats := table.get_node_or_null("Seats")
 	assert_object(seats).is_not_null()
-	assert_int(seats.get_child_count()).is_equal(TableLayout.SEAT_COUNT)
+	assert_int(TableLayout.SEAT_COUNT).is_equal(QuickMatchRules.TARGET_PLAYERS)
+	assert_int(seats.get_child_count()).is_equal(QuickMatchRules.TARGET_PLAYERS)
 	table.queue_free()
 
 func test_roster_spawns_avatar_at_authoritative_seat() -> void:

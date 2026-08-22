@@ -72,14 +72,18 @@ func _connect_signals() -> void:
 	HostMigrationManager.voluntary_transfer_failed.connect(_on_voluntary_transfer_failed)
 	HostMigrationManager.host_loss_detected.connect(_on_host_loss_detected)
 	HostMigrationManager.host_loss_promotion_ready.connect(_on_host_loss_promotion_ready)
-	HostMigrationManager.host_loss_recovery_timed_out.connect(_on_host_loss_recovery_timed_out)
+	HostMigrationManager.host_loss_recovery_timed_out.connect(
+		_on_host_loss_recovery_timed_out
+	)
 	HostMigrationTransport.migrated_host_transport_ready.connect(_on_migrated_transport_ready)
 	HostMigrationTransport.migrated_host_transport_failed.connect(_on_migrated_transport_failed)
 	HostMigrationReconnect.reconnect_started.connect(_on_reconnect_started)
-	HostMigrationReconnect.reconnect_identity_restored.connect(_on_reconnect_identity_restored)
+	HostMigrationReconnect.reconnect_identity_restored.connect(
+		_on_reconnect_identity_restored
+	)
 	HostMigrationReconnect.reconnect_completed.connect(_on_reconnect_completed)
 	HostMigrationReconnect.reconnect_failed.connect(_on_reconnect_failed)
-	HostMigrationRestore.host_migration_restored.connect(_on_host_migration_restored)
+	HostMigrationRestore.restore_completed.connect(_on_host_migration_restored)
 	HostMigrationRestore.restore_failed.connect(_on_restore_failed)
 	HostMigrationFallback.fallback_started.connect(_on_fallback_started)
 	HostMigrationFallback.fallback_completed.connect(_on_fallback_completed)
@@ -188,8 +192,8 @@ func _on_reconnect_completed(connected_players: int) -> void:
 func _on_reconnect_failed(reason: String) -> void:
 	_write_event("migration_reconnect_failed", {"reason": reason})
 
-func _on_host_migration_restored() -> void:
-	_write_event("migration_match_restored")
+func _on_host_migration_restored(phase: int, round_number: int) -> void:
+	_write_event("migration_match_restored", {"phase": phase, "round": round_number})
 
 func _on_restore_failed(reason: String) -> void:
 	_write_event("migration_restore_failed", {"reason": reason})

@@ -4,11 +4,13 @@ signal leave_started
 signal leave_completed
 signal leave_rejected(reason: String)
 signal host_leave_requires_migration
+signal host_leave_cancelled(reason: String)
 
 const LOBBY_SCENE := "res://scenes/lobby/lobby.tscn"
 
 var leave_pending: bool = false
 var last_leave_message: String = ""
+var last_leave_error: String = ""
 var _host_leave_pending: bool = false
 
 func _ready() -> void:
@@ -28,10 +30,11 @@ func _request_non_host_leave() -> bool:
 		multiplayer.multiplayer_peer != null,
 		leave_pending,
 	):
-		leave_rejected.emit("No hay una partida activa que pueda abandonarse.")
+		_reject_leave("No hay una partida activa que pueda abandonarse.")
 		return false
 	leave_pending = true
 	_host_leave_pending = false
+	last_leave_error = ""
 	leave_started.emit()
 	_request_client_leave.rpc_id(1, Steamworks.steam_id)
 	return true
@@ -43,22 +46,27 @@ func _request_host_leave() -> bool:
 		multiplayer.multiplayer_peer != null,
 		leave_pending,
 	):
-		leave_rejected.emit("El host no puede iniciar el abandono en este estado.")
+		_reject_leave("El host no puede iniciar el abandono en este estado.")
 		return false
 	leave_pending = true
 	_host_leave_pending = true
+	last_leave_error = ""
 	leave_started.emit()
 	host_leave_requires_migration.emit()
 	if HostMigrationManager.request_voluntary_host_exit():
 		return true
-	leave_pending = false
-	_host_leave_pending = false
+	_cancel_host_leave(MatchLeaveRules.DEFAULT_HOST_TRANSFER_ERROR)
 	return false
 
 func consume_last_leave_message() -> String:
 	var message := last_leave_message
 	last_leave_message = ""
 	return message
+
+func consume_last_leave_error() -> String:
+	var error_message := last_leave_error
+	last_leave_error = ""
+	return error_message
 
 @rpc("any_peer", "reliable")
 func _request_client_leave(client_steam_id: int) -> void:
@@ -85,7 +93,7 @@ func _client_leave_accepted() -> void:
 func _client_leave_rejected(reason: String) -> void:
 	leave_pending = false
 	_host_leave_pending = false
-	leave_rejected.emit(reason)
+	_reject_leave(reason)
 
 func _on_voluntary_transfer_completed(_successor_steam_id: int) -> void:
 	if not leave_pending or not _host_leave_pending:
@@ -95,15 +103,27 @@ func _on_voluntary_transfer_completed(_successor_steam_id: int) -> void:
 func _on_voluntary_transfer_failed(reason: String) -> void:
 	if not leave_pending or not _host_leave_pending:
 		return
+	_cancel_host_leave(MatchLeaveRules.normalize_host_transfer_error(reason))
+
+func _cancel_host_leave(reason: String) -> void:
+	if not leave_pending or not _host_leave_pending:
+		return
 	leave_pending = false
 	_host_leave_pending = false
-	leave_rejected.emit("No se pudo transferir el host: %s" % reason)
+	last_leave_error = reason
+	host_leave_cancelled.emit(reason)
+	leave_rejected.emit(reason)
+
+func _reject_leave(reason: String) -> void:
+	last_leave_error = reason
+	leave_rejected.emit(reason)
 
 func _complete_local_leave(was_host: bool) -> void:
 	if not leave_pending:
 		return
 	leave_pending = false
 	_host_leave_pending = false
+	last_leave_error = ""
 	last_leave_message = (
 		"Transferiste el host y abandonaste la partida. Tu grupo se mantiene."
 		if was_host

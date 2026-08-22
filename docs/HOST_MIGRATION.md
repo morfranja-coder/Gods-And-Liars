@@ -60,6 +60,31 @@ Actions owned by the disconnected host are dropped. Votes/night actions/protecti
 
 The old host's monotonic clock is never reused.
 
-## Next gate
+## 3I — Safe fallback
 
-- 3I — safe fallback when migration cannot complete.
+`HostMigrationFallback` is the final safety net. It listens for migration recovery timeout, migrated-host transport failure, reconnect failure, restore failure, and the legacy `host_disconnected` path used when no recoverable successor exists.
+
+Fallback rules:
+
+- only one fallback may run at a time, so simultaneous downstream failures cannot trigger duplicate teardown;
+- the active Match Lobby/transport is closed with the normal `NetworkManager.leave_lobby()` path;
+- the Party Lobby is never left or reset;
+- the Party match target is cleared for both leaders and followers;
+- matchmaking state is reset to idle;
+- `GameManager` returns to Lobby state;
+- the scene changes back to `res://scenes/lobby/lobby.tscn`;
+- the Lobby displays the concrete migration failure reason and confirms that the Party was preserved.
+
+An empty failure reason is normalized to a safe default message. The fallback is terminal for the failed match only; it does not automatically requeue the Party.
+
+## Host migration exit gate
+
+The host migration system is complete when:
+
+- a valid backup can take Steam Lobby ownership;
+- it can recreate the gameplay server;
+- the seven remaining players can reconnect by stable Steam identity;
+- the authoritative match can resume without rerolling roles or resetting the round;
+- phase timing resumes from the stored remaining duration;
+- failure at any stage returns everyone safely to Lobby without destroying the Party;
+- CI remains green.

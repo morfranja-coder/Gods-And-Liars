@@ -5,6 +5,7 @@ signal leave_completed
 signal leave_rejected(reason: String)
 signal host_leave_requires_migration
 signal host_leave_cancelled(reason: String)
+signal party_preservation_failed
 
 const LOBBY_SCENE := "res://scenes/lobby/lobby.tscn"
 
@@ -118,9 +119,19 @@ func _reject_leave(reason: String) -> void:
 	last_leave_error = reason
 	leave_rejected.emit(reason)
 
+func _capture_party_invariant() -> Dictionary:
+	return MatchLeavePartyInvariant.capture(
+		PartyManager.party_lobby_id,
+		PartyManager.match_target_lobby_id,
+		PartyManager.state.party_id,
+		PartyManager.state.leader_steam_id,
+		PartyManager.state.members,
+	)
+
 func _complete_local_leave(was_host: bool) -> void:
 	if not leave_pending:
 		return
+	var party_before := _capture_party_invariant()
 	leave_pending = false
 	_host_leave_pending = false
 	last_leave_error = ""
@@ -132,6 +143,9 @@ func _complete_local_leave(was_host: bool) -> void:
 	NetworkManager.leave_lobby()
 	MatchmakingManager.reset()
 	GameManager.reset_match()
+	if not MatchLeavePartyInvariant.is_preserved(party_before, _capture_party_invariant()):
+		push_error("Match leave mutated Party state; Party preservation invariant failed.")
+		party_preservation_failed.emit()
 	leave_completed.emit()
 	var tree := get_tree()
 	if tree == null:

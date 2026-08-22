@@ -24,11 +24,39 @@ A single player leaving a match does **not** clear `PartyManager.match_target_lo
 
 That target belongs to the Party as a whole and other Party members may still be playing the same match. This is especially important when the leaving client happens to be the Party leader.
 
-### Host rule
+## 4B — Host leaves voluntarily
 
-The active gameplay host cannot use the 4A path. `MatchLeaveManager` emits `host_leave_requires_migration`; gate 4B will route that case through the host-migration system before allowing the old host to exit.
+The gameplay host never uses the regular client-leave RPC.
 
-## 4A exit gate
+When the host requests leave, `MatchLeaveManager` enters a pending host-leave state and calls `HostMigrationManager.request_voluntary_host_exit()`.
+
+That migration call now performs only the ownership handoff. It does not tear down the old host by itself.
+
+The sequence is:
+
+1. the current host must still own an active multiplayer transport;
+2. the existing host-migration backup must be connected and hold a valid authoritative snapshot;
+3. Steam `setLobbyOwner` transfers Match Lobby ownership to that backup;
+4. `voluntary_transfer_completed` is emitted only after Steam accepts the transfer request;
+5. only then does `MatchLeaveManager` close the old host's Match Lobby/transport and return that local player to Lobby;
+6. the remaining clients observe the old gameplay server disappearing and continue through the existing 3E–3H migration pipeline;
+7. the old host's Party Lobby remains untouched.
+
+If the transfer cannot be started or Steam rejects it, `leave_pending` is cleared and the host remains in the match. The failure path is intentionally handled before local teardown so a failed voluntary transfer cannot destroy the match.
+
+### 4B safety rules
+
+- host leave requires a valid Match Lobby and active multiplayer peer;
+- only the current host can enter the host-leave path;
+- duplicate host-leave requests are rejected while one is pending;
+- ownership transfer happens before local host teardown;
+- a rejected transfer leaves the old host connected;
+- the Party is preserved;
+- the existing migration pipeline, not the old host, reconstructs authority for the seven remaining players.
+
+## Exit gates
+
+### 4A
 
 4A is complete when:
 
@@ -39,4 +67,16 @@ The active gameplay host cannot use the 4A path. `MatchLeaveManager` emits `host
 - the authoritative roster removal occurs before the client tears down its local transport;
 - existing disconnect gameplay rules mark the player dead and continue the match for everyone else;
 - the leaving player's Party remains intact;
+- CI stays green.
+
+### 4B
+
+4B is complete when:
+
+- a valid host can request leave through migration;
+- the host cannot use the non-host RPC path;
+- Steam ownership transfer is requested before teardown;
+- transfer failure keeps the host connected;
+- transfer success releases the old host locally;
+- remaining players are left to the 3E–3H migration flow;
 - CI stays green.

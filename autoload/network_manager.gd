@@ -8,6 +8,7 @@ signal lobby_list_updated(lobbies: Array)
 signal lobby_error(message: String)
 signal lobby_start_requested
 signal party_reservation_result(accepted: bool)
+signal party_reservation_expired(party_token: int)
 
 const MAX_PLAYERS: int = QuickMatchRules.TARGET_PLAYERS
 const TECHNICAL_START_MIN_PLAYERS: int = LobbyRules.TECHNICAL_START_MIN_PLAYERS
@@ -31,6 +32,7 @@ const STEAM_LOBBY_COMPARISON_EQUAL := 0
 const STEAM_LOBBY_DISTANCE_WORLDWIDE := 3
 const STEAM_RESULT_OK := 1
 const STEAM_CHAT_ENTER_SUCCESS := 1
+const RESERVATION_CLEANUP_INTERVAL_MS := 250
 
 var is_host: bool = false
 var lobby_id: int = 0
@@ -44,7 +46,10 @@ var _pending_join_match_id: int = 0
 var _pending_match_search: bool = false
 var _reserved_party_steam_ids: Array[int] = []
 var _party_reservations: Dictionary = {}
+var _party_reservation_deadlines: Dictionary = {}
+var _expired_party_tokens: Dictionary = {}
 var _peer_party_tokens: Dictionary = {}
+var _last_reservation_cleanup_ms: int = 0
 
 func _ready() -> void:
 	Steamworks.steam_ready.connect(_bind_steam_callbacks)
@@ -56,6 +61,15 @@ func _ready() -> void:
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
 	multiplayer.connection_failed.connect(_on_connection_failed)
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
+
+func _process(_delta: float) -> void:
+	if not is_host or lobby_started or _party_reservation_deadlines.is_empty():
+		return
+	var now_ms := Time.get_ticks_msec()
+	if now_ms - _last_reservation_cleanup_ms < RESERVATION_CLEANUP_INTERVAL_MS:
+		return
+	_last_reservation_cleanup_ms = now_ms
+	_cleanup_expired_party_reservations(now_ms)
 
 func _bind_steam_callbacks() -> void:
 	_steam = Steamworks.get_api()
@@ -251,7 +265,10 @@ func _clear_session_state() -> void:
 	_last_ready_request_ms.clear()
 	_reserved_party_steam_ids.clear()
 	_party_reservations.clear()
+	_party_reservation_deadlines.clear()
+	_expired_party_tokens.clear()
 	_peer_party_tokens.clear()
+	_last_reservation_cleanup_ms = 0
 	_clear_pending_operations()
 
 func _teardown_lobby(final_state: StringName) -> void:
@@ -389,6 +406,42 @@ func _on_server_disconnected() -> void:
 	lobby_error.emit("The ritual host disconnected.")
 	_teardown_lobby(&"host_disconnected")
 
+func _cleanup_expired_party_reservations(now_ms: int) -> int:
+	var expired_tokens := PartyReservationPolicy.expired_tokens(
+		_party_reservation_deadlines,
+		now_ms,
+	)
+	var expired_count := 0
+	for party_token in expired_tokens:
+		if not _party_reservations.has(party_token):
+			_party_reservation_deadlines.erase(party_token)
+			continue
+		_party_reservations.erase(party_token)
+		_party_reservation_deadlines.erase(party_token)
+		_expired_party_tokens[party_token] = true
+		party_reservation_expired.emit(party_token)
+		expired_count += 1
+		_expire_connected_party_members(party_token)
+	if expired_count > 0:
+		_publish_match_capacity()
+	return expired_count
+
+func _expire_connected_party_members(party_token: int) -> void:
+	var peer_ids: Array[int] = []
+	for raw_peer_id in _peer_party_tokens.keys():
+		if int(_peer_party_tokens[raw_peer_id]) == party_token:
+			peer_ids.append(int(raw_peer_id))
+	for peer_id in peer_ids:
+		if peers.has(peer_id):
+			if multiplayer.multiplayer_peer != null and multiplayer.is_server():
+				_match_reservation_result.rpc_id(peer_id, false)
+				_remove_peer.rpc(peer_id)
+				_reject_remote_peer(peer_id)
+			else:
+				unregister_peer(peer_id)
+		else:
+			_peer_party_tokens.erase(peer_id)
+
 func _try_reserve_party(peer_id: int, client_steam_id: int) -> bool:
 	if client_steam_id in _reserved_party_steam_ids:
 		return true
@@ -403,6 +456,9 @@ func _try_reserve_party(peer_id: int, client_steam_id: int) -> bool:
 	var party_size := int(raw_size) if raw_size.is_valid_int() else 1
 	var party_token := int(raw_token) if raw_token.is_valid_int() else client_steam_id
 	party_size = clampi(party_size, 1, QuickMatchRules.MAX_PARTY_SIZE)
+	_cleanup_expired_party_reservations(Time.get_ticks_msec())
+	if _expired_party_tokens.has(party_token):
+		return false
 	if _party_reservations.has(party_token):
 		var remaining := int(_party_reservations[party_token])
 		if remaining <= 0:
@@ -410,6 +466,7 @@ func _try_reserve_party(peer_id: int, client_steam_id: int) -> bool:
 		remaining -= 1
 		if remaining == 0:
 			_party_reservations.erase(party_token)
+			_party_reservation_deadlines.erase(party_token)
 		else:
 			_party_reservations[party_token] = remaining
 		_peer_party_tokens[peer_id] = party_token
@@ -420,6 +477,9 @@ func _try_reserve_party(peer_id: int, client_steam_id: int) -> bool:
 	var remaining_members := party_size - 1
 	if remaining_members > 0:
 		_party_reservations[party_token] = remaining_members
+		_party_reservation_deadlines[party_token] = PartyReservationPolicy.deadline_from(
+			Time.get_ticks_msec()
+		)
 	_peer_party_tokens[peer_id] = party_token
 	_publish_match_capacity()
 	return true
@@ -433,6 +493,7 @@ func _release_party_token_for_peer(peer_id: int) -> void:
 		if int(other_token) == party_token:
 			return
 	_party_reservations.erase(party_token)
+	_party_reservation_deadlines.erase(party_token)
 
 func _reject_remote_peer(peer_id: int) -> void:
 	if multiplayer.multiplayer_peer != null and multiplayer.multiplayer_peer.has_method("disconnect_peer"):

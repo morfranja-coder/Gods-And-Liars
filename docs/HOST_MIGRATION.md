@@ -28,6 +28,8 @@ A full snapshot contains the complete secret role map and must never be replicat
 
 Before a host exits voluntarily, ownership is transferred to the selected backup with `setLobbyOwner`. Transfer is blocked unless the backup is connected and already holds a valid snapshot. A rejected Steam transfer leaves the current host in place.
 
+`request_voluntary_host_exit()` owns only this Steam ownership handoff. It emits success/failure and does not tear down the old host itself. The caller that initiated the voluntary leave performs local teardown only after `voluntary_transfer_completed`; this keeps transfer failure from destroying the match.
+
 ## 3E — Unexpected host-loss recovery
 
 On `server_disconnected`, only the failed multiplayer transport is detached while the Steam Lobby, roster and backup snapshot are preserved. Clients poll Steam lobby ownership. A temporary Steam owner hands ownership to the selected backup. Recovery is bounded to 8 seconds and only a backup with a valid snapshot can become promotion-ready.

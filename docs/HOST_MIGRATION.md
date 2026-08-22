@@ -119,9 +119,36 @@ The backup snapshot is passive in 3C. It does not yet promote the client, recrea
 - the latest valid backup can be queried locally for later promotion;
 - CI stays green.
 
+## 3D — Voluntary Steam lobby ownership transfer
+
+Before an active host voluntarily exits, `HostMigrationManager.request_voluntary_host_exit()` transfers Steam lobby ownership to the already-selected backup authority.
+
+Safety gates:
+
+- only the current multiplayer server/host may request the transfer;
+- Steam must be initialized and expose `setLobbyOwner`;
+- the backup SteamID must be different from the current host;
+- the backup peer must still exist in the authoritative roster and map to the selected SteamID;
+- the backup must already hold a valid complete `MatchSnapshot`;
+- if any prerequisite fails, the transfer is rejected and the host remains in the lobby;
+- if Steam rejects `setLobbyOwner`, the host remains in the lobby;
+- only after Steam reports successful ownership transfer does the departing host leave its current lobby/transport.
+
+This gate transfers the Steam lobby owner deterministically but does not yet keep the gameplay transport alive. Clients will still observe the old `SteamMultiplayerPeer` disappearing until gates 3E–3G recreate the transport and reconnect them.
+
+## 3D exit gate
+
+3D is complete when:
+
+- invalid/missing backup state blocks voluntary transfer;
+- a valid connected backup passes the transfer gate;
+- current host cannot select itself;
+- Steam ownership transfer is attempted before teardown;
+- a rejected Steam transfer does not tear down the host;
+- CI stays green.
+
 ## Next gates
 
-- 3D — voluntary Steam lobby ownership transfer;
 - 3E — unexpected host-loss recovery;
 - 3F — recreate `SteamMultiplayerPeer`;
 - 3G — reconnect remaining peers;

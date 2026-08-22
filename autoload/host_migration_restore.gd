@@ -5,7 +5,6 @@ signal restore_failed(reason: String)
 
 func _ready() -> void:
 	HostMigrationReconnect.reconnect_completed.connect(_on_reconnect_completed)
-	NetworkManager.lobby_state_changed.connect(_on_lobby_state_changed)
 
 func _on_reconnect_completed(_connected_players: int) -> void:
 	if not NetworkManager.is_host or not multiplayer.is_server():
@@ -28,7 +27,7 @@ func _on_reconnect_completed(_connected_players: int) -> void:
 		remapped.round_number,
 		remapped.public_winner,
 	)
-	_dispatch_private_roles(remapped)
+	MatchAuthority.call("_dispatch_private_roles")
 	_arm_restored_deadline(remapped)
 	NetworkManager.lobby_state_changed.emit(&"host_migration_restored")
 	restore_completed.emit(remapped.phase, remapped.round_number)
@@ -54,18 +53,6 @@ func _build_public_alive(snapshot: MatchSnapshot) -> Dictionary:
 			continue
 		result[peer_id] = bool(data.get("alive", false))
 	return result
-
-func _dispatch_private_roles(snapshot: MatchSnapshot) -> void:
-	for data in snapshot.players:
-		var peer_id := int(data.get("peer_id", 0))
-		if peer_id == HostMigrationSnapshotRemapper.DISCONNECTED_HOST_PEER_ID:
-			continue
-		var role := int(data.get("role", int(PlayerState.Role.UNASSIGNED)))
-		if peer_id == multiplayer.get_unique_id():
-			MatchAuthority.call("_receive_private_role", role)
-		else:
-			MatchAuthority._receive_private_role.rpc_id(peer_id, role)
-	MatchAuthority.call("_dispatch_private_roles")
 
 func _arm_restored_deadline(snapshot: MatchSnapshot) -> void:
 	if snapshot.phase_remaining_ms <= 0:
@@ -94,7 +81,3 @@ func _sync_public_state(
 func _fail(reason: String) -> void:
 	NetworkManager.lobby_state_changed.emit(&"host_migration_restore_failed")
 	restore_failed.emit(reason)
-
-func _on_lobby_state_changed(state: StringName) -> void:
-	if state in [&"steam_ready", &"offline"]:
-		pass

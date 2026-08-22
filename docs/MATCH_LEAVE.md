@@ -62,6 +62,26 @@ If Steam has already accepted the ownership handoff and the old host subsequentl
 
 An empty transfer failure reason is normalized to a safe message explicitly stating that the match remains active.
 
+## 4D — Preserve Party across match leave
+
+Leaving a Match and leaving a Party are separate operations.
+
+`MatchLeavePartyInvariant` captures the complete Party identity that must survive a successful local Match exit:
+
+- Party Lobby ID;
+- Party match target Lobby ID;
+- logical Party ID;
+- Party leader SteamID;
+- complete Party member map.
+
+`MatchLeaveManager` captures this invariant immediately before it tears down the local Match transport. After `NetworkManager.leave_lobby()`, `MatchmakingManager.reset()` and `GameManager.reset_match()`, it captures Party state again and verifies exact equality.
+
+A mismatch emits `party_preservation_failed` and a QA-visible engine error. Match leave itself still completes so a preservation diagnostic cannot strand the player inside a broken Match transport.
+
+The invariant deliberately includes `match_target_lobby_id`: an individual player leaving does not rewrite Party-wide routing metadata while other Party members may still be in the same Match.
+
+No Match-leave path calls `PartyManager.leave_party()`, `PartyManager.reset_to_solo()` or replaces `PartyManager.state`.
+
 ## Exit gates
 
 ### 4A
@@ -99,4 +119,16 @@ An empty transfer failure reason is normalized to a safe message explicitly stat
 - a useful error is retained for UI;
 - the leave operation becomes retryable immediately after cancellation;
 - post-handoff migration failures remain owned by the 3I fallback;
+- CI stays green.
+
+### 4D
+
+4D is complete when:
+
+- Party Lobby ID survives successful Match leave unchanged;
+- logical Party ID and leader SteamID remain unchanged;
+- Party membership remains byte-for-byte equivalent at the data-model level;
+- Party match target remains unchanged;
+- an accidental future Party mutation is surfaced through a runtime invariant failure;
+- both host and non-host Match exits use the same preservation check;
 - CI stays green.

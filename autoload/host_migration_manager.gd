@@ -90,7 +90,6 @@ func request_voluntary_host_exit() -> bool:
 	if not transferred:
 		return _fail_voluntary_transfer("Steam rejected the lobby ownership transfer.")
 	voluntary_transfer_completed.emit(backup_authority_steam_id)
-	NetworkManager.leave_lobby()
 	return true
 
 func _fail_voluntary_transfer(reason: String) -> bool:

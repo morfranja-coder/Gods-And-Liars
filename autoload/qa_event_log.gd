@@ -7,12 +7,13 @@ const DEFAULT_LOG_PATH := "user://qa-session.log"
 var enabled: bool = false
 var client_label: String = ""
 var _file: FileAccess = null
+var _last_party_members: Dictionary = {}
 
 func _ready() -> void:
 	enabled = OS.get_environment(ENV_QA_LOG) == "1"
 	if not enabled:
 		return
-	client_label = _sanitize_label(OS.get_environment(ENV_QA_CLIENT))
+	client_label = QAEventLogRules.sanitize_client_label(OS.get_environment(ENV_QA_CLIENT))
 	var log_path := DEFAULT_LOG_PATH
 	if not client_label.is_empty():
 		log_path = "user://qa-session-%s.log" % client_label
@@ -23,6 +24,7 @@ func _ready() -> void:
 		return
 	_connect_signals()
 	_write_event("qa_log_started", {"log_path": log_path})
+	_log_initial_state()
 
 func _exit_tree() -> void:
 	if _file != null:
@@ -52,6 +54,15 @@ func snapshot(label: String) -> void:
 	)
 
 func _connect_signals() -> void:
+	Steamworks.steam_ready.connect(_on_steam_ready)
+	Steamworks.steam_unavailable.connect(_on_steam_unavailable)
+	PartyManager.party_changed.connect(_on_party_changed)
+	PartyManager.party_lobby_state_changed.connect(_on_party_lobby_state_changed)
+	PartyManager.match_target_changed.connect(_on_match_target_changed)
+	MatchmakingManager.queue_state_changed.connect(_on_queue_state_changed)
+	MatchmakingManager.search_scope_changed.connect(_on_search_scope_changed)
+	MatchmakingManager.match_candidate_found.connect(_on_match_candidate_found)
+	MatchmakingManager.queue_error.connect(_on_queue_error)
 	NetworkManager.lobby_state_changed.connect(_on_lobby_state_changed)
 	NetworkManager.peer_joined.connect(_on_peer_joined)
 	NetworkManager.peer_left.connect(_on_peer_left)
@@ -92,6 +103,81 @@ func _connect_signals() -> void:
 	MatchLeaveManager.leave_rejected.connect(_on_leave_rejected)
 	MatchLeaveManager.host_leave_cancelled.connect(_on_host_leave_cancelled)
 	MatchLeaveManager.party_preservation_failed.connect(_on_party_preservation_failed)
+
+func _log_initial_state() -> void:
+	if Steamworks.initialized:
+		_on_steam_ready()
+	_on_party_changed()
+	_on_queue_state_changed(MatchmakingManager.state)
+
+func _on_steam_ready() -> void:
+	_write_event(
+		"steam_ready",
+		{"steam_id": Steamworks.steam_id, "persona_name": Steamworks.persona_name},
+	)
+
+func _on_steam_unavailable(reason: String) -> void:
+	_write_event("steam_unavailable", {"reason": reason})
+
+func _on_party_changed() -> void:
+	var current_members: Dictionary = PartyManager.state.members.duplicate(true)
+	for raw_steam_id in current_members.keys():
+		var steam_id := int(raw_steam_id)
+		if not _last_party_members.has(steam_id):
+			_write_event(
+				"party_member_added",
+				{"member_steam_id": steam_id, "party_size": current_members.size()},
+			)
+	for raw_steam_id in _last_party_members.keys():
+		var steam_id := int(raw_steam_id)
+		if not current_members.has(steam_id):
+			_write_event(
+				"party_member_removed",
+				{"member_steam_id": steam_id, "party_size": current_members.size()},
+			)
+	_last_party_members = current_members
+	_write_event(
+		"party_changed",
+		{
+			"party_lobby_id": PartyManager.party_lobby_id,
+			"leader_steam_id": PartyManager.state.leader_steam_id,
+			"party_size": PartyManager.size(),
+		},
+	)
+
+func _on_party_lobby_state_changed(state_name: StringName) -> void:
+	_write_event(
+		"party_lobby_state",
+		{"state": str(state_name), "party_lobby_id": PartyManager.party_lobby_id},
+	)
+
+func _on_match_target_changed(match_lobby_id: int) -> void:
+	_write_event("match_target_changed", {"target_match_id": match_lobby_id})
+
+func _on_queue_state_changed(state: StringName) -> void:
+	_write_event(
+		"matchmaking_state",
+		{
+			"state": str(state),
+			"party_size": MatchmakingManager.local_party_size,
+			"scope": MatchmakingManager.search_scope_name(),
+		},
+	)
+
+func _on_search_scope_changed(distance_tier: int) -> void:
+	_write_event(
+		"matchmaking_scope_changed",
+		{"distance_tier": distance_tier, "scope": MatchmakingManager.search_scope_name()},
+	)
+
+func _on_match_candidate_found(lobby_id: int, open_slots: int) -> void:
+	_write_event(
+		"match_candidate_found",
+		{"match_id": lobby_id, "open_slots": open_slots},
+	)
+
+func _on_queue_error(message: String) -> void:
+	_write_event("matchmaking_error", {"message": message})
 
 func _on_lobby_state_changed(state: StringName) -> void:
 	_write_event("lobby_state", {"state": str(state)})
@@ -229,29 +315,27 @@ func _peer_payload(peer_id: int) -> Dictionary:
 	payload["ready"] = bool(peer.get("ready", false))
 	return payload
 
-func _sanitize_label(raw_label: String) -> String:
-	var result := ""
-	for character in raw_label.strip_edges().to_lower():
-		if character.is_valid_identifier() or character.is_valid_int():
-			result += character
-		elif character in ["-", "_"]:
-			result += character
-	return result.left(32)
-
 func _local_peer_id() -> int:
 	if multiplayer.multiplayer_peer == null:
 		return 0
 	return multiplayer.get_unique_id()
 
 func _base_context() -> Dictionary:
+	var roster_count := NetworkManager.peers.size()
 	return {
 		"monotonic_ms": Time.get_ticks_msec(),
 		"unix_time": Time.get_unix_time_from_system(),
 		"client": client_label,
 		"steam_id": Steamworks.steam_id if Steamworks.initialized else 0,
 		"peer_id": _local_peer_id(),
+		"party_id": PartyManager.state.party_id,
+		"target_match_id": PartyManager.match_target_lobby_id,
+		"match_id": NetworkManager.lobby_id,
 		"lobby_id": NetworkManager.lobby_id,
 		"is_host": NetworkManager.is_host,
+		"roster_count": roster_count,
+		"open_slots": maxi(0, QuickMatchRules.TARGET_PLAYERS - roster_count),
+		"queue_state": str(MatchmakingManager.state),
 		"phase": int(GameManager.phase),
 		"round": GameManager.round_number,
 	}
@@ -259,8 +343,9 @@ func _base_context() -> Dictionary:
 func _write_event(event_name: String, payload: Dictionary = {}) -> void:
 	if not enabled or _file == null:
 		return
-	var record := _base_context()
-	record["event"] = event_name
-	record["payload"] = payload
+	var record := QAEventLogRules.make_record(event_name, payload, _base_context())
+	if not QAEventLogRules.is_valid_record(record):
+		push_warning("QAEventLog rejected invalid record for event %s" % event_name)
+		return
 	_file.store_line(JSON.stringify(record))
 	_file.flush()

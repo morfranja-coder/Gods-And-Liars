@@ -198,12 +198,12 @@ func set_peer_ready(peer_id: int, ready: bool) -> void:
 	peer_updated.emit(peer_id)
 
 func local_peer_ready() -> bool:
-	if multiplayer.multiplayer_peer == null:
+	if lobby_id <= 0 or multiplayer.multiplayer_peer == null:
 		return false
 	return bool(peers.get(multiplayer.get_unique_id(), {}).get("ready", false))
 
 func request_local_ready(ready: bool) -> void:
-	if lobby_started or lobby_id == 0 or multiplayer.multiplayer_peer == null:
+	if lobby_started or lobby_id <= 0 or multiplayer.multiplayer_peer == null:
 		return
 	if multiplayer.is_server():
 		_server_set_ready(multiplayer.get_unique_id(), ready)
@@ -360,7 +360,7 @@ func _on_lobby_created(result: int, new_lobby_id: int) -> void:
 func _on_lobby_joined(joined_lobby_id: int, _permissions: int, _locked, response: int) -> void:
 	if joined_lobby_id != _pending_join_match_id:
 		return
-	_pending_join_match_id = 0
+	_pending_join_id = 0
 	if response != STEAM_CHAT_ENTER_SUCCESS:
 		lobby_error.emit(
 			"Steam could not join lobby %s (response %s)." % [joined_lobby_id, response]
@@ -394,7 +394,10 @@ func _on_peer_connected(_peer_id: int) -> void:
 	pass
 
 func _on_peer_disconnected(peer_id: int) -> void:
-	if multiplayer.is_server():
+	if lobby_id <= 0:
+		unregister_peer(peer_id)
+		return
+	if multiplayer.multiplayer_peer != null and multiplayer.is_server():
 		_remove_peer.rpc(peer_id)
 	else:
 		unregister_peer(peer_id)

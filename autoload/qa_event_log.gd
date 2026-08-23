@@ -69,6 +69,8 @@ func _connect_signals() -> void:
 	NetworkManager.peer_left.connect(_on_peer_left)
 	NetworkManager.peer_updated.connect(_on_peer_updated)
 	NetworkManager.party_reservation_result.connect(_on_party_reservation_result)
+	NetworkManager.party_reservation_created.connect(_on_party_reservation_created)
+	NetworkManager.party_reservation_consumed.connect(_on_party_reservation_consumed)
 	NetworkManager.party_reservation_expired.connect(_on_party_reservation_expired)
 	MatchAuthority.private_role_received.connect(_on_private_role_received)
 	MatchAuthority.phase_synced.connect(_on_phase_synced)
@@ -248,6 +250,36 @@ func _on_party_reservation_result(accepted: bool) -> void:
 			"accepted": accepted,
 			"party_token": PartyManager.state.party_id,
 			"party_size": PartyManager.size(),
+		},
+	)
+
+func _on_party_reservation_created(
+	party_token: int,
+	party_size: int,
+	peer_id: int,
+	remaining_members: int,
+) -> void:
+	_write_event(
+		"reservation_created",
+		{
+			"party_token": party_token,
+			"party_size": party_size,
+			"peer_id": peer_id,
+			"remaining_members": remaining_members,
+		},
+	)
+
+func _on_party_reservation_consumed(
+	party_token: int,
+	peer_id: int,
+	remaining_members: int,
+) -> void:
+	_write_event(
+		"reservation_consumed",
+		{
+			"party_token": party_token,
+			"peer_id": peer_id,
+			"remaining_members": remaining_members,
 		},
 	)
 

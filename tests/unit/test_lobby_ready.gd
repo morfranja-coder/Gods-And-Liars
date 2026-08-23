@@ -38,6 +38,12 @@ func test_host_start_is_false_without_active_lobby() -> void:
 	assert_int(NetworkManager.lobby_id).is_equal(0)
 	assert_bool(NetworkManager.can_host_start()).is_false()
 
+func test_local_ready_is_false_without_active_lobby() -> void:
+	NetworkManager.register_peer(1, 5001, "Host")
+	NetworkManager.set_peer_ready(1, true)
+	assert_int(NetworkManager.lobby_id).is_equal(0)
+	assert_bool(NetworkManager.local_peer_ready()).is_false()
+
 func test_disconnect_removes_player_from_roster() -> void:
 	NetworkManager.register_peer(1, 1001, "Host")
 	NetworkManager.register_peer(2, 1002, "Guest")

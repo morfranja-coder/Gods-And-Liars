@@ -211,7 +211,7 @@ func request_local_ready(ready: bool) -> void:
 		_request_ready.rpc_id(1, ready)
 
 func can_host_start() -> bool:
-	if lobby_started:
+	if lobby_started or multiplayer.multiplayer_peer == null:
 		return false
 	return LobbyRules.can_start_exact(
 		is_host,

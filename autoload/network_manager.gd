@@ -360,7 +360,7 @@ func _on_lobby_created(result: int, new_lobby_id: int) -> void:
 func _on_lobby_joined(joined_lobby_id: int, _permissions: int, _locked, response: int) -> void:
 	if joined_lobby_id != _pending_join_match_id:
 		return
-	_pending_join_id = 0
+	_pending_join_match_id = 0
 	if response != STEAM_CHAT_ENTER_SUCCESS:
 		lobby_error.emit(
 			"Steam could not join lobby %s (response %s)." % [joined_lobby_id, response]

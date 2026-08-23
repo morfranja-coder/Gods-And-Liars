@@ -8,6 +8,7 @@ var enabled: bool = false
 var client_label: String = ""
 var _file: FileAccess = null
 var _last_party_members: Dictionary = {}
+var _party_lobby_transition: StringName = &""
 
 func _ready() -> void:
 	enabled = OS.get_environment(ENV_QA_LOG) == "1"
@@ -152,9 +153,26 @@ func _on_party_lobby_state_changed(state_name: StringName) -> void:
 		"party_lobby_state",
 		{"state": str(state_name), "party_lobby_id": PartyManager.party_lobby_id},
 	)
+	match state_name:
+		&"creating", &"joining":
+			_party_lobby_transition = state_name
+		&"ready":
+			if _party_lobby_transition == &"creating":
+				_write_event("party_created", {"party_id": PartyManager.party_lobby_id})
+			elif _party_lobby_transition == &"joining":
+				_write_event("party_joined", {"party_id": PartyManager.party_lobby_id})
+			_party_lobby_transition = &""
+		&"solo", &"offline":
+			_party_lobby_transition = &""
 
 func _on_match_target_changed(match_lobby_id: int) -> void:
 	_write_event("match_target_changed", {"target_match_id": match_lobby_id})
+	if match_lobby_id <= 0:
+		_write_event("match_target_cleared")
+	elif PartyManager.is_local_leader():
+		_write_event("match_target_published", {"target_match_id": match_lobby_id})
+	else:
+		_write_event("match_target_observed", {"target_match_id": match_lobby_id})
 
 func _on_queue_state_changed(state: StringName) -> void:
 	_write_event(
@@ -165,6 +183,14 @@ func _on_queue_state_changed(state: StringName) -> void:
 			"scope": MatchmakingManager.search_scope_name(),
 		},
 	)
+	if state == &"searching":
+		_write_event(
+			"matchmaking_started",
+			{
+				"party_size": MatchmakingManager.local_party_size,
+				"scope": MatchmakingManager.search_scope_name(),
+			},
+		)
 
 func _on_search_scope_changed(distance_tier: int) -> void:
 	_write_event(
@@ -191,6 +217,11 @@ func _on_lobby_state_changed(state: StringName) -> void:
 			_write_event("transport_host_started", {"match_id": NetworkManager.lobby_id})
 		&"in_lobby":
 			_write_event("match_lobby_joined", {"match_id": NetworkManager.lobby_id})
+			if (
+				NetworkManager.lobby_id > 0
+				and PartyManager.match_target_lobby_id == NetworkManager.lobby_id
+			):
+				_write_event("match_target_joined", {"match_id": NetworkManager.lobby_id})
 		&"connected":
 			_write_event(
 				"transport_connected",
@@ -327,6 +358,15 @@ func _on_leave_started() -> void:
 
 func _on_leave_completed() -> void:
 	_write_event("match_leave_completed")
+	if PartyManager.party_lobby_id > 0:
+		_write_event(
+			"return_to_party",
+			{
+				"party_id": PartyManager.party_lobby_id,
+				"leader_steam_id": PartyManager.state.leader_steam_id,
+				"party_size": PartyManager.size(),
+			},
+		)
 
 func _on_leave_rejected(reason: String) -> void:
 	_write_event("match_leave_rejected", {"reason": reason})

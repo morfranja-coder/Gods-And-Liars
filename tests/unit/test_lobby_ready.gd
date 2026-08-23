@@ -30,12 +30,12 @@ func test_unready_player_blocks_start_gate() -> void:
 	NetworkManager.set_peer_ready(2, false)
 	assert_bool(NetworkManager.all_peers_ready()).is_false()
 
-func test_host_start_is_false_without_multiplayer_peer() -> void:
+func test_host_start_is_false_without_active_lobby() -> void:
 	NetworkManager.is_host = true
 	for peer_id in range(1, 9):
 		NetworkManager.register_peer(peer_id, 4000 + peer_id, "P%d" % peer_id)
 		NetworkManager.set_peer_ready(peer_id, true)
-	assert_object(NetworkManager.multiplayer.multiplayer_peer).is_null()
+	assert_int(NetworkManager.lobby_id).is_equal(0)
 	assert_bool(NetworkManager.can_host_start()).is_false()
 
 func test_disconnect_removes_player_from_roster() -> void:

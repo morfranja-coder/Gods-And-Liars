@@ -67,6 +67,8 @@ func _connect_signals() -> void:
 	NetworkManager.peer_joined.connect(_on_peer_joined)
 	NetworkManager.peer_left.connect(_on_peer_left)
 	NetworkManager.peer_updated.connect(_on_peer_updated)
+	NetworkManager.party_reservation_result.connect(_on_party_reservation_result)
+	NetworkManager.party_reservation_expired.connect(_on_party_reservation_expired)
 	MatchAuthority.private_role_received.connect(_on_private_role_received)
 	MatchAuthority.phase_synced.connect(_on_phase_synced)
 	MatchAuthority.phase_timeout_triggered.connect(_on_phase_timeout_triggered)
@@ -190,6 +192,19 @@ func _on_peer_left(peer_id: int) -> void:
 
 func _on_peer_updated(peer_id: int) -> void:
 	_write_event("peer_updated", _peer_payload(peer_id))
+
+func _on_party_reservation_result(accepted: bool) -> void:
+	_write_event(
+		"reservation_result",
+		{
+			"accepted": accepted,
+			"party_token": PartyManager.state.party_id,
+			"party_size": PartyManager.size(),
+		},
+	)
+
+func _on_party_reservation_expired(party_token: int) -> void:
+	_write_event("reservation_expired", {"party_token": party_token})
 
 func _on_private_role_received(role: int) -> void:
 	_write_event("local_role_received", {"local_role": role})

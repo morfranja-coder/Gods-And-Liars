@@ -183,6 +183,23 @@ func _on_queue_error(message: String) -> void:
 
 func _on_lobby_state_changed(state: StringName) -> void:
 	_write_event("lobby_state", {"state": str(state)})
+	match state:
+		&"creating":
+			_write_event("match_lobby_creating")
+		&"hosting":
+			_write_event("match_lobby_created", {"match_id": NetworkManager.lobby_id})
+			_write_event("transport_host_started", {"match_id": NetworkManager.lobby_id})
+		&"in_lobby":
+			_write_event("match_lobby_joined", {"match_id": NetworkManager.lobby_id})
+		&"connected":
+			_write_event(
+				"transport_connected",
+				{"match_id": NetworkManager.lobby_id, "peer_id": _local_peer_id()},
+			)
+		&"connection_failed":
+			_write_event("transport_connection_failed")
+		&"host_disconnected":
+			_write_event("transport_host_disconnected")
 
 func _on_peer_joined(peer_id: int) -> void:
 	_write_event("peer_joined", _peer_payload(peer_id))

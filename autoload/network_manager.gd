@@ -9,6 +9,12 @@ signal lobby_error(message: String)
 signal lobby_start_requested
 signal party_reservation_result(accepted: bool)
 signal party_reservation_expired(party_token: int)
+signal party_reservation_created(
+	party_token: int, party_size: int, peer_id: int, remaining_members: int
+)
+signal party_reservation_consumed(
+	party_token: int, peer_id: int, remaining_members: int
+)
 
 const MAX_PLAYERS: int = QuickMatchRules.TARGET_PLAYERS
 const TECHNICAL_START_MIN_PLAYERS: int = LobbyRules.TECHNICAL_START_MIN_PLAYERS
@@ -469,6 +475,7 @@ func _try_reserve_party(peer_id: int, client_steam_id: int) -> bool:
 		else:
 			_party_reservations[party_token] = remaining
 		_peer_party_tokens[peer_id] = party_token
+		party_reservation_consumed.emit(party_token, peer_id, remaining)
 		_publish_match_capacity()
 		return true
 	if advertised_open_slots() < party_size:
@@ -480,6 +487,8 @@ func _try_reserve_party(peer_id: int, client_steam_id: int) -> bool:
 			Time.get_ticks_msec()
 		)
 	_peer_party_tokens[peer_id] = party_token
+	if remaining_members > 0:
+		party_reservation_created.emit(party_token, party_size, peer_id, remaining_members)
 	_publish_match_capacity()
 	return true
 

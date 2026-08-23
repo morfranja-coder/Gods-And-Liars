@@ -420,7 +420,7 @@ func _peer_payload(peer_id: int) -> Dictionary:
 	return payload
 
 func _local_peer_id() -> int:
-	if multiplayer.multiplayer_peer == null:
+	if NetworkManager.lobby_id <= 0 or multiplayer.multiplayer_peer == null:
 		return 0
 	return multiplayer.get_unique_id()
 

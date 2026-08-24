@@ -91,7 +91,8 @@ func _verify_day_vote_ui(table: Node) -> void:
 
 func _verify_public_death_refresh(table: Node) -> void:
 	MatchAuthority.public_alive_by_peer[3] = false
-	MatchAuthority.night_resolution_received.emit([3])
+	var killed_peer_ids: Array[int] = [3]
+	MatchAuthority.night_resolution_received.emit(killed_peer_ids)
 	var avatar := table.get_node_or_null("Peer_3")
 	assert_object(avatar).is_not_null()
 	var label := avatar.get_node_or_null("NameLabel") as Label3D

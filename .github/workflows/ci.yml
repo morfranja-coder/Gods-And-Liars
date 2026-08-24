@@ -76,6 +76,9 @@ jobs:
       - name: Run Gate A logical acceptance
         run: godot --headless --path . --script tests/acceptance/gate_a_logical_game.gd
 
+      - name: Run Gate B adversarial stress
+        run: godot --headless --path . --script tests/acceptance/gate_b_adversarial_stress.gd
+
       - name: Run GdUnit4 tests
         run: >-
           godot --headless --path .

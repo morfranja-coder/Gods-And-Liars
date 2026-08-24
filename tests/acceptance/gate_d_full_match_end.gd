@@ -410,6 +410,22 @@ func _living_session_count() -> int:
 	var session: MatchSession = MatchAuthority.get("_session")
 	return 0 if session == null else session.living_players().size()
 
+func _dead_peer_count() -> int:
+	var count := 0
+	for raw_peer_id in NetworkManager.peers.keys():
+		if not MatchAuthority.is_peer_publicly_alive(int(raw_peer_id)):
+			count += 1
+	return count
+
+func _public_alive_matches_session() -> bool:
+	var session: MatchSession = MatchAuthority.get("_session")
+	if session == null:
+		return false
+	for player in session.players:
+		if MatchAuthority.is_peer_publicly_alive(player.peer_id) != player.alive:
+			return false
+	return true
+
 func _first_alive_peer_other_than(excluded_peer_id: int) -> int:
 	var peer_ids: Array[int] = []
 	for raw_peer_id in NetworkManager.peers.keys():

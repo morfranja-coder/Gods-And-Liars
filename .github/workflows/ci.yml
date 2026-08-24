@@ -111,6 +111,27 @@ jobs:
           --continue
           --add tests/unit/test_gate_c_local_soak.gd
 
+      - name: Run Gate D local transport
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --script tests/acceptance/gate_d_transport_process.gd -- server > /tmp/gate-d-server.log 2>&1 &
+          server_pid=$!
+          sleep 1
+          set +e
+          godot --headless --path . --script tests/acceptance/gate_d_transport_process.gd -- client > /tmp/gate-d-client.log 2>&1
+          client_status=$?
+          wait "$server_pid"
+          server_status=$?
+          set -e
+          cat /tmp/gate-d-server.log
+          cat /tmp/gate-d-client.log
+          if [ "$server_status" -ne 0 ] || [ "$client_status" -ne 0 ]; then
+            exit 1
+          fi
+          grep -q "GREEN: Gate D1 server" /tmp/gate-d-server.log
+          grep -q "GREEN: Gate D1 client" /tmp/gate-d-client.log
+
       - name: Run GdUnit4 tests
         run: >-
           godot --headless --path .

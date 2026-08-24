@@ -132,6 +132,27 @@ jobs:
           grep -q "GREEN: Gate D1 server" /tmp/gate-d-server.log
           grep -q "GREEN: Gate D1 client" /tmp/gate-d-client.log
 
+      - name: Run Gate D runtime replication
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . tests/acceptance/gate_d_runtime_replication.tscn -- server > /tmp/gate-d2-server.log 2>&1 &
+          server_pid=$!
+          sleep 1
+          set +e
+          godot --headless --path . tests/acceptance/gate_d_runtime_replication.tscn -- client > /tmp/gate-d2-client.log 2>&1
+          client_status=$?
+          wait "$server_pid"
+          server_status=$?
+          set -e
+          cat /tmp/gate-d2-server.log
+          cat /tmp/gate-d2-client.log
+          if [ "$server_status" -ne 0 ] || [ "$client_status" -ne 0 ]; then
+            exit 1
+          fi
+          grep -q "GREEN: Gate D2 server" /tmp/gate-d2-server.log
+          grep -q "GREEN: Gate D2 client" /tmp/gate-d2-client.log
+
       - name: Run GdUnit4 tests
         run: >-
           godot --headless --path .

@@ -103,6 +103,14 @@ jobs:
           --continue
           --add tests/unit/test_gate_c_rematch_loop.gd
 
+      - name: Run Gate C local soak
+        run: >-
+          godot --headless --path .
+          --script res://addons/gdUnit4/bin/GdUnitCmdTool.gd
+          --ignoreHeadlessMode
+          --continue
+          --add tests/unit/test_gate_c_local_soak.gd
+
       - name: Run GdUnit4 tests
         run: >-
           godot --headless --path .

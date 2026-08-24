@@ -95,6 +95,14 @@ jobs:
           --continue
           --add tests/unit/test_gate_c_full_local_match.gd
 
+      - name: Run Gate C rematch loop
+        run: >-
+          godot --headless --path .
+          --script res://addons/gdUnit4/bin/GdUnitCmdTool.gd
+          --ignoreHeadlessMode
+          --continue
+          --add tests/unit/test_gate_c_rematch_loop.gd
+
       - name: Run GdUnit4 tests
         run: >-
           godot --headless --path .

@@ -38,7 +38,9 @@ func _process(_delta: float) -> void:
 	if host_loss_recovery_active:
 		_process_host_loss_recovery()
 		return
-	if not multiplayer.is_server() or not NetworkManager.is_host:
+	if not NetworkManager.is_host or multiplayer.multiplayer_peer == null:
+		return
+	if not multiplayer.is_server():
 		return
 	var session = MatchAuthority.get("_session")
 	if session == null:

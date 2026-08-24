@@ -79,30 +79,10 @@ func _on_phase_synced(phase_value: int) -> void:
 func _on_match_end_received(_winner: StringName) -> void:
 	if _role != "client":
 		return
-	if int(GameManager.phase) != int(GameManager.MatchPhase.MATCH_END):
-		_fail("client did not reach MATCH_END")
+	var validation_error := _client_runtime_validation_error()
+	if not validation_error.is_empty():
+		_fail(validation_error)
 		return
-	if GameManager.round_number != EXPECTED_ROUND:
-		_fail("client round mismatch")
-		return
-	if MatchAuthority.public_winner != &"faithful":
-		_fail("client winner mismatch")
-		return
-	if MatchAuthority.is_peer_publicly_alive(2):
-		_fail("client did not replicate public death")
-		return
-	if NetworkManager.peers.size() != 2:
-		_fail("client roster did not converge to two peers")
-		return
-	for required_phase in [
-		GameManager.MatchPhase.ROLE_REVEAL,
-		GameManager.MatchPhase.NIGHT_RESOLUTION,
-		GameManager.MatchPhase.DAY_DISCUSSION,
-		GameManager.MatchPhase.SACRIFICE,
-	]:
-		if int(required_phase) not in _visited_phases:
-			_fail("client missed replicated phase %s" % required_phase)
-			return
 	_ack_runtime_state.rpc_id(
 		1,
 		int(GameManager.phase),
@@ -111,6 +91,30 @@ func _on_match_end_received(_winner: StringName) -> void:
 		NetworkManager.peers.size(),
 		not MatchAuthority.is_peer_publicly_alive(2),
 	)
+
+func _client_runtime_validation_error() -> String:
+	var error := ""
+	if int(GameManager.phase) != int(GameManager.MatchPhase.MATCH_END):
+		error = "client did not reach MATCH_END"
+	elif GameManager.round_number != EXPECTED_ROUND:
+		error = "client round mismatch"
+	elif MatchAuthority.public_winner != &"faithful":
+		error = "client winner mismatch"
+	elif MatchAuthority.is_peer_publicly_alive(2):
+		error = "client did not replicate public death"
+	elif NetworkManager.peers.size() != 2:
+		error = "client roster did not converge to two peers"
+	else:
+		for required_phase in [
+			GameManager.MatchPhase.ROLE_REVEAL,
+			GameManager.MatchPhase.NIGHT_RESOLUTION,
+			GameManager.MatchPhase.DAY_DISCUSSION,
+			GameManager.MatchPhase.SACRIFICE,
+		]:
+			if int(required_phase) not in _visited_phases:
+				error = "client missed replicated phase %s" % required_phase
+				break
+	return error
 
 @rpc("any_peer", "call_remote", "reliable")
 func _ack_runtime_state(

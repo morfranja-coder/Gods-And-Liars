@@ -79,6 +79,9 @@ jobs:
       - name: Run Gate B adversarial stress
         run: godot --headless --path . --script tests/acceptance/gate_b_adversarial_stress.gd
 
+      - name: Run Gate C table integration
+        run: godot --headless --path . --script tests/acceptance/gate_c_table_integration.gd
+
       - name: Run GdUnit4 tests
         run: >-
           godot --headless --path .

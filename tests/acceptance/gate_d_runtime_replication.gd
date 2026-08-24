@@ -30,10 +30,11 @@ func _ready() -> void:
 	var error := OK
 	if _role == "server":
 		NetworkManager.is_host = true
-		NetworkManager.set("_reserved_party_steam_ids", [CLIENT_STEAM_ID])
 		NetworkManager.register_peer(1, HOST_STEAM_ID, "D2 Host", 0)
+		multiplayer.peer_connected.connect(_on_transport_peer_connected)
 		error = peer.create_server(PORT, 2)
 	else:
+		_disconnect_steam_identity_handshake()
 		error = peer.create_client("127.0.0.1", PORT)
 	if error != OK:
 		_fail("failed to create %s peer: %s" % [_role, error_string(error)])
@@ -62,6 +63,17 @@ func _parse_role() -> String:
 	if args.is_empty():
 		return ""
 	return str(args[0]).strip_edges().to_lower()
+
+func _disconnect_steam_identity_handshake() -> void:
+	var handler := Callable(NetworkManager, "_on_connected_to_server")
+	if multiplayer.connected_to_server.is_connected(handler):
+		multiplayer.connected_to_server.disconnect(handler)
+
+func _on_transport_peer_connected(peer_id: int) -> void:
+	if _role != "server":
+		return
+	NetworkManager._sync_peer.rpc_id(peer_id, 1, HOST_STEAM_ID, "D2 Host", false, 0)
+	NetworkManager._sync_peer.rpc(peer_id, CLIENT_STEAM_ID, "D2 Client", false, 1)
 
 func _send_runtime_sequence() -> void:
 	MatchAuthority._sync_phase.rpc(int(GameManager.MatchPhase.ROLE_REVEAL), EXPECTED_ROUND)

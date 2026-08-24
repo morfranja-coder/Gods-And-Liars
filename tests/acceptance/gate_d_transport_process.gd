@@ -7,6 +7,7 @@ const TIMEOUT_SECONDS := 10.0
 var _probe: QALocalTransportProbe
 var _elapsed := 0.0
 var _role := ""
+var _transport_started := false
 
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
@@ -22,6 +23,18 @@ func _initialize() -> void:
 	get_root().add_child(_probe)
 	_probe.completed.connect(_on_completed)
 
+func _process(delta: float) -> bool:
+	if not _transport_started:
+		_transport_started = true
+		_start_transport()
+		return false
+
+	_elapsed += delta
+	if _elapsed >= TIMEOUT_SECONDS:
+		_fail("%s timed out" % _role)
+	return false
+
+func _start_transport() -> void:
 	var error := OK
 	if _role == "server":
 		error = _probe.start_server(DEFAULT_PORT)
@@ -31,12 +44,6 @@ func _initialize() -> void:
 		_fail("failed to start %s transport: %s" % [_role, error_string(error)])
 		return
 	print("D1 %s: started" % _role.to_upper())
-
-func _process(delta: float) -> bool:
-	_elapsed += delta
-	if _elapsed >= TIMEOUT_SECONDS:
-		_fail("%s timed out" % _role)
-	return false
 
 func _on_completed(success: bool, message: String) -> void:
 	if not success:

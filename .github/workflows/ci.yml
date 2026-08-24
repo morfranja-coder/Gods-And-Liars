@@ -227,6 +227,40 @@ jobs:
             grep -q "GREEN: Gate D4 client ${index}" "/tmp/gate-d4-client-${index}.log"
           done
 
+      - name: Run Gate D exact-8 full night actions
+        timeout-minutes: 2
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 30s godot --headless --path . tests/acceptance/gate_d_full_night_actions.tscn -- server > /tmp/gate-d5-server.log 2>&1 &
+          server_pid=$!
+          client_pids=()
+          trap 'kill "$server_pid" "${client_pids[@]}" 2>/dev/null || true' EXIT
+          sleep 1
+          for index in 1 2 3 4 5 6 7; do
+            timeout 30s godot --headless --path . tests/acceptance/gate_d_full_night_actions.tscn -- client "$index" > "/tmp/gate-d5-client-${index}.log" 2>&1 &
+            client_pids+=("$!")
+          done
+          set +e
+          failed=0
+          for pid in "${client_pids[@]}"; do
+            wait "$pid" || failed=1
+          done
+          wait "$server_pid" || failed=1
+          set -e
+          trap - EXIT
+          cat /tmp/gate-d5-server.log
+          for index in 1 2 3 4 5 6 7; do
+            cat "/tmp/gate-d5-client-${index}.log"
+          done
+          if [ "$failed" -ne 0 ]; then
+            exit 1
+          fi
+          grep -q "GREEN: Gate D5 server" /tmp/gate-d5-server.log
+          for index in 1 2 3 4 5 6 7; do
+            grep -q "GREEN: Gate D5 client ${index}" "/tmp/gate-d5-client-${index}.log"
+          done
+
       - name: Run GdUnit4 tests
         run: >-
           godot --headless --path .

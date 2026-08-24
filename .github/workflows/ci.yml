@@ -112,18 +112,21 @@ jobs:
           --add tests/unit/test_gate_c_local_soak.gd
 
       - name: Run Gate D local transport
+        timeout-minutes: 2
         shell: bash
         run: |
           set -euo pipefail
-          godot --headless --path . --script tests/acceptance/gate_d_transport_process.gd -- server > /tmp/gate-d-server.log 2>&1 &
+          timeout 20s godot --headless --path . --script tests/acceptance/gate_d_transport_process.gd -- server > /tmp/gate-d-server.log 2>&1 &
           server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           sleep 1
           set +e
-          godot --headless --path . --script tests/acceptance/gate_d_transport_process.gd -- client > /tmp/gate-d-client.log 2>&1
+          timeout 20s godot --headless --path . --script tests/acceptance/gate_d_transport_process.gd -- client > /tmp/gate-d-client.log 2>&1
           client_status=$?
           wait "$server_pid"
           server_status=$?
           set -e
+          trap - EXIT
           cat /tmp/gate-d-server.log
           cat /tmp/gate-d-client.log
           if [ "$server_status" -ne 0 ] || [ "$client_status" -ne 0 ]; then
@@ -133,18 +136,21 @@ jobs:
           grep -q "GREEN: Gate D1 client" /tmp/gate-d-client.log
 
       - name: Run Gate D runtime replication
+        timeout-minutes: 2
         shell: bash
         run: |
           set -euo pipefail
-          godot --headless --path . tests/acceptance/gate_d_runtime_replication.tscn -- server > /tmp/gate-d2-server.log 2>&1 &
+          timeout 20s godot --headless --path . tests/acceptance/gate_d_runtime_replication.tscn -- server > /tmp/gate-d2-server.log 2>&1 &
           server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           sleep 1
           set +e
-          godot --headless --path . tests/acceptance/gate_d_runtime_replication.tscn -- client > /tmp/gate-d2-client.log 2>&1
+          timeout 20s godot --headless --path . tests/acceptance/gate_d_runtime_replication.tscn -- client > /tmp/gate-d2-client.log 2>&1
           client_status=$?
           wait "$server_pid"
           server_status=$?
           set -e
+          trap - EXIT
           cat /tmp/gate-d2-server.log
           cat /tmp/gate-d2-client.log
           if [ "$server_status" -ne 0 ] || [ "$client_status" -ne 0 ]; then

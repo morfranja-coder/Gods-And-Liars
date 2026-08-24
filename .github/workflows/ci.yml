@@ -73,6 +73,9 @@ jobs:
       - name: Run smoke tests
         run: godot --headless --path . --script tests/smoke_match_rules.gd
 
+      - name: Run Gate A logical acceptance
+        run: godot --headless --path . --script tests/acceptance/gate_a_logical_game.gd
+
       - name: Run GdUnit4 tests
         run: >-
           godot --headless --path .

@@ -1,4 +1,4 @@
-extends "res://tests/acceptance/gate_d_full_night_actions.gd"
+extends "res://tests/acceptance/gate_d_full_night_actions_runtime.gd"
 
 var _voting_started := false
 var _vote_sent := false

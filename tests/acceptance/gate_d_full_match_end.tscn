@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3]
 
-[ext_resource path="res://tests/acceptance/gate_d_full_match_end.gd" type="Script" id="1"]
+[ext_resource path="res://tests/acceptance/gate_d_full_match_end_runtime.gd" type="Script" id="1"]
 
 [node name="GateDFullMatchEnd" type="Node"]
 script = ExtResource("1")

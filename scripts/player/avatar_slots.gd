@@ -3,12 +3,12 @@ extends Node3D
 
 const MASK_MATERIAL_NAME := "M_Mask"
 
-var _player_color: Color = Color.WHITE
-var _has_player_color: bool = false
-
 @export var body_scene: PackedScene
 @export var tunic_scene: PackedScene
 @export var mask_scene: PackedScene
+
+var _player_color: Color = Color.WHITE
+var _has_player_color: bool = false
 
 @onready var body_root: Node3D = $Body
 @onready var tunic_root: Node3D = $Tunic

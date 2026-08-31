@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scenes/table/table.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/table/role_reveal.tscn" id="2"]
@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" path="res://scenes/table/match_end_ui.tscn" id="5"]
 [ext_resource type="PackedScene" path="res://scenes/table/pause_ui.tscn" id="6"]
 [ext_resource type="Script" path="res://scenes/table/table_camera_look.gd" id="7"]
+[ext_resource type="PackedScene" path="res://scenes/table/player_list_ui.tscn" id="8"]
 
 [node name="Table" type="Node3D"]
 script = ExtResource("1")
@@ -25,6 +26,8 @@ script = ExtResource("7")
 [node name="DayVoteUI" parent="." instance=ExtResource("4")]
 
 [node name="MatchEndUI" parent="." instance=ExtResource("5")]
+
+[node name="PlayerListUI" parent="." instance=ExtResource("8")]
 
 [node name="PauseUI" parent="." instance=ExtResource("6")]
 

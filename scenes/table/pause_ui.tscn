@@ -26,7 +26,7 @@ grow_vertical = 2
 
 [node name="Panel" type="PanelContainer" parent="Center"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(560, 0)
+custom_minimum_size = Vector2(620, 0)
 layout_mode = 2
 theme = ExtResource("2")
 
@@ -74,12 +74,10 @@ theme_override_constants/separation = 10
 
 [node name="BrightnessRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox/OptionsPanel"]
 layout_mode = 2
-
 [node name="Label" type="Label" parent="Center/Panel/Margin/VBox/OptionsPanel/BrightnessRow"]
 custom_minimum_size = Vector2(150, 0)
 layout_mode = 2
 text = "Brillo"
-
 [node name="BrightnessSlider" type="HSlider" parent="Center/Panel/Margin/VBox/OptionsPanel/BrightnessRow"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -88,7 +86,6 @@ min_value = 0.7
 max_value = 1.3
 step = 0.05
 value = 1.0
-
 [node name="BrightnessValue" type="Label" parent="Center/Panel/Margin/VBox/OptionsPanel/BrightnessRow"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(70, 0)
@@ -98,12 +95,10 @@ horizontal_alignment = 2
 
 [node name="QualityRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox/OptionsPanel"]
 layout_mode = 2
-
 [node name="Label" type="Label" parent="Center/Panel/Margin/VBox/OptionsPanel/QualityRow"]
 custom_minimum_size = Vector2(150, 0)
 layout_mode = 2
 text = "Calidad"
-
 [node name="QualityOption" type="OptionButton" parent="Center/Panel/Margin/VBox/OptionsPanel/QualityRow"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -116,16 +111,39 @@ text = "Sincronización vertical (V-Sync)"
 
 [node name="FpsRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox/OptionsPanel"]
 layout_mode = 2
-
 [node name="Label" type="Label" parent="Center/Panel/Margin/VBox/OptionsPanel/FpsRow"]
 custom_minimum_size = Vector2(150, 0)
 layout_mode = 2
 text = "Límite FPS"
-
 [node name="FpsOption" type="OptionButton" parent="Center/Panel/Margin/VBox/OptionsPanel/FpsRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
+
+[node name="VoiceSeparator" type="HSeparator" parent="Center/Panel/Margin/VBox/OptionsPanel"]
+layout_mode = 2
+[node name="VoiceTitle" type="Label" parent="Center/Panel/Margin/VBox/OptionsPanel"]
+layout_mode = 2
+text = "VOZ DE JUGADORES"
+modulate = Color(0.9, 0.84, 0.66, 1)
+
+[node name="MuteRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox/OptionsPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+[node name="MutePlayerOption" type="OptionButton" parent="Center/Panel/Margin/VBox/OptionsPanel/MuteRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+[node name="ToggleMuteButton" type="Button" parent="Center/Panel/Margin/VBox/OptionsPanel/MuteRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Silenciar jugador"
+
+[node name="MuteHint" type="Label" parent="Center/Panel/Margin/VBox/OptionsPanel"]
+layout_mode = 2
+text = "El silencio es local: no afecta lo que escuchan los demás."
+autowrap_mode = 2
+modulate = Color(0.58, 0.58, 0.56, 1)
 
 [node name="Separator2" type="HSeparator" parent="Center/Panel/Margin/VBox"]
 layout_mode = 2

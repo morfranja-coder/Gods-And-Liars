@@ -24,6 +24,7 @@ func _bind_steam() -> void:
 func _setup_playback() -> void:
 	_voice_player = AudioStreamPlayer.new()
 	_voice_player.name = "VoicePlayback"
+	_voice_player.bus = "Voice"
 	add_child(_voice_player)
 	var generator := AudioStreamGenerator.new()
 	generator.mix_rate = VOICE_SAMPLE_RATE
@@ -34,6 +35,7 @@ func _setup_playback() -> void:
 
 func reset_for_match_leave() -> void:
 	_set_talking(false)
+	AudioSettings.clear_session_mutes()
 	if _playback != null:
 		_playback.clear_buffer()
 
@@ -81,6 +83,8 @@ func _receive_voice(compressed: PackedByteArray) -> void:
 
 func _can_receive_voice(sender_id: int, compressed: PackedByteArray) -> bool:
 	if _steam == null or _playback == null:
+		return false
+	if AudioSettings.is_peer_muted(sender_id):
 		return false
 	if not VoicePolicy.accepts_sender(sender_id, NetworkManager.peers):
 		return false

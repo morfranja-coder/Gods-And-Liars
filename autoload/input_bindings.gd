@@ -43,6 +43,17 @@ func emote_action(index: int) -> StringName:
 func set_text_entry_active(value: bool) -> void:
 	text_entry_active = value
 
+func focus_first_available(root: Node) -> bool:
+	if root is Control:
+		var control := root as Control
+		if control.visible and control.focus_mode != Control.FOCUS_NONE and not _control_disabled(control):
+			control.grab_focus()
+			return true
+	for child in root.get_children():
+		if focus_first_available(child):
+			return true
+	return false
+
 func _ensure_defaults() -> void:
 	_ensure_action(ACTION_CHAT)
 	_add_key(ACTION_CHAT, KEY_T)
@@ -88,25 +99,35 @@ func _ensure_camera_actions() -> void:
 	_add_joy_axis(ACTION_LOOK_DOWN, JOY_AXIS_RIGHT_Y, 1.0)
 
 func _ensure_ui_actions() -> void:
-	_ensure_action(ACTION_UI_UP, 0.2)
-	_add_joy_button(ACTION_UI_UP, JOY_BUTTON_DPAD_UP)
-	_add_joy_axis(ACTION_UI_UP, JOY_AXIS_LEFT_Y, -1.0)
-	_ensure_action(ACTION_UI_DOWN, 0.2)
-	_add_joy_button(ACTION_UI_DOWN, JOY_BUTTON_DPAD_DOWN)
-	_add_joy_axis(ACTION_UI_DOWN, JOY_AXIS_LEFT_Y, 1.0)
-	_ensure_action(ACTION_UI_LEFT, 0.2)
-	_add_joy_button(ACTION_UI_LEFT, JOY_BUTTON_DPAD_LEFT)
-	_add_joy_axis(ACTION_UI_LEFT, JOY_AXIS_LEFT_X, -1.0)
-	_ensure_action(ACTION_UI_RIGHT, 0.2)
-	_add_joy_button(ACTION_UI_RIGHT, JOY_BUTTON_DPAD_RIGHT)
-	_add_joy_axis(ACTION_UI_RIGHT, JOY_AXIS_LEFT_X, 1.0)
+	_ensure_direction_action(ACTION_UI_UP, &"ui_up", JOY_BUTTON_DPAD_UP, JOY_AXIS_LEFT_Y, -1.0)
+	_ensure_direction_action(ACTION_UI_DOWN, &"ui_down", JOY_BUTTON_DPAD_DOWN, JOY_AXIS_LEFT_Y, 1.0)
+	_ensure_direction_action(ACTION_UI_LEFT, &"ui_left", JOY_BUTTON_DPAD_LEFT, JOY_AXIS_LEFT_X, -1.0)
+	_ensure_direction_action(ACTION_UI_RIGHT, &"ui_right", JOY_BUTTON_DPAD_RIGHT, JOY_AXIS_LEFT_X, 1.0)
 	_ensure_action(ACTION_UI_CONFIRM)
+	_ensure_action(&"ui_accept")
 	_add_key(ACTION_UI_CONFIRM, KEY_ENTER)
 	_add_key(ACTION_UI_CONFIRM, KEY_SPACE)
 	_add_joy_button(ACTION_UI_CONFIRM, JOY_BUTTON_A)
+	_add_joy_button(&"ui_accept", JOY_BUTTON_A)
 	_ensure_action(ACTION_UI_BACK)
+	_ensure_action(&"ui_cancel")
 	_add_key(ACTION_UI_BACK, KEY_ESCAPE)
 	_add_joy_button(ACTION_UI_BACK, JOY_BUTTON_B)
+	_add_joy_button(&"ui_cancel", JOY_BUTTON_B)
+
+func _ensure_direction_action(
+	custom_action: StringName,
+	builtin_action: StringName,
+	button: JoyButton,
+	axis: JoyAxis,
+	axis_value: float
+) -> void:
+	_ensure_action(custom_action, 0.2)
+	_ensure_action(builtin_action, 0.2)
+	_add_joy_button(custom_action, button)
+	_add_joy_axis(custom_action, axis, axis_value)
+	_add_joy_button(builtin_action, button)
+	_add_joy_axis(builtin_action, axis, axis_value)
 
 func _ensure_emote_actions() -> void:
 	for index in range(EMOTE_ACTIONS.size()):
@@ -146,3 +167,10 @@ func _add_event_if_missing(action: StringName, event: InputEvent) -> void:
 	if InputMap.action_has_event(action, event):
 		return
 	InputMap.action_add_event(action, event)
+
+func _control_disabled(control: Control) -> bool:
+	if control is BaseButton:
+		return (control as BaseButton).disabled
+	if control is LineEdit:
+		return not (control as LineEdit).editable
+	return false

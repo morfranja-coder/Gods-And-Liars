@@ -46,7 +46,8 @@ func _process(_delta: float) -> void:
 		_set_talking(false)
 		return
 	var can_talk := VoiceRouter.can_transmit(GameManager.phase, _local_alive())
-	_set_talking(can_talk and Input.is_action_pressed(VOICE_ACTION))
+	var wants_to_talk := Input.is_action_pressed(VOICE_ACTION) and not InputBindings.text_entry_active
+	_set_talking(can_talk and wants_to_talk)
 	if is_talking:
 		_capture_and_send_voice()
 

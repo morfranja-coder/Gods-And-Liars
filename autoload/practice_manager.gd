@@ -5,7 +5,6 @@ signal practice_stopped
 
 const HUMAN_PEER_ID := 1
 const BOT_COUNT := 7
-const TOTAL_PLAYERS := 8
 const BOT_NAME_PREFIX := "Acólito"
 
 var active: bool = false
@@ -13,7 +12,6 @@ var _bot_peer_ids: Array[int] = []
 
 func _ready() -> void:
 	MatchAuthority.phase_synced.connect(_on_phase_synced)
-	MatchAuthority.rematch_received.connect(_on_rematch_received)
 
 func start_seven_bot_match() -> void:
 	stop_practice()
@@ -77,20 +75,18 @@ func _acknowledge_bot_roles() -> void:
 	if not active or GameManager.phase != GameManager.MatchPhase.ROLE_REVEAL:
 		return
 	for peer_id in _bot_peer_ids:
-		MatchAuthority.practice_acknowledge_role(peer_id)
+		MatchAuthority._server_acknowledge_role(peer_id)
 
 func _play_bot_night_actions() -> void:
 	if not active or not NightPhaseRules.is_action_phase(GameManager.phase):
 		return
 	var required_role := NightPhaseRules.role_for_phase(GameManager.phase)
 	for peer_id in _bot_peer_ids:
-		if not MatchAuthority.is_peer_publicly_alive(peer_id):
+		if not _bot_can_act(peer_id, required_role):
 			continue
-		if MatchAuthority.server_role_for_peer(peer_id) != required_role:
-			continue
-		var target_peer_id := MatchAuthority.practice_pick_night_target(peer_id)
+		var target_peer_id := _pick_night_target(peer_id, required_role)
 		if target_peer_id > 0:
-			MatchAuthority.practice_submit_night_action(peer_id, target_peer_id)
+			MatchAuthority._server_submit_night_action(peer_id, target_peer_id)
 
 func _play_bot_votes() -> void:
 	if not active or GameManager.phase != GameManager.MatchPhase.VOTING:
@@ -98,14 +94,32 @@ func _play_bot_votes() -> void:
 	for peer_id in _bot_peer_ids:
 		if not MatchAuthority.is_peer_publicly_alive(peer_id):
 			continue
-		var target_peer_id := MatchAuthority.practice_pick_vote_target(peer_id)
+		var target_peer_id := _pick_other_living_peer(peer_id)
 		if target_peer_id > 0:
-			MatchAuthority.practice_submit_vote(peer_id, target_peer_id)
+			MatchAuthority._server_submit_vote(peer_id, target_peer_id)
 
-func _on_rematch_received() -> void:
-	if active:
-		call_deferred("_begin_rematch")
+func _bot_can_act(peer_id: int, required_role: PlayerState.Role) -> bool:
+	if not MatchAuthority.is_peer_publicly_alive(peer_id):
+		return false
+	return MatchAuthority.server_role_for_peer(peer_id) == required_role
 
-func _begin_rematch() -> void:
-	if active:
-		MatchAuthority.begin_role_reveal()
+func _pick_night_target(peer_id: int, role: PlayerState.Role) -> int:
+	if role == PlayerState.Role.HEALER:
+		return _pick_living_peer()
+	return _pick_other_living_peer(peer_id)
+
+func _pick_living_peer() -> int:
+	for raw_peer_id in NetworkManager.peers.keys():
+		var peer_id := int(raw_peer_id)
+		if MatchAuthority.is_peer_publicly_alive(peer_id):
+			return peer_id
+	return 0
+
+func _pick_other_living_peer(actor_peer_id: int) -> int:
+	for raw_peer_id in NetworkManager.peers.keys():
+		var peer_id := int(raw_peer_id)
+		if peer_id == actor_peer_id:
+			continue
+		if MatchAuthority.is_peer_publicly_alive(peer_id):
+			return peer_id
+	return 0

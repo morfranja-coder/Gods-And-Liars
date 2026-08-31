@@ -51,6 +51,8 @@ func refresh() -> void:
 		var peer: Dictionary = NetworkManager.peers.get(raw_peer_id, {})
 		_add_player_row(peer_id, peer, local_id)
 	empty_label.visible = peers.is_empty()
+	if is_open:
+		call_deferred("_focus_first_mute_button")
 
 func _set_open(value: bool) -> void:
 	if is_open == value and panel.visible == value:
@@ -129,6 +131,16 @@ func _refresh_talking_indicators() -> void:
 			continue
 		var voice_label := row.get_node("VoiceState") as Label
 		_update_voice_indicator(peer_id, voice_label, MatchAuthority.is_peer_publicly_alive(peer_id))
+
+func _focus_first_mute_button() -> void:
+	for raw_peer_id in _row_by_peer.keys():
+		var row := _row_by_peer[raw_peer_id] as HBoxContainer
+		if row == null:
+			continue
+		var mute_button := row.get_node("MuteButton") as Button
+		if not mute_button.disabled:
+			mute_button.grab_focus()
+			return
 
 func _is_peer_talking(peer_id: int) -> bool:
 	if peer_id == _local_peer_id():

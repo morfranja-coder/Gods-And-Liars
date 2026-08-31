@@ -1,7 +1,7 @@
 class_name PlayerListUI
 extends CanvasLayer
 
-signal visibility_changed(is_open: bool)
+signal open_state_changed(is_open: bool)
 
 const TALKING_FLASH_SECONDS := 0.35
 const DEAD_COLOR := Color(0.46, 0.46, 0.48, 0.72)
@@ -59,7 +59,7 @@ func _set_open(value: bool) -> void:
 	panel.visible = value
 	if is_open:
 		refresh()
-	visibility_changed.emit(is_open)
+	open_state_changed.emit(is_open)
 
 func _add_player_row(peer_id: int, peer: Dictionary, local_id: int) -> void:
 	var row := HBoxContainer.new()

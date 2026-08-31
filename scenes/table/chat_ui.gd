@@ -18,11 +18,9 @@ func _ready() -> void:
 
 func handle_input(event: InputEvent) -> bool:
 	if is_open:
-		if event is InputEventKey:
-			var key_event := event as InputEventKey
-			if key_event.pressed and not key_event.echo and key_event.keycode == KEY_ESCAPE:
-				close()
-				return true
+		if event.is_action_pressed(InputBindings.ACTION_UI_BACK):
+			close()
+			return true
 		return false
 	if event.is_action_pressed(InputBindings.ACTION_CHAT):
 		open_for_typing(event is InputEventJoypadButton)
@@ -47,6 +45,8 @@ func _set_open(value: bool) -> void:
 	InputBindings.set_text_entry_active(is_open)
 	if not is_open:
 		input_line.release_focus()
+		if DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
+			DisplayServer.virtual_keyboard_hide()
 	open_state_changed.emit(is_open)
 
 func _on_text_submitted(text: String) -> void:
@@ -61,11 +61,13 @@ func _on_text_submitted(text: String) -> void:
 	_set_open(false)
 
 func _show_virtual_keyboard_if_supported() -> void:
-	if DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
-		DisplayServer.virtual_keyboard_show(
-			input_line.text,
-			Rect2i(),
-			DisplayServer.KEYBOARD_TYPE_DEFAULT,
-			MAX_MESSAGE_LENGTH,
-			0
-		)
+	if not DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
+		return
+	DisplayServer.virtual_keyboard_show(
+		input_line.text,
+		Rect2(),
+		DisplayServer.KEYBOARD_TYPE_DEFAULT,
+		MAX_MESSAGE_LENGTH,
+		input_line.caret_column,
+		input_line.caret_column
+	)

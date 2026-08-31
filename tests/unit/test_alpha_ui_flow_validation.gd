@@ -28,6 +28,9 @@ func test_controller_navigation_actions_are_available_to_godot_ui() -> void:
 	assert_bool(_has_joy_button(&"ui_right", JOY_BUTTON_DPAD_RIGHT)).is_true()
 	assert_bool(_has_joy_axis(&"ui_up", JOY_AXIS_LEFT_Y, -1.0)).is_true()
 	assert_bool(_has_joy_axis(&"ui_right", JOY_AXIS_LEFT_X, 1.0)).is_true()
+	assert_bool(InputMap.has_action(InputBindings.ACTION_GHOST_FORWARD)).is_true()
+	assert_bool(InputMap.has_action(InputBindings.ACTION_GHOST_ASCEND)).is_true()
+	assert_bool(InputMap.has_action(InputBindings.ACTION_GHOST_DESCEND)).is_true()
 
 func test_primary_scenes_expose_a_focusable_entry_point() -> void:
 	var main_menu := MAIN_MENU_SCENE.instantiate()

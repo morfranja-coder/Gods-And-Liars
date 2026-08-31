@@ -28,7 +28,7 @@ theme_override_constants/separation = 14
 
 [node name="Title" type="Label" parent="Panel/Margin/VBox"]
 layout_mode = 2
-text = "EMOTES"
+text = "MOVIMIENTOS"
 horizontal_alignment = 1
 theme_override_font_sizes/font_size = 28
 
@@ -47,49 +47,49 @@ columns = 4
 layout_mode = 2
 custom_minimum_size = Vector2(105, 72)
 toggle_mode = true
-text = "1\nEmote"
+text = "1\nMovimiento"
 
 [node name="Emote2" type="Button" parent="Panel/Margin/VBox/SlotsGrid"]
 layout_mode = 2
 custom_minimum_size = Vector2(105, 72)
 toggle_mode = true
-text = "2\nEmote"
+text = "2\nMovimiento"
 
 [node name="Emote3" type="Button" parent="Panel/Margin/VBox/SlotsGrid"]
 layout_mode = 2
 custom_minimum_size = Vector2(105, 72)
 toggle_mode = true
-text = "3\nEmote"
+text = "3\nMovimiento"
 
 [node name="Emote4" type="Button" parent="Panel/Margin/VBox/SlotsGrid"]
 layout_mode = 2
 custom_minimum_size = Vector2(105, 72)
 toggle_mode = true
-text = "4\nEmote"
+text = "4\nMovimiento"
 
 [node name="Emote5" type="Button" parent="Panel/Margin/VBox/SlotsGrid"]
 layout_mode = 2
 custom_minimum_size = Vector2(105, 72)
 toggle_mode = true
-text = "5\nEmote"
+text = "5\nMovimiento"
 
 [node name="Emote6" type="Button" parent="Panel/Margin/VBox/SlotsGrid"]
 layout_mode = 2
 custom_minimum_size = Vector2(105, 72)
 toggle_mode = true
-text = "6\nEmote"
+text = "6\nMovimiento"
 
 [node name="Emote7" type="Button" parent="Panel/Margin/VBox/SlotsGrid"]
 layout_mode = 2
 custom_minimum_size = Vector2(105, 72)
 toggle_mode = true
-text = "7\nEmote"
+text = "7\nMovimiento"
 
 [node name="Emote8" type="Button" parent="Panel/Margin/VBox/SlotsGrid"]
 layout_mode = 2
 custom_minimum_size = Vector2(105, 72)
 toggle_mode = true
-text = "8\nEmote"
+text = "8\nMovimiento"
 
 [node name="HintLabel" type="Label" parent="Panel/Margin/VBox"]
 unique_name_in_owner = true

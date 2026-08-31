@@ -1,0 +1,68 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/table/ghost_hud.gd" id="1"]
+[ext_resource type="Theme" path="res://ui/gods_liars_theme.tres" id="2"]
+
+[node name="GhostHUD" type="CanvasLayer"]
+layer = 8
+visible = false
+script = ExtResource("1")
+
+[node name="StatePanel" type="PanelContainer" parent="."]
+theme = ExtResource("2")
+offset_left = 24.0
+offset_top = 24.0
+offset_right = 244.0
+offset_bottom = 96.0
+
+[node name="VBox" type="VBoxContainer" parent="StatePanel"]
+theme_override_constants/separation = 2
+
+[node name="StateLabel" type="Label" parent="StatePanel/VBox"]
+unique_name_in_owner = true
+theme_override_colors/font_color = Color(0.67, 0.82, 0.95, 1)
+theme_override_font_sizes/font_size = 18
+text = "ESPECTRO FIEL"
+
+[node name="StatusLabel" type="Label" parent="StatePanel/VBox"]
+theme_override_colors/font_color = Color(0.7, 0.69, 0.65, 1)
+theme_override_font_sizes/font_size = 13
+text = "Libre de la mesa · Observador"
+
+[node name="ControlsPanel" type="PanelContainer" parent="."]
+theme = ExtResource("2")
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -334.0
+offset_top = -104.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 0
+grow_vertical = 0
+
+[node name="Controls" type="Label" parent="ControlsPanel"]
+theme_override_colors/font_color = Color(0.76, 0.75, 0.71, 1)
+theme_override_font_sizes/font_size = 14
+text = "WASD  Navegar     ESPACIO  Subir\nCTRL  Bajar          RATÓN  Mirar"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Reticle" type="Label" parent="."]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -8.0
+offset_top = -13.0
+offset_right = 8.0
+offset_bottom = 13.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.65, 0.8, 0.92, 0.78)
+theme_override_font_sizes/font_size = 18
+text = "◇"
+horizontal_alignment = 1

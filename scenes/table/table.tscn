@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://scenes/table/table.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/table/role_reveal.tscn" id="2"]
@@ -13,6 +13,7 @@
 [ext_resource type="PackedScene" path="res://assets/scenario/EscenarioAlfa.glb" id="11_scenario"]
 [ext_resource type="PackedScene" path="res://assets/characters/gods/Dios_Vivo.glb" id="12_living_god"]
 [ext_resource type="PackedScene" path="res://assets/characters/gods/Dios_Muerto.glb" id="13_dead_god"]
+[ext_resource type="PackedScene" path="res://scenes/table/ghost_hud.tscn" id="14_ghost_hud"]
 
 [node name="Table" type="Node3D"]
 script = ExtResource("1")
@@ -48,6 +49,8 @@ script = ExtResource("7")
 [node name="EmoteWheelUI" parent="." instance=ExtResource("9")]
 
 [node name="ChatUI" parent="." instance=ExtResource("10")]
+
+[node name="GhostHUD" parent="." instance=ExtResource("14_ghost_hud")]
 
 [node name="PauseUI" parent="." instance=ExtResource("6")]
 

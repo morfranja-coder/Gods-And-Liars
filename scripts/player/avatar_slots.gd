@@ -2,6 +2,18 @@ class_name AvatarSlots
 extends Node3D
 
 const MASK_MATERIAL_NAME := "M_Mask"
+const DEATH_ANIMATION := &"NlaTrack.013"
+const DEATH_FALLBACK_SECONDS := 2.4
+const MOVEMENT_ANIMATIONS := [
+	&"NlaTrack",
+	&"NlaTrack.001",
+	&"NlaTrack.002",
+	&"NlaTrack.003",
+	&"NlaTrack.004",
+	&"NlaTrack.005",
+	&"NlaTrack.006",
+	&"NlaTrack.007",
+]
 
 @export var body_scene: PackedScene
 @export var tunic_scene: PackedScene
@@ -37,6 +49,34 @@ func set_player_color(color: Color) -> void:
 
 func get_player_color() -> Color:
 	return _player_color
+
+func play_movement(index: int) -> bool:
+	if index < 0 or index >= MOVEMENT_ANIMATIONS.size():
+		return false
+	var animation_player := _find_animation_player(self)
+	var animation_name: StringName = MOVEMENT_ANIMATIONS[index]
+	if animation_player == null or not animation_player.has_animation(animation_name):
+		return false
+	animation_player.play(animation_name, 0.15)
+	return true
+
+func play_death_and_hide() -> void:
+	var animation_player := _find_animation_player(self)
+	if animation_player != null and animation_player.has_animation(DEATH_ANIMATION):
+		animation_player.play(DEATH_ANIMATION)
+		await animation_player.animation_finished
+	else:
+		await get_tree().create_timer(DEATH_FALLBACK_SECONDS).timeout
+	visible = false
+
+func _find_animation_player(node: Node) -> AnimationPlayer:
+	if node is AnimationPlayer:
+		return node as AnimationPlayer
+	for child in node.get_children():
+		var found := _find_animation_player(child)
+		if found != null:
+			return found
+	return null
 
 func _refresh_all() -> void:
 	_refresh_slot(body_root, body_scene)

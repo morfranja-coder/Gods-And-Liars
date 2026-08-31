@@ -17,6 +17,12 @@ const ACTION_UI_LEFT := &"menu_left"
 const ACTION_UI_RIGHT := &"menu_right"
 const ACTION_UI_CONFIRM := &"menu_confirm"
 const ACTION_UI_BACK := &"menu_back"
+const ACTION_GHOST_FORWARD := &"ghost_forward"
+const ACTION_GHOST_BACK := &"ghost_back"
+const ACTION_GHOST_LEFT := &"ghost_left"
+const ACTION_GHOST_RIGHT := &"ghost_right"
+const ACTION_GHOST_ASCEND := &"ghost_ascend"
+const ACTION_GHOST_DESCEND := &"ghost_descend"
 const EMOTE_ACTIONS := [
 	&"emote_1",
 	&"emote_2",
@@ -85,6 +91,7 @@ func _ensure_defaults() -> void:
 	_add_joy_button(ACTION_CANCEL, JOY_BUTTON_B)
 
 	_ensure_camera_actions()
+	_ensure_ghost_actions()
 	_ensure_ui_actions()
 	_ensure_emote_actions()
 
@@ -97,6 +104,20 @@ func _ensure_camera_actions() -> void:
 	_add_joy_axis(ACTION_LOOK_UP, JOY_AXIS_RIGHT_Y, -1.0)
 	_ensure_action(ACTION_LOOK_DOWN, 0.2)
 	_add_joy_axis(ACTION_LOOK_DOWN, JOY_AXIS_RIGHT_Y, 1.0)
+
+func _ensure_ghost_actions() -> void:
+	_ensure_action(ACTION_GHOST_FORWARD)
+	_add_key(ACTION_GHOST_FORWARD, KEY_W)
+	_ensure_action(ACTION_GHOST_BACK)
+	_add_key(ACTION_GHOST_BACK, KEY_S)
+	_ensure_action(ACTION_GHOST_LEFT)
+	_add_key(ACTION_GHOST_LEFT, KEY_A)
+	_ensure_action(ACTION_GHOST_RIGHT)
+	_add_key(ACTION_GHOST_RIGHT, KEY_D)
+	_ensure_action(ACTION_GHOST_ASCEND)
+	_add_key(ACTION_GHOST_ASCEND, KEY_SPACE)
+	_ensure_action(ACTION_GHOST_DESCEND)
+	_add_key(ACTION_GHOST_DESCEND, KEY_CTRL)
 
 func _ensure_ui_actions() -> void:
 	_ensure_direction_action(ACTION_UI_UP, &"ui_up", JOY_BUTTON_DPAD_UP, JOY_AXIS_LEFT_Y, -1.0)

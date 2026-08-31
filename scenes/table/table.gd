@@ -7,18 +7,22 @@ signal local_emote_requested(index: int)
 signal local_chat_message_requested(text: String)
 
 const PLAYER_AVATAR_SCENE := preload("res://scenes/player/player_avatar.tscn")
+const GHOST_CONTROLLER_SCENE := preload("res://scenes/player/ghost_controller.tscn")
 const SELECTION_MASK := 2
 const RAY_LENGTH := 100.0
 
 var selected_peer_id: int = 0
 var focused_peer_id: int = 0
 var _avatars: Dictionary = {}
+var _local_ghost: GhostController = null
+var _ghost_transition_started := false
 
 @onready var table_camera: TableCameraLook = $Camera3D
 @onready var world_environment: WorldEnvironment = $WorldEnvironment
 @onready var player_list_ui: PlayerListUI = $PlayerListUI
 @onready var emote_wheel_ui: EmoteWheelUI = $EmoteWheelUI
 @onready var chat_ui: ChatUI = $ChatUI
+@onready var ghost_hud: GhostHUD = $GhostHUD
 @onready var pause_ui: CanvasLayer = $PauseUI
 @onready var leave_confirm_dialog: ConfirmationDialog = %LeaveConfirmDialog
 @onready var living_god_visual: Node3D = $GodState/LivingGod
@@ -32,6 +36,7 @@ func _ready() -> void:
 	NetworkManager.peer_updated.connect(_on_roster_changed)
 	MatchAuthority.night_resolution_received.connect(_on_night_resolution_received)
 	MatchAuthority.vote_resolution_received.connect(_on_vote_resolution_received)
+	MatchAuthority.rematch_received.connect(_on_rematch_received)
 	MatchLeaveManager.leave_started.connect(_on_leave_started)
 	MatchLeaveManager.leave_rejected.connect(_on_leave_rejected)
 	VideoSettings.settings_changed.connect(_apply_video_environment)
@@ -48,7 +53,7 @@ func _ready() -> void:
 		MatchAuthority.call_deferred("begin_role_reveal")
 
 func _physics_process(_delta: float) -> void:
-	if _gameplay_input_blocked():
+	if _gameplay_input_blocked() or _is_ghost_mode_active():
 		_clear_focused_target()
 		return
 	_update_center_target()
@@ -132,6 +137,10 @@ func _on_chat_open_state_changed(_is_open: bool) -> void:
 	_update_camera_input_state()
 
 func _on_emote_requested(index: int) -> void:
+	var local_peer_id := multiplayer.get_unique_id()
+	var local_avatar := _avatars.get(local_peer_id) as AvatarSlots
+	if local_avatar != null and not MatchAuthority.is_local_ghost():
+		local_avatar.play_movement(index)
 	local_emote_requested.emit(index)
 
 func _on_chat_message_submitted(text: String) -> void:
@@ -154,7 +163,10 @@ func _gameplay_input_blocked() -> bool:
 	)
 
 func _update_camera_input_state() -> void:
-	table_camera.set_look_enabled(not _gameplay_input_blocked())
+	var gameplay_enabled := not _gameplay_input_blocked()
+	table_camera.set_look_enabled(gameplay_enabled and not _is_ghost_mode_active())
+	if _local_ghost != null:
+		_local_ghost.set_input_enabled(gameplay_enabled)
 
 func _on_leave_match_pressed() -> void:
 	if MatchLeaveManager.leave_pending:
@@ -309,10 +321,12 @@ func _on_roster_changed(peer_id: int) -> void:
 func _on_night_resolution_received(_killed_peer_ids: Array[int]) -> void:
 	_refresh_roster()
 	_refresh_god_state()
+	_begin_local_ghost_transition()
 
 func _on_vote_resolution_received(_sacrificed_peer_id: int, _tied: bool) -> void:
 	_refresh_roster()
 	_refresh_god_state()
+	_begin_local_ghost_transition()
 
 func _refresh_god_state() -> void:
 	var local_peer_id := multiplayer.get_unique_id()
@@ -322,3 +336,41 @@ func _refresh_god_state() -> void:
 	)
 	living_god_visual.visible = not local_is_dead
 	dead_god_visual.visible = local_is_dead
+
+func _begin_local_ghost_transition() -> void:
+	if _ghost_transition_started or not MatchAuthority.is_local_ghost():
+		return
+	_ghost_transition_started = true
+	var local_peer_id := multiplayer.get_unique_id()
+	var avatar := _avatars.get(local_peer_id) as AvatarSlots
+	var spawn_transform := Transform3D.IDENTITY
+	if avatar != null:
+		spawn_transform = avatar.global_transform
+		await avatar.play_death_and_hide()
+	_spawn_local_ghost(spawn_transform)
+
+func _spawn_local_ghost(spawn_transform: Transform3D) -> void:
+	_local_ghost = GHOST_CONTROLLER_SCENE.instantiate() as GhostController
+	_local_ghost.name = "LocalGhost"
+	add_child(_local_ghost)
+	_local_ghost.global_transform = spawn_transform.translated_local(Vector3.UP * 0.35)
+	var is_heretic := MatchAuthority.local_role == PlayerState.Role.HERETIC
+	_local_ghost.activate(is_heretic)
+	ghost_hud.show_ghost_mode(is_heretic)
+	table_camera.current = false
+	_update_camera_input_state()
+
+func _is_ghost_mode_active() -> bool:
+	return _local_ghost != null
+
+func _on_rematch_received() -> void:
+	_ghost_transition_started = false
+	if _local_ghost != null:
+		_local_ghost.queue_free()
+		_local_ghost = null
+	for avatar in _avatars.values():
+		(avatar as Node3D).visible = true
+	ghost_hud.hide_ghost_mode()
+	table_camera.current = true
+	_refresh_god_state()
+	_update_camera_input_state()

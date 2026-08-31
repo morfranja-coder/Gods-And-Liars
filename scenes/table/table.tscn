@@ -36,6 +36,11 @@ script = ExtResource("7")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 
+[node name="TEMP_EDITOR_LIGHT" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-50, -30, 0)
+light_energy = 1.5
+shadow_enabled = false
+
 [node name="RoleReveal" parent="." instance=ExtResource("2")]
 
 [node name="NightActionUI" parent="." instance=ExtResource("3")]

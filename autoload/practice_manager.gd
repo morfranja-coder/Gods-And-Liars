@@ -106,12 +106,23 @@ func _bot_can_act(peer_id: int, required_role: PlayerState.Role) -> bool:
 func _pick_night_target(peer_id: int, role: PlayerState.Role) -> int:
 	if role == PlayerState.Role.HEALER:
 		return _pick_living_peer()
+	if role == PlayerState.Role.HERETIC:
+		return _pick_living_non_heretic(peer_id)
 	return _pick_other_living_peer(peer_id)
 
 func _pick_living_peer() -> int:
 	for raw_peer_id in NetworkManager.peers.keys():
 		var peer_id := int(raw_peer_id)
 		if MatchAuthority.is_peer_publicly_alive(peer_id):
+			return peer_id
+	return 0
+
+func _pick_living_non_heretic(actor_peer_id: int) -> int:
+	for raw_peer_id in NetworkManager.peers.keys():
+		var peer_id := int(raw_peer_id)
+		if peer_id == actor_peer_id or not MatchAuthority.is_peer_publicly_alive(peer_id):
+			continue
+		if MatchAuthority.server_role_for_peer(peer_id) != PlayerState.Role.HERETIC:
 			return peer_id
 	return 0
 

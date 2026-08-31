@@ -68,6 +68,13 @@ func _refresh() -> void:
 		if selected_peer_id > 0
 		else "Acusado: ninguno"
 	)
+	_focus_active_button()
+
+func _focus_active_button() -> void:
+	if begin_button.visible and not begin_button.disabled:
+		begin_button.grab_focus()
+	elif vote_button.visible and not vote_button.disabled:
+		vote_button.grab_focus()
 
 func _valid_selected_target(local_peer_id: int) -> bool:
 	if selected_peer_id <= 0 or selected_peer_id == local_peer_id:

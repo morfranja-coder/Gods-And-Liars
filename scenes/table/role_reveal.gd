@@ -24,6 +24,7 @@ func _show_local_role() -> void:
 	role_label.text = MatchAuthority.role_title()
 	description_label.text = MatchAuthority.role_description()
 	panel.visible = true
+	close_button.grab_focus()
 
 func _on_close_pressed() -> void:
 	panel.visible = false

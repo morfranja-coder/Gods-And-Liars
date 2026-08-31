@@ -84,6 +84,12 @@ layout_mode = 2
 text = "ENTRAR AL RITUAL"
 theme_override_font_sizes/font_size = 20
 
+[node name="PracticeButton" type="Button" parent="Center/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+text = "PRUEBA SOLO + 7 BOTS"
+
 [node name="OptionsButton" type="Button" parent="Center/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 48)

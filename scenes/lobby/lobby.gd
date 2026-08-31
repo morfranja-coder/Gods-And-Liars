@@ -212,6 +212,7 @@ func _on_start_pressed() -> void:
 	NetworkManager.request_host_start()
 
 func _on_options_pressed() -> void:
+	get_tree().root.set_meta("settings_return_scene", scene_file_path)
 	get_tree().change_scene_to_file(SETTINGS_SCENE)
 
 func _on_leave_match_pressed() -> void:

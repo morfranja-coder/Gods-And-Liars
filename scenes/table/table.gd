@@ -9,10 +9,12 @@ const RAY_LENGTH := 100.0
 var selected_peer_id: int = 0
 var _avatars: Dictionary = {}
 
+@onready var world_environment: WorldEnvironment = $WorldEnvironment
 @onready var pause_ui: CanvasLayer = $PauseUI
 @onready var leave_confirm_dialog: ConfirmationDialog = %LeaveConfirmDialog
 
 func _ready() -> void:
+	_setup_environment()
 	_build_placeholder_table()
 	_build_seat_markers()
 	NetworkManager.peer_joined.connect(_on_roster_changed)
@@ -22,6 +24,7 @@ func _ready() -> void:
 	MatchAuthority.vote_resolution_received.connect(_on_vote_resolution_received)
 	MatchLeaveManager.leave_started.connect(_on_leave_started)
 	MatchLeaveManager.leave_rejected.connect(_on_leave_rejected)
+	VideoSettings.settings_changed.connect(_apply_video_environment)
 	pause_ui.leave_pressed.connect(_on_leave_match_pressed)
 	leave_confirm_dialog.confirmed.connect(_on_leave_confirmed)
 	_refresh_roster()
@@ -43,6 +46,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	if mouse_event.button_index != MOUSE_BUTTON_LEFT or not mouse_event.pressed:
 		return
 	_select_from_screen_position(mouse_event.position)
+
+func _setup_environment() -> void:
+	if world_environment.environment == null:
+		world_environment.environment = Environment.new()
+	_apply_video_environment()
+
+func _apply_video_environment() -> void:
+	VideoSettings.apply_to_environment(world_environment.environment)
 
 func _on_leave_match_pressed() -> void:
 	if MatchLeaveManager.leave_pending:

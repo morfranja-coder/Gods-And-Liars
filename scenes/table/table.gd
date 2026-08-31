@@ -140,6 +140,8 @@ func _spawn_or_update_avatar(peer_id: int, seat_id: int) -> void:
 		add_child(avatar)
 		_avatars[peer_id] = avatar
 	avatar.global_transform = marker.global_transform
+	if avatar is AvatarSlots:
+		(avatar as AvatarSlots).set_player_color(PlayerColors.for_seat(seat_id))
 	var peer: Dictionary = NetworkManager.peers.get(peer_id, {})
 	var label := avatar.get_node_or_null("NameLabel") as Label3D
 	if label != null:

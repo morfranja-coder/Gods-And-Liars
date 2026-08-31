@@ -9,6 +9,7 @@ const RAY_LENGTH := 100.0
 var selected_peer_id: int = 0
 var _avatars: Dictionary = {}
 
+@onready var table_camera: TableCameraLook = $Camera3D
 @onready var world_environment: WorldEnvironment = $WorldEnvironment
 @onready var pause_ui: CanvasLayer = $PauseUI
 @onready var leave_confirm_dialog: ConfirmationDialog = %LeaveConfirmDialog
@@ -32,12 +33,11 @@ func _ready() -> void:
 		MatchAuthority.call_deferred("begin_role_reveal")
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey:
-		var key_event := event as InputEventKey
-		if key_event.keycode == KEY_ESCAPE and key_event.pressed and not key_event.echo:
-			pause_ui.toggle()
-			get_viewport().set_input_as_handled()
-			return
+	if event.is_action_pressed(InputBindings.ACTION_PAUSE):
+		pause_ui.toggle()
+		table_camera.set_look_enabled(not pause_ui.is_open)
+		get_viewport().set_input_as_handled()
+		return
 	if pause_ui.is_open:
 		return
 	if event is not InputEventMouseButton:

@@ -2,6 +2,8 @@ extends CanvasLayer
 
 signal leave_pressed
 
+var is_open: bool = false
+
 @onready var veil: ColorRect = %Veil
 @onready var panel: PanelContainer = %Panel
 @onready var resume_button: Button = %ResumeButton
@@ -14,8 +16,6 @@ signal leave_pressed
 @onready var fps_option: OptionButton = %FpsOption
 @onready var leave_button: Button = %LeaveButton
 @onready var leave_status_label: Label = %LeaveStatusLabel
-
-var is_open: bool = false
 
 func _ready() -> void:
 	_populate_options()

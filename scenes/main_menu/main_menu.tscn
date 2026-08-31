@@ -43,7 +43,7 @@ grow_vertical = 2
 [node name="VBox" type="VBoxContainer" parent="Center"]
 custom_minimum_size = Vector2(520, 0)
 layout_mode = 2
-theme_override_constants/separation = 22
+theme_override_constants/separation = 18
 
 [node name="Eyebrow" type="Label" parent="Center/VBox"]
 layout_mode = 2
@@ -83,6 +83,12 @@ custom_minimum_size = Vector2(0, 58)
 layout_mode = 2
 text = "ENTRAR AL RITUAL"
 theme_override_font_sizes/font_size = 20
+
+[node name="OptionsButton" type="Button" parent="Center/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+text = "Opciones"
 
 [node name="QuitButton" type="Button" parent="Center/VBox"]
 unique_name_in_owner = true

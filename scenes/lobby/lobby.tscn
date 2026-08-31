@@ -20,7 +20,28 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.035, 0.038, 0.041, 1)
+color = Color(0.025, 0.027, 0.03, 1)
+mouse_filter = 2
+
+[node name="TopShade" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 150.0
+grow_horizontal = 2
+color = Color(0.07, 0.055, 0.038, 0.18)
+mouse_filter = 2
+
+[node name="BottomShade" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -160.0
+grow_horizontal = 2
+grow_vertical = 0
+color = Color(0.055, 0.025, 0.02, 0.16)
 mouse_filter = 2
 
 [node name="Margin" type="MarginContainer" parent="."]
@@ -28,125 +49,201 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 80.0
-offset_top = 60.0
-offset_right = -80.0
-offset_bottom = -60.0
+offset_left = 64.0
+offset_top = 44.0
+offset_right = -64.0
+offset_bottom = -44.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBox" type="VBoxContainer" parent="Margin"]
+[node name="Main" type="HBoxContainer" parent="Margin"]
 layout_mode = 2
-theme_override_constants/separation = 16
+theme_override_constants/separation = 40
 
-[node name="Title" type="Label" parent="Margin/VBox"]
+[node name="Identity" type="VBoxContainer" parent="Margin/Main"]
+custom_minimum_size = Vector2(340, 0)
 layout_mode = 2
-text = "GODS & LIARS"
-theme_override_font_sizes/font_size = 34
-horizontal_alignment = 1
+size_flags_horizontal = 3
+theme_override_constants/separation = 14
 
-[node name="Subtitle" type="Label" parent="Margin/VBox"]
+[node name="Eyebrow" type="Label" parent="Margin/Main/Identity"]
 layout_mode = 2
-text = "PARTY / QUICK MATCH"
-horizontal_alignment = 1
-modulate = Color(0.72, 0.68, 0.58, 1)
+text = "THE RITUAL AWAITS"
+modulate = Color(0.56, 0.48, 0.34, 1)
+theme_override_font_sizes/font_size = 14
 
-[node name="IdentityLabel" type="Label" parent="Margin/VBox"]
+[node name="Title" type="Label" parent="Margin/Main/Identity"]
+layout_mode = 2
+text = "GODS\n& LIARS"
+theme_override_font_sizes/font_size = 52
+
+[node name="Rule" type="ColorRect" parent="Margin/Main/Identity"]
+custom_minimum_size = Vector2(92, 2)
+layout_mode = 2
+size_flags_horizontal = 0
+color = Color(0.5, 0.39, 0.22, 1)
+mouse_filter = 2
+
+[node name="Tagline" type="Label" parent="Margin/Main/Identity"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+text = "Ocho voces. Un ritual.\nNadie entra sin ocultar algo."
+autowrap_mode = 2
+modulate = Color(0.74, 0.71, 0.64, 1)
+theme_override_font_sizes/font_size = 18
+
+[node name="Spacer" type="Control" parent="Margin/Main/Identity"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="IdentityLabel" type="Label" parent="Margin/Main/Identity"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Steam: comprobando..."
+modulate = Color(0.6, 0.58, 0.54, 1)
+theme_override_font_sizes/font_size = 14
 
-[node name="StatusLabel" type="Label" parent="Margin/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Inicializando..."
-autowrap_mode = 2
-
-[node name="VoiceLabel" type="Label" parent="Margin/VBox"]
+[node name="VoiceLabel" type="Label" parent="Margin/Main/Identity"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Voz: mantené V para hablar"
+modulate = Color(0.6, 0.58, 0.54, 1)
+theme_override_font_sizes/font_size = 14
 
-[node name="DiagnosticsLabel" type="Label" parent="Margin/VBox"]
+[node name="DiagnosticsLabel" type="Label" parent="Margin/Main/Identity"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "DEV NET: esperando estado..."
 autowrap_mode = 2
+modulate = Color(0.43, 0.43, 0.43, 1)
+theme_override_font_sizes/font_size = 12
 
-[node name="PartyButtons" type="HBoxContainer" parent="Margin/VBox"]
+[node name="RitualPanel" type="PanelContainer" parent="Margin/Main"]
+custom_minimum_size = Vector2(680, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PanelMargin" type="MarginContainer" parent="Margin/Main/RitualPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 28
+
+[node name="VBox" type="VBoxContainer" parent="Margin/Main/RitualPanel/PanelMargin"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Header" type="HBoxContainer" parent="Margin/Main/RitualPanel/PanelMargin/VBox"]
+layout_mode = 2
+alignment = 1
+
+[node name="RitualTitle" type="Label" parent="Margin/Main/RitualPanel/PanelMargin/VBox/Header"]
+layout_mode = 2
+text = "PREPARAR EL RITUAL"
+theme_override_font_sizes/font_size = 24
+modulate = Color(0.9, 0.84, 0.67, 1)
+
+[node name="StatusLabel" type="Label" parent="Margin/Main/RitualPanel/PanelMargin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+text = "Inicializando..."
+autowrap_mode = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+modulate = Color(0.74, 0.71, 0.64, 1)
+
+[node name="PartyButtons" type="HBoxContainer" parent="Margin/Main/RitualPanel/PanelMargin/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 10
+alignment = 1
 
-[node name="InviteButton" type="Button" parent="Margin/VBox/PartyButtons"]
+[node name="InviteButton" type="Button" parent="Margin/Main/RitualPanel/PanelMargin/VBox/PartyButtons"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Invitar amigos"
 
-[node name="QuickMatchButton" type="Button" parent="Margin/VBox/PartyButtons"]
+[node name="QuickMatchButton" type="Button" parent="Margin/Main/RitualPanel/PanelMargin/VBox/PartyButtons"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Buscar partida"
 
-[node name="CancelSearchButton" type="Button" parent="Margin/VBox/PartyButtons"]
+[node name="CancelSearchButton" type="Button" parent="Margin/Main/RitualPanel/PanelMargin/VBox/PartyButtons"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Cancelar búsqueda"
 
-[node name="LeavePartyButton" type="Button" parent="Margin/VBox/PartyButtons"]
+[node name="LeavePartyButton" type="Button" parent="Margin/Main/RitualPanel/PanelMargin/VBox/PartyButtons"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Salir del grupo"
 
-[node name="OptionsButton" type="Button" parent="Margin/VBox/PartyButtons"]
+[node name="OptionsButton" type="Button" parent="Margin/Main/RitualPanel/PanelMargin/VBox/PartyButtons"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Opciones"
 
-[node name="MatchButtons" type="HBoxContainer" parent="Margin/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="ReadyButton" type="Button" parent="Margin/VBox/MatchButtons"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Listo"
-
-[node name="StartButton" type="Button" parent="Margin/VBox/MatchButtons"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Iniciar ritual"
-
-[node name="LeaveMatchButton" type="Button" parent="Margin/VBox/MatchButtons"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Salir de la partida"
-
-[node name="Columns" type="HBoxContainer" parent="Margin/VBox"]
+[node name="Columns" type="HBoxContainer" parent="Margin/Main/RitualPanel/PanelMargin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_constants/separation = 24
+theme_override_constants/separation = 14
 
-[node name="PartyPanel" type="PanelContainer" parent="Margin/VBox/Columns"]
-custom_minimum_size = Vector2(480, 360)
+[node name="PartyPanel" type="PanelContainer" parent="Margin/Main/RitualPanel/PanelMargin/VBox/Columns"]
+custom_minimum_size = Vector2(0, 300)
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="PartyLabel" type="Label" parent="Margin/VBox/Columns/PartyPanel"]
+[node name="PartyMargin" type="MarginContainer" parent="Margin/Main/RitualPanel/PanelMargin/VBox/Columns/PartyPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 18
+
+[node name="PartyLabel" type="Label" parent="Margin/Main/RitualPanel/PanelMargin/VBox/Columns/PartyPanel/PartyMargin"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "TU GRUPO — 1/8"
 autowrap_mode = 2
 
-[node name="PlayersPanel" type="PanelContainer" parent="Margin/VBox/Columns"]
-custom_minimum_size = Vector2(480, 360)
+[node name="PlayersPanel" type="PanelContainer" parent="Margin/Main/RitualPanel/PanelMargin/VBox/Columns"]
+custom_minimum_size = Vector2(0, 300)
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="PlayersLabel" type="Label" parent="Margin/VBox/Columns/PlayersPanel"]
+[node name="PlayersMargin" type="MarginContainer" parent="Margin/Main/RitualPanel/PanelMargin/VBox/Columns/PlayersPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 18
+
+[node name="PlayersLabel" type="Label" parent="Margin/Main/RitualPanel/PanelMargin/VBox/Columns/PlayersPanel/PlayersMargin"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "PARTIDA — 0/8"
 autowrap_mode = 2
+
+[node name="MatchButtons" type="HBoxContainer" parent="Margin/Main/RitualPanel/PanelMargin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="ReadyButton" type="Button" parent="Margin/Main/RitualPanel/PanelMargin/VBox/MatchButtons"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Listo"
+
+[node name="StartButton" type="Button" parent="Margin/Main/RitualPanel/PanelMargin/VBox/MatchButtons"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Iniciar ritual"
+
+[node name="LeaveMatchButton" type="Button" parent="Margin/Main/RitualPanel/PanelMargin/VBox/MatchButtons"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Salir de la partida"
 
 [node name="LeaveMatchConfirmDialog" type="ConfirmationDialog" parent="."]
 unique_name_in_owner = true

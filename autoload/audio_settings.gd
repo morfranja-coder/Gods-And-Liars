@@ -119,10 +119,12 @@ func _set_bus_volume(bus_name: String, value: float) -> void:
 func _apply_push_to_talk_key() -> void:
 	if not InputMap.has_action(VOICE_ACTION):
 		InputMap.add_action(VOICE_ACTION)
-	InputMap.action_erase_events(VOICE_ACTION)
-	var event := InputEventKey.new()
-	event.physical_keycode = push_to_talk_key
-	InputMap.action_add_event(VOICE_ACTION, event)
+	for event in InputMap.action_get_events(VOICE_ACTION):
+		if event is InputEventKey:
+			InputMap.action_erase_event(VOICE_ACTION, event)
+	var key_event := InputEventKey.new()
+	key_event.physical_keycode = push_to_talk_key
+	InputMap.action_add_event(VOICE_ACTION, key_event)
 
 func _save_and_notify() -> void:
 	save_settings()

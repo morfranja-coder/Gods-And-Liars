@@ -98,6 +98,8 @@ func _refresh() -> void:
 		or _submission_pending
 		or _action_committed
 	)
+	if confirm_button.visible and not confirm_button.disabled:
+		confirm_button.grab_focus()
 	if not is_my_turn and NightPhaseRules.is_action_phase(GameManager.phase):
 		target_label.text = "Esperando la acción de otro rol..."
 

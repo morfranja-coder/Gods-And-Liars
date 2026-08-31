@@ -52,38 +52,56 @@ func _physics_process(_delta: float) -> void:
 	_update_center_target()
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _handle_chat_input(event):
+		return
+	if _handle_pause_input(event):
+		return
+	if pause_ui.is_open:
+		return
+	if _handle_social_input(event):
+		return
+	if player_list_ui.is_open or emote_wheel_ui.is_open:
+		return
+	_handle_targeting_input(event)
+
+func _handle_chat_input(event: InputEvent) -> bool:
 	if chat_ui.is_open:
 		if chat_ui.handle_input(event):
 			_update_camera_input_state()
 			get_viewport().set_input_as_handled()
-		return
-	if event.is_action_pressed(InputBindings.ACTION_PAUSE):
-		_close_social_overlays()
-		pause_ui.toggle()
-		_update_camera_input_state()
-		get_viewport().set_input_as_handled()
-		return
-	if pause_ui.is_open:
-		return
+		return true
+	return false
+
+func _handle_pause_input(event: InputEvent) -> bool:
+	if not event.is_action_pressed(InputBindings.ACTION_PAUSE):
+		return false
+	_close_social_overlays()
+	pause_ui.toggle()
+	_update_camera_input_state()
+	get_viewport().set_input_as_handled()
+	return true
+
+func _handle_social_input(event: InputEvent) -> bool:
 	if event.is_action_pressed(InputBindings.ACTION_CHAT):
 		_close_social_overlays()
 		chat_ui.open_for_typing(event is InputEventJoypadButton)
 		_update_camera_input_state()
 		get_viewport().set_input_as_handled()
-		return
+		return true
 	if emote_wheel_ui.handle_input(event):
 		_update_camera_input_state()
 		get_viewport().set_input_as_handled()
-		return
+		return true
 	if event.is_action_pressed(InputBindings.ACTION_PLAYER_LIST):
 		if emote_wheel_ui.is_open:
 			emote_wheel_ui.close()
 		player_list_ui.toggle()
 		_update_camera_input_state()
 		get_viewport().set_input_as_handled()
-		return
-	if player_list_ui.is_open or emote_wheel_ui.is_open:
-		return
+		return true
+	return false
+
+func _handle_targeting_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mouse_event := event as InputEventMouseButton
 		if mouse_event.button_index == MOUSE_BUTTON_LEFT and mouse_event.pressed:

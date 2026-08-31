@@ -73,6 +73,8 @@ func _set_open(value: bool) -> void:
 		return
 	is_open = value
 	panel.visible = value
+	if is_open and not _controller_hold_mode and not _buttons.is_empty():
+		_buttons[0].grab_focus()
 	if not is_open:
 		selected_index = -1
 		_update_button_focus()

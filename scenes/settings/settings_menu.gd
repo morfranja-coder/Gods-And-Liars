@@ -8,6 +8,10 @@ var _waiting_for_ptt_key: bool = false
 @onready var brightness_value: Label = %BrightnessValue
 @onready var quality_option: OptionButton = %QualityOption
 @onready var display_option: OptionButton = %DisplayOption
+@onready var resolution_option: OptionButton = %ResolutionOption
+@onready var render_scale_slider: HSlider = %RenderScaleSlider
+@onready var render_scale_value: Label = %RenderScaleValue
+@onready var shadow_option: OptionButton = %ShadowOption
 @onready var vsync_check: CheckButton = %VsyncCheck
 @onready var fps_option: OptionButton = %FpsOption
 @onready var master_slider: HSlider = %MasterSlider
@@ -27,6 +31,9 @@ func _ready() -> void:
 	brightness_slider.value_changed.connect(_on_brightness_changed)
 	quality_option.item_selected.connect(_on_quality_selected)
 	display_option.item_selected.connect(_on_display_selected)
+	resolution_option.item_selected.connect(_on_resolution_selected)
+	render_scale_slider.value_changed.connect(_on_render_scale_changed)
+	shadow_option.item_selected.connect(_on_shadow_selected)
 	vsync_check.toggled.connect(_on_vsync_toggled)
 	fps_option.item_selected.connect(_on_fps_selected)
 	master_slider.value_changed.connect(_on_master_changed)
@@ -59,6 +66,12 @@ func _populate_options() -> void:
 	display_option.clear()
 	for label in ["Ventana", "Pantalla completa", "Pantalla completa exclusiva"]:
 		display_option.add_item(label)
+	resolution_option.clear()
+	for index in range(VideoSettings.resolution_count()):
+		resolution_option.add_item(VideoSettings.resolution_label(index), index)
+	shadow_option.clear()
+	for label in ["Baja", "Media", "Alta", "Ultra"]:
+		shadow_option.add_item(label)
 	fps_option.clear()
 	for fps in [30, 60, 120, 144, 0]:
 		var label := "Sin límite" if fps == 0 else "%d FPS" % fps
@@ -69,6 +82,11 @@ func _sync_from_settings() -> void:
 	_update_percent(brightness_value, VideoSettings.brightness)
 	quality_option.select(VideoSettings.graphics_quality)
 	display_option.select(VideoSettings.display_mode)
+	resolution_option.select(VideoSettings.resolution_index)
+	resolution_option.disabled = VideoSettings.display_mode != 0
+	render_scale_slider.value = VideoSettings.render_scale
+	_update_percent(render_scale_value, VideoSettings.render_scale)
+	shadow_option.select(VideoSettings.shadow_quality)
 	vsync_check.button_pressed = VideoSettings.vsync_enabled
 	_select_fps(VideoSettings.max_fps)
 	master_slider.value = AudioSettings.master_volume
@@ -100,9 +118,21 @@ func _on_brightness_changed(value: float) -> void:
 
 func _on_quality_selected(index: int) -> void:
 	VideoSettings.set_graphics_quality(index)
+	_sync_from_settings()
 
 func _on_display_selected(index: int) -> void:
 	VideoSettings.set_display_mode(index)
+	resolution_option.disabled = VideoSettings.display_mode != 0
+
+func _on_resolution_selected(index: int) -> void:
+	VideoSettings.set_resolution_index(index)
+
+func _on_render_scale_changed(value: float) -> void:
+	VideoSettings.set_render_scale(value)
+	_update_percent(render_scale_value, value)
+
+func _on_shadow_selected(index: int) -> void:
+	VideoSettings.set_shadow_quality(index)
 
 func _on_vsync_toggled(enabled: bool) -> void:
 	VideoSettings.set_vsync_enabled(enabled)

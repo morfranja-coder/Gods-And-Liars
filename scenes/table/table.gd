@@ -1,12 +1,15 @@
 extends Node3D
 
 signal target_selected(peer_id: int)
+signal target_focused(peer_id: int)
+signal target_cleared
 
 const PLAYER_AVATAR_SCENE := preload("res://scenes/player/player_avatar.tscn")
 const SELECTION_MASK := 2
 const RAY_LENGTH := 100.0
 
 var selected_peer_id: int = 0
+var focused_peer_id: int = 0
 var _avatars: Dictionary = {}
 
 @onready var table_camera: TableCameraLook = $Camera3D
@@ -32,6 +35,12 @@ func _ready() -> void:
 	if multiplayer.is_server() and NetworkManager.is_host:
 		MatchAuthority.call_deferred("begin_role_reveal")
 
+func _physics_process(_delta: float) -> void:
+	if pause_ui.is_open:
+		_clear_focused_target()
+		return
+	_update_center_target()
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed(InputBindings.ACTION_PAUSE):
 		pause_ui.toggle()
@@ -40,12 +49,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if pause_ui.is_open:
 		return
-	if event is not InputEventMouseButton:
+	if event is InputEventMouseButton:
+		var mouse_event := event as InputEventMouseButton
+		if mouse_event.button_index == MOUSE_BUTTON_LEFT and mouse_event.pressed:
+			_select_from_screen_position(mouse_event.position)
+			get_viewport().set_input_as_handled()
 		return
-	var mouse_event := event as InputEventMouseButton
-	if mouse_event.button_index != MOUSE_BUTTON_LEFT or not mouse_event.pressed:
-		return
-	_select_from_screen_position(mouse_event.position)
+	if event is InputEventJoypadButton and event.is_action_pressed(InputBindings.ACTION_SELECT):
+		_select_focused_target()
+		get_viewport().set_input_as_handled()
 
 func _setup_environment() -> void:
 	if world_environment.environment == null:
@@ -136,6 +148,8 @@ func _refresh_roster(_unused: int = 0) -> void:
 			_avatars.erase(peer_id)
 			if selected_peer_id == peer_id:
 				selected_peer_id = 0
+			if focused_peer_id == peer_id:
+				_clear_focused_target()
 
 func _spawn_or_update_avatar(peer_id: int, seat_id: int) -> void:
 	var marker := get_seat_marker(seat_id)
@@ -161,22 +175,55 @@ func _spawn_or_update_avatar(peer_id: int, seat_id: int) -> void:
 			display_name = "Player %s" % peer_id
 		label.text = display_name if MatchAuthority.is_peer_publicly_alive(peer_id) else "† %s" % display_name
 
+func _update_center_target() -> void:
+	var center := get_viewport().get_visible_rect().size * 0.5
+	var peer_id := _peer_id_from_screen_position(center)
+	if peer_id == focused_peer_id:
+		return
+	focused_peer_id = peer_id
+	if focused_peer_id > 0:
+		target_focused.emit(focused_peer_id)
+	else:
+		target_cleared.emit()
+
+func _clear_focused_target() -> void:
+	if focused_peer_id == 0:
+		return
+	focused_peer_id = 0
+	target_cleared.emit()
+
+func _select_focused_target() -> void:
+	if focused_peer_id <= 0:
+		return
+	_select_peer(focused_peer_id)
+
 func _select_from_screen_position(screen_position: Vector2) -> void:
+	var peer_id := _peer_id_from_screen_position(screen_position)
+	if peer_id <= 0:
+		return
+	_select_peer(peer_id)
+
+func _select_peer(peer_id: int) -> void:
+	if not NetworkManager.peers.has(peer_id):
+		return
+	selected_peer_id = peer_id
+	target_selected.emit(peer_id)
+
+func _peer_id_from_screen_position(screen_position: Vector2) -> int:
 	var camera := get_viewport().get_camera_3d()
 	if camera == null:
-		return
+		return 0
 	var origin := camera.project_ray_origin(screen_position)
 	var end := origin + camera.project_ray_normal(screen_position) * RAY_LENGTH
 	var query := _make_selection_query(origin, end)
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	if hit.is_empty():
-		return
+		return 0
 	var collider := hit.get("collider") as Node
 	var peer_id := _peer_id_from_collider(collider)
 	if peer_id <= 0 or not NetworkManager.peers.has(peer_id):
-		return
-	selected_peer_id = peer_id
-	target_selected.emit(peer_id)
+		return 0
+	return peer_id
 
 func _make_selection_query(origin: Vector3, end: Vector3) -> PhysicsRayQueryParameters3D:
 	var query := PhysicsRayQueryParameters3D.create(origin, end, SELECTION_MASK)

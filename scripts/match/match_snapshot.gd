@@ -104,7 +104,7 @@ func restore_session() -> MatchSession:
 			return null
 		var player := session.get_player(peer_id)
 		player.seat_id = int(data.get("seat_id", -1))
-		player.role = int(data.get("role", int(PlayerState.Role.UNASSIGNED)))
+		player.role = int(data.get("role", int(PlayerState.Role.UNASSIGNED))) as PlayerState.Role
 		player.alive = bool(data.get("alive", true))
 		player.ready = bool(data.get("ready", false))
 		player.selected_target_peer_id = int(data.get("selected_target_peer_id", 0))

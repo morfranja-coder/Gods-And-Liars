@@ -48,8 +48,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _waiting_for_ptt_key:
 		return
 	if event.is_action_pressed(InputBindings.ACTION_UI_BACK):
+		_mark_input_handled()
 		_on_back_pressed()
-		get_viewport().set_input_as_handled()
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not _waiting_for_ptt_key:
@@ -60,13 +60,18 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if key_event.keycode == KEY_ESCAPE:
 		_waiting_for_ptt_key = false
 		_update_ptt_button()
-		get_viewport().set_input_as_handled()
+		_mark_input_handled()
 		return
 	AudioSettings.set_push_to_talk_key(key_event.physical_keycode)
 	_waiting_for_ptt_key = false
 	_update_ptt_button()
 	ptt_button.grab_focus()
-	get_viewport().set_input_as_handled()
+	_mark_input_handled()
+
+func _mark_input_handled() -> void:
+	var viewport := get_viewport()
+	if viewport != null:
+		viewport.set_input_as_handled()
 
 func _populate_options() -> void:
 	quality_option.clear()

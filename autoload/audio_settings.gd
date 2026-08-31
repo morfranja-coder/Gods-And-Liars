@@ -123,7 +123,7 @@ func _apply_push_to_talk_key() -> void:
 		if event is InputEventKey:
 			InputMap.action_erase_event(VOICE_ACTION, event)
 	var key_event := InputEventKey.new()
-	key_event.physical_keycode = push_to_talk_key
+	key_event.physical_keycode = push_to_talk_key as Key
 	InputMap.action_add_event(VOICE_ACTION, key_event)
 
 func _save_and_notify() -> void:

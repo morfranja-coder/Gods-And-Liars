@@ -29,9 +29,13 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+offset_left = 20.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = -20.0
 
 [node name="Panel" type="PanelContainer" parent="Center"]
-custom_minimum_size = Vector2(780, 0)
+custom_minimum_size = Vector2(0, 0)
 layout_mode = 2
 
 [node name="Margin" type="MarginContainer" parent="Center/Panel"]
@@ -41,38 +45,46 @@ theme_override_constants/margin_top = 28
 theme_override_constants/margin_right = 48
 theme_override_constants/margin_bottom = 28
 
-[node name="VBox" type="VBoxContainer" parent="Center/Panel/Margin"]
+[node name="Scroll" type="ScrollContainer" parent="Center/Panel/Margin"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 1
+vertical_scroll_mode = 1
+
+[node name="VBox" type="VBoxContainer" parent="Center/Panel/Margin/Scroll"]
+custom_minimum_size = Vector2(680, 0)
 layout_mode = 2
 theme_override_constants/separation = 9
 
-[node name="Title" type="Label" parent="Center/Panel/Margin/VBox"]
+[node name="Title" type="Label" parent="Center/Panel/Margin/Scroll/VBox"]
 layout_mode = 2
 text = "OPCIONES"
 horizontal_alignment = 1
 theme_override_font_sizes/font_size = 32
 
-[node name="Subtitle" type="Label" parent="Center/Panel/Margin/VBox"]
+[node name="Subtitle" type="Label" parent="Center/Panel/Margin/Scroll/VBox"]
 layout_mode = 2
 text = "CONFIGURACIÓN DEL RITUAL"
 horizontal_alignment = 1
 modulate = Color(0.72, 0.68, 0.58, 1)
 
-[node name="Separator" type="HSeparator" parent="Center/Panel/Margin/VBox"]
+[node name="Separator" type="HSeparator" parent="Center/Panel/Margin/Scroll/VBox"]
 layout_mode = 2
 
-[node name="VideoTitle" type="Label" parent="Center/Panel/Margin/VBox"]
+[node name="VideoTitle" type="Label" parent="Center/Panel/Margin/Scroll/VBox"]
 layout_mode = 2
 text = "VIDEO"
 modulate = Color(0.9, 0.84, 0.66, 1)
 
-[node name="BrightnessRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+[node name="BrightnessRow" type="HBoxContainer" parent="Center/Panel/Margin/Scroll/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 16
-[node name="Label" type="Label" parent="Center/Panel/Margin/VBox/BrightnessRow"]
+[node name="Label" type="Label" parent="Center/Panel/Margin/Scroll/VBox/BrightnessRow"]
 custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
 text = "Brillo"
-[node name="BrightnessSlider" type="HSlider" parent="Center/Panel/Margin/VBox/BrightnessRow"]
+[node name="BrightnessSlider" type="HSlider" parent="Center/Panel/Margin/Scroll/VBox/BrightnessRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -80,57 +92,57 @@ min_value = 0.7
 max_value = 1.3
 step = 0.01
 value = 1.0
-[node name="BrightnessValue" type="Label" parent="Center/Panel/Margin/VBox/BrightnessRow"]
+[node name="BrightnessValue" type="Label" parent="Center/Panel/Margin/Scroll/VBox/BrightnessRow"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(64, 0)
 layout_mode = 2
 text = "100%"
 horizontal_alignment = 2
 
-[node name="QualityRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+[node name="QualityRow" type="HBoxContainer" parent="Center/Panel/Margin/Scroll/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 16
-[node name="Label" type="Label" parent="Center/Panel/Margin/VBox/QualityRow"]
+[node name="Label" type="Label" parent="Center/Panel/Margin/Scroll/VBox/QualityRow"]
 custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
 text = "Calidad gráfica"
-[node name="QualityOption" type="OptionButton" parent="Center/Panel/Margin/VBox/QualityRow"]
+[node name="QualityOption" type="OptionButton" parent="Center/Panel/Margin/Scroll/VBox/QualityRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="DisplayRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+[node name="DisplayRow" type="HBoxContainer" parent="Center/Panel/Margin/Scroll/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 16
-[node name="Label" type="Label" parent="Center/Panel/Margin/VBox/DisplayRow"]
+[node name="Label" type="Label" parent="Center/Panel/Margin/Scroll/VBox/DisplayRow"]
 custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
 text = "Modo de pantalla"
-[node name="DisplayOption" type="OptionButton" parent="Center/Panel/Margin/VBox/DisplayRow"]
+[node name="DisplayOption" type="OptionButton" parent="Center/Panel/Margin/Scroll/VBox/DisplayRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="ResolutionRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+[node name="ResolutionRow" type="HBoxContainer" parent="Center/Panel/Margin/Scroll/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 16
-[node name="Label" type="Label" parent="Center/Panel/Margin/VBox/ResolutionRow"]
+[node name="Label" type="Label" parent="Center/Panel/Margin/Scroll/VBox/ResolutionRow"]
 custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
 text = "Resolución"
-[node name="ResolutionOption" type="OptionButton" parent="Center/Panel/Margin/VBox/ResolutionRow"]
+[node name="ResolutionOption" type="OptionButton" parent="Center/Panel/Margin/Scroll/VBox/ResolutionRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="RenderScaleRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+[node name="RenderScaleRow" type="HBoxContainer" parent="Center/Panel/Margin/Scroll/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 16
-[node name="Label" type="Label" parent="Center/Panel/Margin/VBox/RenderScaleRow"]
+[node name="Label" type="Label" parent="Center/Panel/Margin/Scroll/VBox/RenderScaleRow"]
 custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
 text = "Escala de render"
-[node name="RenderScaleSlider" type="HSlider" parent="Center/Panel/Margin/VBox/RenderScaleRow"]
+[node name="RenderScaleSlider" type="HSlider" parent="Center/Panel/Margin/Scroll/VBox/RenderScaleRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -138,64 +150,64 @@ min_value = 0.5
 max_value = 1.0
 step = 0.05
 value = 1.0
-[node name="RenderScaleValue" type="Label" parent="Center/Panel/Margin/VBox/RenderScaleRow"]
+[node name="RenderScaleValue" type="Label" parent="Center/Panel/Margin/Scroll/VBox/RenderScaleRow"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(64, 0)
 layout_mode = 2
 text = "100%"
 horizontal_alignment = 2
 
-[node name="ShadowRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+[node name="ShadowRow" type="HBoxContainer" parent="Center/Panel/Margin/Scroll/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 16
-[node name="Label" type="Label" parent="Center/Panel/Margin/VBox/ShadowRow"]
+[node name="Label" type="Label" parent="Center/Panel/Margin/Scroll/VBox/ShadowRow"]
 custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
 text = "Sombras"
-[node name="ShadowOption" type="OptionButton" parent="Center/Panel/Margin/VBox/ShadowRow"]
+[node name="ShadowOption" type="OptionButton" parent="Center/Panel/Margin/Scroll/VBox/ShadowRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="VsyncRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+[node name="VsyncRow" type="HBoxContainer" parent="Center/Panel/Margin/Scroll/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 16
-[node name="Label" type="Label" parent="Center/Panel/Margin/VBox/VsyncRow"]
+[node name="Label" type="Label" parent="Center/Panel/Margin/Scroll/VBox/VsyncRow"]
 custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
 text = "V-Sync"
-[node name="VsyncCheck" type="CheckButton" parent="Center/Panel/Margin/VBox/VsyncRow"]
+[node name="VsyncCheck" type="CheckButton" parent="Center/Panel/Margin/Scroll/VBox/VsyncRow"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Activado"
 
-[node name="FpsRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+[node name="FpsRow" type="HBoxContainer" parent="Center/Panel/Margin/Scroll/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 16
-[node name="Label" type="Label" parent="Center/Panel/Margin/VBox/FpsRow"]
+[node name="Label" type="Label" parent="Center/Panel/Margin/Scroll/VBox/FpsRow"]
 custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
 text = "Límite de FPS"
-[node name="FpsOption" type="OptionButton" parent="Center/Panel/Margin/VBox/FpsRow"]
+[node name="FpsOption" type="OptionButton" parent="Center/Panel/Margin/Scroll/VBox/FpsRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="SeparatorAudio" type="HSeparator" parent="Center/Panel/Margin/VBox"]
+[node name="SeparatorAudio" type="HSeparator" parent="Center/Panel/Margin/Scroll/VBox"]
 layout_mode = 2
-[node name="AudioTitle" type="Label" parent="Center/Panel/Margin/VBox"]
+[node name="AudioTitle" type="Label" parent="Center/Panel/Margin/Scroll/VBox"]
 layout_mode = 2
 text = "AUDIO Y VOZ"
 modulate = Color(0.9, 0.84, 0.66, 1)
 
-[node name="MasterRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+[node name="MasterRow" type="HBoxContainer" parent="Center/Panel/Margin/Scroll/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 16
-[node name="Label" type="Label" parent="Center/Panel/Margin/VBox/MasterRow"]
+[node name="Label" type="Label" parent="Center/Panel/Margin/Scroll/VBox/MasterRow"]
 custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
 text = "Volumen general"
-[node name="MasterSlider" type="HSlider" parent="Center/Panel/Margin/VBox/MasterRow"]
+[node name="MasterSlider" type="HSlider" parent="Center/Panel/Margin/Scroll/VBox/MasterRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -203,21 +215,21 @@ min_value = 0.0
 max_value = 1.0
 step = 0.01
 value = 1.0
-[node name="MasterValue" type="Label" parent="Center/Panel/Margin/VBox/MasterRow"]
+[node name="MasterValue" type="Label" parent="Center/Panel/Margin/Scroll/VBox/MasterRow"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(64, 0)
 layout_mode = 2
 text = "100%"
 horizontal_alignment = 2
 
-[node name="MusicRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+[node name="MusicRow" type="HBoxContainer" parent="Center/Panel/Margin/Scroll/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 16
-[node name="Label" type="Label" parent="Center/Panel/Margin/VBox/MusicRow"]
+[node name="Label" type="Label" parent="Center/Panel/Margin/Scroll/VBox/MusicRow"]
 custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
 text = "Música"
-[node name="MusicSlider" type="HSlider" parent="Center/Panel/Margin/VBox/MusicRow"]
+[node name="MusicSlider" type="HSlider" parent="Center/Panel/Margin/Scroll/VBox/MusicRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -225,21 +237,21 @@ min_value = 0.0
 max_value = 1.0
 step = 0.01
 value = 0.8
-[node name="MusicValue" type="Label" parent="Center/Panel/Margin/VBox/MusicRow"]
+[node name="MusicValue" type="Label" parent="Center/Panel/Margin/Scroll/VBox/MusicRow"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(64, 0)
 layout_mode = 2
 text = "80%"
 horizontal_alignment = 2
 
-[node name="SfxRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+[node name="SfxRow" type="HBoxContainer" parent="Center/Panel/Margin/Scroll/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 16
-[node name="Label" type="Label" parent="Center/Panel/Margin/VBox/SfxRow"]
+[node name="Label" type="Label" parent="Center/Panel/Margin/Scroll/VBox/SfxRow"]
 custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
 text = "Efectos"
-[node name="SfxSlider" type="HSlider" parent="Center/Panel/Margin/VBox/SfxRow"]
+[node name="SfxSlider" type="HSlider" parent="Center/Panel/Margin/Scroll/VBox/SfxRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -247,21 +259,21 @@ min_value = 0.0
 max_value = 1.0
 step = 0.01
 value = 1.0
-[node name="SfxValue" type="Label" parent="Center/Panel/Margin/VBox/SfxRow"]
+[node name="SfxValue" type="Label" parent="Center/Panel/Margin/Scroll/VBox/SfxRow"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(64, 0)
 layout_mode = 2
 text = "100%"
 horizontal_alignment = 2
 
-[node name="VoiceRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+[node name="VoiceRow" type="HBoxContainer" parent="Center/Panel/Margin/Scroll/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 16
-[node name="Label" type="Label" parent="Center/Panel/Margin/VBox/VoiceRow"]
+[node name="Label" type="Label" parent="Center/Panel/Margin/Scroll/VBox/VoiceRow"]
 custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
 text = "Voz de jugadores"
-[node name="VoiceSlider" type="HSlider" parent="Center/Panel/Margin/VBox/VoiceRow"]
+[node name="VoiceSlider" type="HSlider" parent="Center/Panel/Margin/Scroll/VBox/VoiceRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -269,29 +281,29 @@ min_value = 0.0
 max_value = 1.0
 step = 0.01
 value = 1.0
-[node name="VoiceValue" type="Label" parent="Center/Panel/Margin/VBox/VoiceRow"]
+[node name="VoiceValue" type="Label" parent="Center/Panel/Margin/Scroll/VBox/VoiceRow"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(64, 0)
 layout_mode = 2
 text = "100%"
 horizontal_alignment = 2
 
-[node name="PttRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+[node name="PttRow" type="HBoxContainer" parent="Center/Panel/Margin/Scroll/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 16
-[node name="Label" type="Label" parent="Center/Panel/Margin/VBox/PttRow"]
+[node name="Label" type="Label" parent="Center/Panel/Margin/Scroll/VBox/PttRow"]
 custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
 text = "Pulsar para hablar"
-[node name="PttButton" type="Button" parent="Center/Panel/Margin/VBox/PttRow"]
+[node name="PttButton" type="Button" parent="Center/Panel/Margin/Scroll/VBox/PttRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "V"
 
-[node name="Separator2" type="HSeparator" parent="Center/Panel/Margin/VBox"]
+[node name="Separator2" type="HSeparator" parent="Center/Panel/Margin/Scroll/VBox"]
 layout_mode = 2
-[node name="BackButton" type="Button" parent="Center/Panel/Margin/VBox"]
+[node name="BackButton" type="Button" parent="Center/Panel/Margin/Scroll/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2

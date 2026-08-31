@@ -490,7 +490,7 @@ func _resume_after_disconnect() -> void:
 func _receive_private_role(role_value: int) -> void:
 	if role_value <= PlayerState.Role.UNASSIGNED or role_value > PlayerState.Role.INQUISITOR:
 		return
-	local_role = role_value
+	local_role = role_value as PlayerState.Role
 	if local_role != PlayerState.Role.HERETIC:
 		local_heretic_teammate_peer_id = 0
 		local_heretic_teammate_name = ""

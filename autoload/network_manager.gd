@@ -191,10 +191,10 @@ func unregister_peer(peer_id: int) -> void:
 	peer_left.emit(peer_id)
 	_publish_match_capacity()
 
-func set_peer_ready(peer_id: int, ready: bool) -> void:
+func set_peer_ready(peer_id: int, is_ready: bool) -> void:
 	if lobby_started or not peers.has(peer_id):
 		return
-	peers[peer_id]["ready"] = ready
+	peers[peer_id]["ready"] = is_ready
 	peer_updated.emit(peer_id)
 
 func local_peer_ready() -> bool:
@@ -202,13 +202,13 @@ func local_peer_ready() -> bool:
 		return false
 	return bool(peers.get(multiplayer.get_unique_id(), {}).get("ready", false))
 
-func request_local_ready(ready: bool) -> void:
+func request_local_ready(is_ready: bool) -> void:
 	if lobby_started or lobby_id <= 0 or multiplayer.multiplayer_peer == null:
 		return
 	if multiplayer.is_server():
-		_server_set_ready(multiplayer.get_unique_id(), ready)
+		_server_set_ready(multiplayer.get_unique_id(), is_ready)
 	else:
-		_request_ready.rpc_id(1, ready)
+		_request_ready.rpc_id(1, is_ready)
 
 func can_host_start() -> bool:
 	if lobby_started or lobby_id <= 0 or not is_host:
@@ -559,14 +559,14 @@ func _sync_peer(
 	peer_id: int,
 	client_steam_id: int,
 	display_name: String,
-	ready: bool = false,
+	is_ready: bool = false,
 	seat_id: int = -1,
 ) -> void:
 	register_peer(peer_id, client_steam_id, display_name, seat_id)
-	set_peer_ready(peer_id, ready)
+	set_peer_ready(peer_id, is_ready)
 
 @rpc("any_peer", "reliable")
-func _request_ready(ready: bool) -> void:
+func _request_ready(is_ready: bool) -> void:
 	if lobby_started or not multiplayer.is_server():
 		return
 	var sender_id := multiplayer.get_remote_sender_id()
@@ -577,16 +577,16 @@ func _request_ready(ready: bool) -> void:
 	if not RateLimitPolicy.can_accept(last_ms, now_ms):
 		return
 	_last_ready_request_ms[sender_id] = now_ms
-	_server_set_ready(sender_id, ready)
+	_server_set_ready(sender_id, is_ready)
 
-func _server_set_ready(peer_id: int, ready: bool) -> void:
+func _server_set_ready(peer_id: int, is_ready: bool) -> void:
 	if lobby_started or not multiplayer.is_server() or not peers.has(peer_id):
 		return
-	_sync_ready.rpc(peer_id, ready)
+	_sync_ready.rpc(peer_id, is_ready)
 
 @rpc("authority", "call_local", "reliable")
-func _sync_ready(peer_id: int, ready: bool) -> void:
-	set_peer_ready(peer_id, ready)
+func _sync_ready(peer_id: int, is_ready: bool) -> void:
+	set_peer_ready(peer_id, is_ready)
 
 @rpc("authority", "call_local", "reliable")
 func _start_lobby() -> void:

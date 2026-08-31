@@ -67,4 +67,8 @@ func _on_fps_selected(index: int) -> void:
 	VideoSettings.set_max_fps(fps_option.get_item_id(index))
 
 func _on_back_pressed() -> void:
-	get_tree().change_scene_to_file(LOBBY_SCENE)
+	var return_scene := LOBBY_SCENE
+	if get_tree().root.has_meta("settings_return_scene"):
+		return_scene = str(get_tree().root.get_meta("settings_return_scene"))
+		get_tree().root.remove_meta("settings_return_scene")
+	get_tree().change_scene_to_file(return_scene)

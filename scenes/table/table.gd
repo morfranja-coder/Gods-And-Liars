@@ -21,10 +21,11 @@ var _avatars: Dictionary = {}
 @onready var chat_ui: ChatUI = $ChatUI
 @onready var pause_ui: CanvasLayer = $PauseUI
 @onready var leave_confirm_dialog: ConfirmationDialog = %LeaveConfirmDialog
+@onready var living_god_visual: Node3D = $GodState/LivingGod
+@onready var dead_god_visual: Node3D = $GodState/DeadGod
 
 func _ready() -> void:
 	_setup_environment()
-	_build_placeholder_table()
 	_build_seat_markers()
 	NetworkManager.peer_joined.connect(_on_roster_changed)
 	NetworkManager.peer_left.connect(_on_roster_changed)
@@ -42,6 +43,7 @@ func _ready() -> void:
 	pause_ui.leave_pressed.connect(_on_leave_match_pressed)
 	leave_confirm_dialog.confirmed.connect(_on_leave_confirmed)
 	_refresh_roster()
+	_refresh_god_state()
 	if multiplayer.is_server() and NetworkManager.is_host:
 		MatchAuthority.call_deferred("begin_role_reveal")
 
@@ -177,31 +179,6 @@ func _on_leave_started() -> void:
 func _on_leave_rejected(reason: String) -> void:
 	pause_ui.show_leave_error(reason)
 
-func _build_placeholder_table() -> void:
-	var table := MeshInstance3D.new()
-	table.name = "RitualTable"
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = 3.0
-	mesh.bottom_radius = 3.0
-	mesh.height = 0.35
-	mesh.radial_segments = 32
-	table.mesh = mesh
-	table.position.y = 0.75
-	add_child(table)
-
-	var floor := MeshInstance3D.new()
-	floor.name = "Floor"
-	var floor_mesh := PlaneMesh.new()
-	floor_mesh.size = Vector2(16.0, 13.0)
-	floor.mesh = floor_mesh
-	add_child(floor)
-
-	var light := DirectionalLight3D.new()
-	light.name = "KeyLight"
-	light.rotation_degrees = Vector3(-55.0, -25.0, 0.0)
-	light.shadow_enabled = true
-	add_child(light)
-
 func _build_seat_markers() -> void:
 	var seats := Node3D.new()
 	seats.name = "Seats"
@@ -331,6 +308,17 @@ func _on_roster_changed(peer_id: int) -> void:
 
 func _on_night_resolution_received(_killed_peer_ids: Array[int]) -> void:
 	_refresh_roster()
+	_refresh_god_state()
 
 func _on_vote_resolution_received(_sacrificed_peer_id: int, _tied: bool) -> void:
 	_refresh_roster()
+	_refresh_god_state()
+
+func _refresh_god_state() -> void:
+	var local_peer_id := multiplayer.get_unique_id()
+	var local_is_dead := (
+		NetworkManager.peers.has(local_peer_id)
+		and not MatchAuthority.is_peer_publicly_alive(local_peer_id)
+	)
+	living_god_visual.visible = not local_is_dead
+	dead_god_visual.visible = local_is_dead

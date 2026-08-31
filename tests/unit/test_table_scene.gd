@@ -31,6 +31,25 @@ func test_roster_spawns_avatar_at_authoritative_seat() -> void:
 	assert_object(avatar).is_not_null()
 	assert_object(seat).is_not_null()
 	assert_bool(avatar.global_position.is_equal_approx(seat.global_position)).is_true()
+	assert_object(avatar.get_node_or_null("Body/PersonajeAlfa")).is_not_null()
+	table.queue_free()
+
+func test_table_mounts_alpha_scenario_and_swaps_god_after_local_death() -> void:
+	NetworkManager.register_peer(1, 1001, "Host", 0)
+	MatchAuthority.public_alive_by_peer[1] = true
+	var table := TABLE_SCENE.instantiate()
+	add_child(table)
+	await get_tree().process_frame
+	var living_god := table.get_node("GodState/LivingGod") as Node3D
+	var dead_god := table.get_node("GodState/DeadGod") as Node3D
+	assert_object(table.get_node_or_null("AlphaScenario")).is_not_null()
+	assert_bool(living_god.visible).is_true()
+	assert_bool(dead_god.visible).is_false()
+
+	MatchAuthority.public_alive_by_peer[1] = false
+	table.call("_refresh_god_state")
+	assert_bool(living_god.visible).is_false()
+	assert_bool(dead_god.visible).is_true()
 	table.queue_free()
 
 func test_peer_update_does_not_duplicate_avatar() -> void:

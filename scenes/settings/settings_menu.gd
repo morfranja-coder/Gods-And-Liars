@@ -42,6 +42,14 @@ func _ready() -> void:
 	voice_slider.value_changed.connect(_on_voice_changed)
 	ptt_button.pressed.connect(_on_ptt_pressed)
 	back_button.pressed.connect(_on_back_pressed)
+	InputBindings.focus_first_available(self)
+
+func _unhandled_input(event: InputEvent) -> void:
+	if _waiting_for_ptt_key:
+		return
+	if event.is_action_pressed(InputBindings.ACTION_UI_BACK):
+		_on_back_pressed()
+		get_viewport().set_input_as_handled()
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not _waiting_for_ptt_key:
@@ -57,6 +65,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	AudioSettings.set_push_to_talk_key(key_event.physical_keycode)
 	_waiting_for_ptt_key = false
 	_update_ptt_button()
+	ptt_button.grab_focus()
 	get_viewport().set_input_as_handled()
 
 func _populate_options() -> void:

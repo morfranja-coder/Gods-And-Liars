@@ -37,6 +37,8 @@ offset_bottom = -20.0
 [node name="Panel" type="PanelContainer" parent="Center"]
 custom_minimum_size = Vector2(0, 0)
 layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
 
 [node name="Margin" type="MarginContainer" parent="Center/Panel"]
 layout_mode = 2

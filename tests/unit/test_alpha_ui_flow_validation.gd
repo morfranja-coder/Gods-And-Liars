@@ -51,6 +51,10 @@ func test_primary_scenes_expose_a_focusable_entry_point() -> void:
 	add_child(settings)
 	await get_tree().process_frame
 	assert_object(get_viewport().gui_get_focus_owner()).is_not_null()
+	var settings_panel := settings.get_node_or_null("Center/Panel") as PanelContainer
+	assert_object(settings_panel).is_not_null()
+	assert_int(settings_panel.size_flags_horizontal).is_equal(Control.SIZE_EXPAND_FILL)
+	assert_int(settings_panel.size_flags_vertical).is_equal(Control.SIZE_EXPAND_FILL)
 	assert_object(settings.get_node_or_null("Center/Panel/Margin/Scroll") as ScrollContainer).is_not_null()
 	assert_object(settings.get_node_or_null("%BackButton") as Button).is_not_null()
 	settings.queue_free()

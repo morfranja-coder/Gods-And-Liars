@@ -21,6 +21,8 @@ func _on_match_end_received(winner: StringName) -> void:
 	title_label.text = "VICTORIA DE LOS HEREJES" if winner == &"heretics" else "VICTORIA DE LOS FIELES"
 	state_label.text = "Sos un espectro." if MatchAuthority.is_local_ghost() else "Sobreviviste al ritual."
 	rematch_button.visible = multiplayer.is_server() and NetworkManager.is_host
+	if rematch_button.visible and not rematch_button.disabled:
+		rematch_button.grab_focus()
 
 func _on_rematch_pressed() -> void:
 	if _winner.is_empty():

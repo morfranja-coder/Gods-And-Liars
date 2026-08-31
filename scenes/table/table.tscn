@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scenes/table/table.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/table/role_reveal.tscn" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/table/night_action_ui.tscn" id="3"]
 [ext_resource type="PackedScene" path="res://scenes/table/day_vote_ui.tscn" id="4"]
 [ext_resource type="PackedScene" path="res://scenes/table/match_end_ui.tscn" id="5"]
+[ext_resource type="Theme" path="res://ui/gods_liars_theme.tres" id="6"]
 
 [node name="Table" type="Node3D"]
 script = ExtResource("1")
@@ -35,6 +36,7 @@ offset_top = 24.0
 offset_right = -24.0
 offset_bottom = 104.0
 grow_horizontal = 0
+theme = ExtResource("6")
 
 [node name="VBox" type="VBoxContainer" parent="LeaveUI/Margin"]
 layout_mode = 2
@@ -51,6 +53,7 @@ layout_mode = 2
 text = ""
 horizontal_alignment = 2
 autowrap_mode = 2
+modulate = Color(0.72, 0.68, 0.58, 1)
 
 [node name="LeaveConfirmDialog" type="ConfirmationDialog" parent="LeaveUI"]
 unique_name_in_owner = true

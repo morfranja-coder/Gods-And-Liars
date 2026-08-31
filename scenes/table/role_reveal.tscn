@@ -1,34 +1,43 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scenes/table/role_reveal.gd" id="1"]
+[ext_resource type="Theme" path="res://ui/gods_liars_theme.tres" id="2"]
 
 [node name="RoleReveal" type="CanvasLayer"]
 script = ExtResource("1")
 
 [node name="Panel" type="PanelContainer" parent="."]
-offset_left = 390.0
-offset_top = 210.0
-offset_right = 890.0
-offset_bottom = 510.0
+offset_left = 350.0
+offset_top = 180.0
+offset_right = 930.0
+offset_bottom = 540.0
+theme = ExtResource("2")
 
 [node name="VBox" type="VBoxContainer" parent="Panel"]
 layout_mode = 2
+theme_override_constants/separation = 18
 
 [node name="Title" type="Label" parent="Panel/VBox"]
 layout_mode = 2
-text = "Tu rol"
+text = "TU ROL"
 horizontal_alignment = 1
+theme_override_font_sizes/font_size = 16
+modulate = Color(0.62, 0.55, 0.4, 1)
 
 [node name="RoleLabel" type="Label" parent="Panel/VBox"]
 layout_mode = 2
 text = "Sin revelar"
 horizontal_alignment = 1
+theme_override_font_sizes/font_size = 32
+modulate = Color(0.92, 0.86, 0.68, 1)
 
 [node name="DescriptionLabel" type="Label" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 110)
 layout_mode = 2
 text = "Esperando la voluntad de los dioses."
 autowrap_mode = 2
 horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="CloseButton" type="Button" parent="Panel/VBox"]
 layout_mode = 2

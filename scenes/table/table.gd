@@ -30,7 +30,7 @@ func _ready() -> void:
 	MatchLeaveManager.leave_started.connect(_on_leave_started)
 	MatchLeaveManager.leave_rejected.connect(_on_leave_rejected)
 	VideoSettings.settings_changed.connect(_apply_video_environment)
-	player_list_ui.visibility_changed.connect(_on_player_list_visibility_changed)
+	player_list_ui.open_state_changed.connect(_on_player_list_open_state_changed)
 	pause_ui.leave_pressed.connect(_on_leave_match_pressed)
 	leave_confirm_dialog.confirmed.connect(_on_leave_confirmed)
 	_refresh_roster()
@@ -78,7 +78,7 @@ func _setup_environment() -> void:
 func _apply_video_environment() -> void:
 	VideoSettings.apply_to_environment(world_environment.environment)
 
-func _on_player_list_visibility_changed(_is_open: bool) -> void:
+func _on_player_list_open_state_changed(_is_open: bool) -> void:
 	_update_camera_input_state()
 
 func _update_camera_input_state() -> void:

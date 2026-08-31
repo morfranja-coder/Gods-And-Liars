@@ -4,6 +4,7 @@ signal target_selected(peer_id: int)
 signal target_focused(peer_id: int)
 signal target_cleared
 signal local_emote_requested(index: int)
+signal local_chat_message_requested(text: String)
 
 const PLAYER_AVATAR_SCENE := preload("res://scenes/player/player_avatar.tscn")
 const SELECTION_MASK := 2
@@ -17,6 +18,7 @@ var _avatars: Dictionary = {}
 @onready var world_environment: WorldEnvironment = $WorldEnvironment
 @onready var player_list_ui: PlayerListUI = $PlayerListUI
 @onready var emote_wheel_ui: EmoteWheelUI = $EmoteWheelUI
+@onready var chat_ui: ChatUI = $ChatUI
 @onready var pause_ui: CanvasLayer = $PauseUI
 @onready var leave_confirm_dialog: ConfirmationDialog = %LeaveConfirmDialog
 
@@ -35,6 +37,8 @@ func _ready() -> void:
 	player_list_ui.open_state_changed.connect(_on_player_list_open_state_changed)
 	emote_wheel_ui.open_state_changed.connect(_on_emote_wheel_open_state_changed)
 	emote_wheel_ui.emote_requested.connect(_on_emote_requested)
+	chat_ui.open_state_changed.connect(_on_chat_open_state_changed)
+	chat_ui.message_submitted.connect(_on_chat_message_submitted)
 	pause_ui.leave_pressed.connect(_on_leave_match_pressed)
 	leave_confirm_dialog.confirmed.connect(_on_leave_confirmed)
 	_refresh_roster()
@@ -42,22 +46,30 @@ func _ready() -> void:
 		MatchAuthority.call_deferred("begin_role_reveal")
 
 func _physics_process(_delta: float) -> void:
-	if pause_ui.is_open or player_list_ui.is_open or emote_wheel_ui.is_open:
+	if _gameplay_input_blocked():
 		_clear_focused_target()
 		return
 	_update_center_target()
 
 func _unhandled_input(event: InputEvent) -> void:
+	if chat_ui.is_open:
+		if chat_ui.handle_input(event):
+			_update_camera_input_state()
+			get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed(InputBindings.ACTION_PAUSE):
-		if player_list_ui.is_open:
-			player_list_ui.close()
-		if emote_wheel_ui.is_open:
-			emote_wheel_ui.close()
+		_close_social_overlays()
 		pause_ui.toggle()
 		_update_camera_input_state()
 		get_viewport().set_input_as_handled()
 		return
 	if pause_ui.is_open:
+		return
+	if event.is_action_pressed(InputBindings.ACTION_CHAT):
+		_close_social_overlays()
+		chat_ui.open_for_typing(event is InputEventJoypadButton)
+		_update_camera_input_state()
+		get_viewport().set_input_as_handled()
 		return
 	if emote_wheel_ui.handle_input(event):
 		_update_camera_input_state()
@@ -96,13 +108,33 @@ func _on_player_list_open_state_changed(_is_open: bool) -> void:
 func _on_emote_wheel_open_state_changed(_is_open: bool) -> void:
 	_update_camera_input_state()
 
+func _on_chat_open_state_changed(_is_open: bool) -> void:
+	_update_camera_input_state()
+
 func _on_emote_requested(index: int) -> void:
 	local_emote_requested.emit(index)
 
-func _update_camera_input_state() -> void:
-	table_camera.set_look_enabled(
-		not pause_ui.is_open and not player_list_ui.is_open and not emote_wheel_ui.is_open
+func _on_chat_message_submitted(text: String) -> void:
+	local_chat_message_requested.emit(text)
+
+func _close_social_overlays() -> void:
+	if player_list_ui.is_open:
+		player_list_ui.close()
+	if emote_wheel_ui.is_open:
+		emote_wheel_ui.close()
+	if chat_ui.is_open:
+		chat_ui.close()
+
+func _gameplay_input_blocked() -> bool:
+	return (
+		pause_ui.is_open
+		or player_list_ui.is_open
+		or emote_wheel_ui.is_open
+		or chat_ui.is_open
 	)
+
+func _update_camera_input_state() -> void:
+	table_camera.set_look_enabled(not _gameplay_input_blocked())
 
 func _on_leave_match_pressed() -> void:
 	if MatchLeaveManager.leave_pending:

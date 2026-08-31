@@ -30,6 +30,8 @@ const EMOTE_ACTIONS := [
 const TOP_ROW_KEYS := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8]
 const KEYPAD_KEYS := [KEY_KP_1, KEY_KP_2, KEY_KP_3, KEY_KP_4, KEY_KP_5, KEY_KP_6, KEY_KP_7, KEY_KP_8]
 
+var text_entry_active: bool = false
+
 func _ready() -> void:
 	_ensure_defaults()
 
@@ -37,6 +39,9 @@ func emote_action(index: int) -> StringName:
 	if index < 0 or index >= EMOTE_ACTIONS.size():
 		return StringName()
 	return EMOTE_ACTIONS[index]
+
+func set_text_entry_active(value: bool) -> void:
+	text_entry_active = value
 
 func _ensure_defaults() -> void:
 	_ensure_action(ACTION_CHAT)

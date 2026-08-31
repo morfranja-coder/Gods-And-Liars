@@ -10,7 +10,7 @@ import sys
 import bpy
 
 
-MAX_TEXTURE_SIZE = 2048
+MAX_TEXTURE_SIZE = 1024
 
 
 def parse_args() -> argparse.Namespace:

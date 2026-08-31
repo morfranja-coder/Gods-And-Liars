@@ -9,8 +9,7 @@ const RAY_LENGTH := 100.0
 var selected_peer_id: int = 0
 var _avatars: Dictionary = {}
 
-@onready var leave_match_button: Button = %LeaveMatchButton
-@onready var leave_status_label: Label = %LeaveStatusLabel
+@onready var pause_ui: CanvasLayer = $PauseUI
 @onready var leave_confirm_dialog: ConfirmationDialog = %LeaveConfirmDialog
 
 func _ready() -> void:
@@ -23,13 +22,21 @@ func _ready() -> void:
 	MatchAuthority.vote_resolution_received.connect(_on_vote_resolution_received)
 	MatchLeaveManager.leave_started.connect(_on_leave_started)
 	MatchLeaveManager.leave_rejected.connect(_on_leave_rejected)
-	leave_match_button.pressed.connect(_on_leave_match_pressed)
+	pause_ui.leave_pressed.connect(_on_leave_match_pressed)
 	leave_confirm_dialog.confirmed.connect(_on_leave_confirmed)
 	_refresh_roster()
 	if multiplayer.is_server() and NetworkManager.is_host:
 		MatchAuthority.call_deferred("begin_role_reveal")
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey:
+		var key_event := event as InputEventKey
+		if key_event.keycode == KEY_ESCAPE and key_event.pressed and not key_event.echo:
+			pause_ui.toggle()
+			get_viewport().set_input_as_handled()
+			return
+	if pause_ui.is_open:
+		return
 	if event is not InputEventMouseButton:
 		return
 	var mouse_event := event as InputEventMouseButton
@@ -49,19 +56,16 @@ func _on_leave_match_pressed() -> void:
 
 func _on_leave_confirmed() -> void:
 	if MatchLeaveManager.request_leave_match():
-		leave_match_button.disabled = true
-		leave_status_label.text = (
-			"Transfiriendo host..."
-			if NetworkManager.is_host
-			else "Abandonando partida..."
+		pause_ui.set_leave_pending(
+			true,
+			"Transfiriendo host..." if NetworkManager.is_host else "Abandonando partida..."
 		)
 
 func _on_leave_started() -> void:
-	leave_match_button.disabled = true
+	pause_ui.set_leave_pending(true, "Procesando salida del ritual...")
 
 func _on_leave_rejected(reason: String) -> void:
-	leave_match_button.disabled = false
-	leave_status_label.text = reason
+	pause_ui.show_leave_error(reason)
 
 func _build_placeholder_table() -> void:
 	var table := MeshInstance3D.new()

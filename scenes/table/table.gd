@@ -14,6 +14,7 @@ var _avatars: Dictionary = {}
 
 @onready var table_camera: TableCameraLook = $Camera3D
 @onready var world_environment: WorldEnvironment = $WorldEnvironment
+@onready var player_list_ui: PlayerListUI = $PlayerListUI
 @onready var pause_ui: CanvasLayer = $PauseUI
 @onready var leave_confirm_dialog: ConfirmationDialog = %LeaveConfirmDialog
 
@@ -29,6 +30,7 @@ func _ready() -> void:
 	MatchLeaveManager.leave_started.connect(_on_leave_started)
 	MatchLeaveManager.leave_rejected.connect(_on_leave_rejected)
 	VideoSettings.settings_changed.connect(_apply_video_environment)
+	player_list_ui.visibility_changed.connect(_on_player_list_visibility_changed)
 	pause_ui.leave_pressed.connect(_on_leave_match_pressed)
 	leave_confirm_dialog.confirmed.connect(_on_leave_confirmed)
 	_refresh_roster()
@@ -36,18 +38,27 @@ func _ready() -> void:
 		MatchAuthority.call_deferred("begin_role_reveal")
 
 func _physics_process(_delta: float) -> void:
-	if pause_ui.is_open:
+	if pause_ui.is_open or player_list_ui.is_open:
 		_clear_focused_target()
 		return
 	_update_center_target()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed(InputBindings.ACTION_PAUSE):
+		if player_list_ui.is_open:
+			player_list_ui.close()
 		pause_ui.toggle()
-		table_camera.set_look_enabled(not pause_ui.is_open)
+		_update_camera_input_state()
 		get_viewport().set_input_as_handled()
 		return
 	if pause_ui.is_open:
+		return
+	if event.is_action_pressed(InputBindings.ACTION_PLAYER_LIST):
+		player_list_ui.toggle()
+		_update_camera_input_state()
+		get_viewport().set_input_as_handled()
+		return
+	if player_list_ui.is_open:
 		return
 	if event is InputEventMouseButton:
 		var mouse_event := event as InputEventMouseButton
@@ -66,6 +77,12 @@ func _setup_environment() -> void:
 
 func _apply_video_environment() -> void:
 	VideoSettings.apply_to_environment(world_environment.environment)
+
+func _on_player_list_visibility_changed(_is_open: bool) -> void:
+	_update_camera_input_state()
+
+func _update_camera_input_state() -> void:
+	table_camera.set_look_enabled(not pause_ui.is_open and not player_list_ui.is_open)
 
 func _on_leave_match_pressed() -> void:
 	if MatchLeaveManager.leave_pending:

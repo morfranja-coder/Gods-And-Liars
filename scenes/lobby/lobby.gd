@@ -59,6 +59,7 @@ func _ready() -> void:
 	_refresh_diagnostics()
 	_update_buttons()
 	_show_pending_leave_feedback()
+	InputBindings.focus_first_available(self)
 
 func _process(delta: float) -> void:
 	if not diagnostics_label.visible:

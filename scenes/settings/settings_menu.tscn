@@ -1,0 +1,157 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/settings/settings_menu.gd" id="1"]
+[ext_resource type="Theme" path="res://ui/gods_liars_theme.tres" id="2"]
+
+[node name="SettingsMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2")
+script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.035, 0.038, 0.041, 1)
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="Center"]
+custom_minimum_size = Vector2(720, 0)
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="Center/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 48
+theme_override_constants/margin_top = 40
+theme_override_constants/margin_right = 48
+theme_override_constants/margin_bottom = 40
+
+[node name="VBox" type="VBoxContainer" parent="Center/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="Title" type="Label" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+text = "OPCIONES"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 32
+
+[node name="Subtitle" type="Label" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+text = "CONFIGURACIÓN DEL RITUAL"
+horizontal_alignment = 1
+modulate = Color(0.72, 0.68, 0.58, 1)
+
+[node name="Separator" type="HSeparator" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="BrightnessRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Label" type="Label" parent="Center/Panel/Margin/VBox/BrightnessRow"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+text = "Brillo"
+
+[node name="BrightnessSlider" type="HSlider" parent="Center/Panel/Margin/VBox/BrightnessRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.7
+max_value = 1.3
+step = 0.01
+value = 1.0
+
+[node name="BrightnessValue" type="Label" parent="Center/Panel/Margin/VBox/BrightnessRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(64, 0)
+layout_mode = 2
+text = "100%"
+horizontal_alignment = 2
+
+[node name="BrightnessHint" type="Label" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+text = "Recomendado: 100%. La oscuridad forma parte de la lectura del escenario."
+modulate = Color(0.58, 0.58, 0.56, 1)
+autowrap_mode = 2
+
+[node name="QualityRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Label" type="Label" parent="Center/Panel/Margin/VBox/QualityRow"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+text = "Calidad gráfica"
+
+[node name="QualityOption" type="OptionButton" parent="Center/Panel/Margin/VBox/QualityRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="DisplayRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Label" type="Label" parent="Center/Panel/Margin/VBox/DisplayRow"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+text = "Modo de pantalla"
+
+[node name="DisplayOption" type="OptionButton" parent="Center/Panel/Margin/VBox/DisplayRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="VsyncRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Label" type="Label" parent="Center/Panel/Margin/VBox/VsyncRow"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+text = "V-Sync"
+
+[node name="VsyncCheck" type="CheckButton" parent="Center/Panel/Margin/VBox/VsyncRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Activado"
+
+[node name="FpsRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Label" type="Label" parent="Center/Panel/Margin/VBox/FpsRow"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+text = "Límite de FPS"
+
+[node name="FpsOption" type="OptionButton" parent="Center/Panel/Margin/VBox/FpsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Separator2" type="HSeparator" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="BackButton" type="Button" parent="Center/Panel/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+text = "Volver"

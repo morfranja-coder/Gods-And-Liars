@@ -1,6 +1,7 @@
 extends Control
 
 const TABLE_SCENE := "res://scenes/table/table.tscn"
+const SETTINGS_SCENE := "res://scenes/settings/settings_menu.tscn"
 const DIAGNOSTICS_REFRESH_SECONDS := 0.5
 
 var _invite_when_party_ready: bool = false
@@ -19,6 +20,7 @@ var _diagnostics_elapsed: float = 0.0
 @onready var start_button: Button = %StartButton
 @onready var leave_match_button: Button = %LeaveMatchButton
 @onready var leave_party_button: Button = %LeavePartyButton
+@onready var options_button: Button = %OptionsButton
 @onready var leave_match_confirm_dialog: ConfirmationDialog = %LeaveMatchConfirmDialog
 
 func _ready() -> void:
@@ -30,6 +32,7 @@ func _ready() -> void:
 	leave_match_button.pressed.connect(_on_leave_match_pressed)
 	leave_match_confirm_dialog.confirmed.connect(_on_leave_match_confirmed)
 	leave_party_button.pressed.connect(_on_leave_party_pressed)
+	options_button.pressed.connect(_on_options_pressed)
 	PartyManager.party_changed.connect(_on_party_changed)
 	PartyManager.party_error.connect(_on_party_error)
 	PartyManager.party_lobby_state_changed.connect(_on_party_lobby_state_changed)
@@ -182,6 +185,7 @@ func _update_buttons() -> void:
 	leave_match_button.visible = in_match and not started
 	leave_match_button.disabled = MatchLeaveManager.leave_pending
 	leave_party_button.visible = PartyManager.party_lobby_id != 0 and not in_match and not searching
+	options_button.disabled = searching
 
 func _on_invite_pressed() -> void:
 	if PartyManager.party_lobby_id == 0:
@@ -206,6 +210,9 @@ func _on_ready_pressed() -> void:
 
 func _on_start_pressed() -> void:
 	NetworkManager.request_host_start()
+
+func _on_options_pressed() -> void:
+	get_tree().change_scene_to_file(SETTINGS_SCENE)
 
 func _on_leave_match_pressed() -> void:
 	if NetworkManager.lobby_id == 0 or MatchLeaveManager.leave_pending:

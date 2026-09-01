@@ -1,8 +1,6 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scenes/player/ghost_controller.gd" id="1"]
-[ext_resource type="PackedScene" path="res://assets/characters/ghosts/Fantasma_Hereje.glb" id="2"]
-[ext_resource type="PackedScene" path="res://assets/characters/ghosts/Fantasma_Inocente.glb" id="3"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_ghost"]
 radius = 0.35
@@ -18,10 +16,10 @@ shape = SubResource("CapsuleShape3D_ghost")
 
 [node name="BodyVisual" type="Node3D" parent="."]
 
-[node name="HereticGhost" parent="BodyVisual" instance=ExtResource("2")]
+[node name="HereticGhost" type="Node3D" parent="BodyVisual"]
 visible = false
 
-[node name="InnocentGhost" parent="BodyVisual" instance=ExtResource("3")]
+[node name="InnocentGhost" type="Node3D" parent="BodyVisual"]
 
 [node name="HeadPivot" type="Node3D" parent="."]
 position = Vector3(0, 1.65, 0)

@@ -32,6 +32,9 @@ func _ready() -> void:
 	_apply_mask_color()
 	_play_idle()
 
+func _process(_delta: float) -> void:
+	_update_remote_dead_visibility()
+
 func set_body(scene: PackedScene) -> void:
 	body_scene = scene
 	_replace_child(body_root, body_scene)
@@ -89,6 +92,17 @@ func play_death_and_hide() -> void:
 	else:
 		await get_tree().create_timer(DEATH_FALLBACK_SECONDS).timeout
 	visible = false
+
+func _update_remote_dead_visibility() -> void:
+	if not has_meta("peer_id"):
+		return
+	var peer_id := int(get_meta("peer_id"))
+	if peer_id <= 0:
+		return
+	var local_peer_id := multiplayer.get_unique_id() if multiplayer.multiplayer_peer != null else 0
+	if peer_id == local_peer_id:
+		return
+	visible = MatchAuthority.is_peer_publicly_alive(peer_id)
 
 func _find_animation_player(node: Node) -> AnimationPlayer:
 	if node is AnimationPlayer:

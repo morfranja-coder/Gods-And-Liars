@@ -26,6 +26,7 @@ var _movement_player: AnimationPlayer = null
 
 func _ready() -> void:
 	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
+	call_deferred("_ensure_environment_collisions")
 
 func _physics_process(delta: float) -> void:
 	if not input_enabled or InputBindings.text_entry_active:
@@ -47,13 +48,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		_apply_look_delta(motion.relative * mouse_sensitivity)
 
 func activate(is_heretic: bool) -> void:
+	_ensure_environment_collisions()
 	_ensure_visual_loaded(
 		heretic_visual if is_heretic else innocent_visual,
 		HERETIC_GHOST_FOLDER if is_heretic else INNOCENT_GHOST_FOLDER,
 	)
 	heretic_visual.visible = is_heretic
 	innocent_visual.visible = not is_heretic
-	_movement_player = _find_animation_player(heretic_visual if is_heretic else innocent_visual)
+	_movement_player = _find_animation_player(
+		heretic_visual if is_heretic else innocent_visual
+	)
 	input_enabled = true
 	ghost_camera.current = true
 
@@ -61,6 +65,33 @@ func set_input_enabled(enabled: bool) -> void:
 	input_enabled = enabled
 	if not input_enabled:
 		velocity = Vector3.ZERO
+
+func _ensure_environment_collisions() -> void:
+	var table_root := get_parent()
+	if table_root == null or not table_root.has_method("_add_scenario_collisions_recursive"):
+		return
+	var collision_roots: Array[Node] = []
+	var alpha_scenario := table_root.get_node_or_null("AlphaScenario")
+	if alpha_scenario != null:
+		collision_roots.append(alpha_scenario)
+	for child in table_root.get_children():
+		if child is not Node3D:
+			continue
+		var node_name := str(child.name).to_lower()
+		if not _is_environment_collision_root(node_name):
+			continue
+		if child not in collision_roots:
+			collision_roots.append(child)
+	for root in collision_roots:
+		table_root.call("_add_scenario_collisions_recursive", root)
+
+func _is_environment_collision_root(node_name: String) -> bool:
+	return (
+		node_name.begins_with("alphascenario")
+		or node_name.begins_with("escenarioalfa")
+		or node_name.begins_with("techo")
+		or node_name.begins_with("ceiling")
+	)
 
 func _apply_controller_look(delta: float) -> void:
 	var horizontal := Input.get_axis(InputBindings.ACTION_LOOK_LEFT, InputBindings.ACTION_LOOK_RIGHT)
@@ -108,7 +139,10 @@ func _apply_movement() -> void:
 	var right := camera_basis.x
 	forward.y = 0.0
 	right.y = 0.0
-	var planar := (right.normalized() * input_vector.x + forward.normalized() * -input_vector.y)
+	var planar := (
+		right.normalized() * input_vector.x
+		+ forward.normalized() * -input_vector.y
+	)
 	var vertical := Input.get_axis(
 		InputBindings.ACTION_GHOST_DESCEND,
 		InputBindings.ACTION_GHOST_ASCEND

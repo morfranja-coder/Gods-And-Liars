@@ -51,6 +51,10 @@ func _verify_table_hydration(table: Node) -> void:
 		assert_object(avatar).is_not_null()
 		assert_object(seat).is_not_null()
 		assert_bool(avatar.global_position.is_equal_approx(seat.global_position)).is_true()
+		var label := avatar.get_node_or_null("NameLabel") as Label3D
+		assert_object(label).is_not_null()
+		assert_str(label.text).is_equal("Gate C Bot %d" % peer_id)
+		assert_bool(label.modulate.is_equal_approx(PlayerColors.for_seat(peer_id - 1))).is_true()
 
 func _verify_role_reveal_ui(table: Node) -> void:
 	MatchAuthority.local_role = PlayerState.Role.FAITHFUL
@@ -65,6 +69,7 @@ func _verify_role_reveal_ui(table: Node) -> void:
 
 func _verify_night_ui(table: Node) -> void:
 	MatchAuthority.local_role = PlayerState.Role.HERETIC
+	GameManager.round_number = 1
 	GameManager.set_phase(GameManager.MatchPhase.HERETIC_ACTION)
 	MatchAuthority.phase_synced.emit(int(GameManager.phase))
 	var panel := table.get_node_or_null("NightActionUI/Panel") as Control
@@ -72,32 +77,39 @@ func _verify_night_ui(table: Node) -> void:
 	assert_object(panel).is_not_null()
 	assert_bool(panel.visible).is_true()
 	assert_object(phase_label).is_not_null()
-	assert_str(phase_label.text).contains("Herejes")
+	assert_str(phase_label.text).contains("HEREJES")
 
 func _verify_day_vote_ui(table: Node) -> void:
+	GameManager.round_number = 1
 	GameManager.set_phase(GameManager.MatchPhase.DAY_DISCUSSION)
 	MatchAuthority.phase_synced.emit(int(GameManager.phase))
 	var panel := table.get_node_or_null("DayVoteUI/Panel") as Control
 	var label := table.get_node_or_null("DayVoteUI/Panel/VBox/PhaseLabel") as Label
+	var target_grid := table.get_node_or_null("DayVoteUI/Panel/VBox/TargetGrid") as GridContainer
 	assert_object(panel).is_not_null()
 	assert_bool(panel.visible).is_true()
 	assert_object(label).is_not_null()
-	assert_str(label.text).is_equal("Día — Discusión")
+	assert_str(label.text).is_equal("DÍA 2")
+	assert_object(target_grid).is_not_null()
+	assert_bool(target_grid.visible).is_false()
 
 	GameManager.set_phase(GameManager.MatchPhase.VOTING)
 	MatchAuthority.phase_synced.emit(int(GameManager.phase))
 	assert_bool(panel.visible).is_true()
-	assert_str(label.text).is_equal("Día — Votación")
+	assert_str(label.text).is_equal("DÍA 2")
+	assert_bool(target_grid.visible).is_true()
+	assert_int(target_grid.get_child_count()).is_equal(EXPECTED_PLAYERS - 1)
 
 func _verify_public_death_refresh(table: Node) -> void:
 	MatchAuthority.public_alive_by_peer[3] = false
 	var killed_peer_ids: Array[int] = [3]
 	MatchAuthority.night_resolution_received.emit(killed_peer_ids)
-	var avatar := table.get_node_or_null("Peer_3")
+	var avatar := table.get_node_or_null("Peer_3") as Node3D
 	assert_object(avatar).is_not_null()
+	assert_bool(avatar.visible).is_false()
 	var label := avatar.get_node_or_null("NameLabel") as Label3D
 	assert_object(label).is_not_null()
-	assert_bool(label.text.begins_with("† ")).is_true()
+	assert_bool(label.visible).is_false()
 
 func _verify_match_end_ui(table: Node) -> void:
 	MatchAuthority.public_winner = &"faithful"

@@ -4,3 +4,5 @@ assets/EvilGod/*.glb filter=lfs diff=lfs merge=lfs -text
 assets/FantasmaPJ/*.glb filter=lfs diff=lfs merge=lfs -text
 assets/FantasmaHereje/*.glb filter=lfs diff=lfs merge=lfs -text
 TripoModels/**/*.fbx filter=lfs diff=lfs merge=lfs -text
+TripoModels/**/*.jpg filter=lfs diff=lfs merge=lfs -text
+TripoModels/**/*.png filter=lfs diff=lfs merge=lfs -text

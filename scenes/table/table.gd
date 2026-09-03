@@ -242,6 +242,8 @@ func _spawn_or_update_avatar(peer_id: int, seat_id: int) -> void:
 	avatar.global_transform = marker.global_transform
 	if avatar is AvatarSlots:
 		(avatar as AvatarSlots).set_player_color(PlayerColors.for_seat(seat_id))
+	if peer_id == multiplayer.get_unique_id():
+		_setup_local_player_view(avatar)
 	var peer: Dictionary = NetworkManager.peers.get(peer_id, {})
 	var label := avatar.get_node_or_null("NameLabel") as Label3D
 	if label != null:
@@ -249,6 +251,15 @@ func _spawn_or_update_avatar(peer_id: int, seat_id: int) -> void:
 		if display_name.is_empty():
 			display_name = "Player %s" % peer_id
 		label.text = display_name if MatchAuthority.is_peer_publicly_alive(peer_id) else "† %s" % display_name
+
+func _setup_local_player_view(avatar: Node3D) -> void:
+	var head_anchor := avatar.get_node_or_null("HeadAnchor") as Marker3D
+	if head_anchor == null:
+		return
+	table_camera.anchor_to(head_anchor.global_transform)
+	table_camera.current = true
+	if avatar is AvatarSlots:
+		(avatar as AvatarSlots).set_local_perspective(true)
 
 func _update_center_target() -> void:
 	var center := get_viewport().get_visible_rect().size * 0.5

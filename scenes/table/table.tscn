@@ -247,30 +247,31 @@ surface_material_override/0 = SubResource("StandardMaterial3D_d3651")
 [node name="dios_RIG_MIRADA_CORREGIDO" parent="." unique_id=711684568 instance=ExtResource("14_1vdx5")]
 transform = Transform3D(1.8048122, 0, 0, 0, 1.7662884, 0, 0, 0, 1.4115162, 0.564028, 1.0935789, -5.6623263)
 
-[node name="Personaje_Alfa1" parent="." unique_id=1627006364 instance=ExtResource("15_jv6v5")]
+[node name="Seats" type="Node3D" parent="."]
+
+[node name="Seat_01" type="Marker3D" parent="Seats"]
 transform = Transform3D(0.71815664, 0, -0.8894183, 0, 1.182789, 0, 0.9363928, 0, 0.6821299, 1.9756372, 0.8549348, -2.5961106)
 
-[node name="Personaje_Alfa5" parent="." unique_id=2118112980 instance=ExtResource("15_jv6v5")]
-transform = Transform3D(0.6107898, 0, 0.95905817, 0, 1.182789, 0, -1.0097109, 0, 0.5801494, -1.1150768, 0.8569939, -2.5961106)
-
-[node name="Personaje_Alfa6" parent="." unique_id=1629664735 instance=ExtResource("15_jv6v5")]
-transform = Transform3D(-0.045505643, 0, 1.1200436, 0, 1.182789, 0, -1.1791986, 0, -0.043222606, -1.3415413, 0.8569939, -1.881278)
-
-[node name="Personaje_Alfa7" parent="." unique_id=1801393587 instance=ExtResource("15_jv6v5")]
-transform = Transform3D(-0.6457294, 0, 0.93818194, 0, 1.182789, 0, -0.9877318, 0, -0.6133359, -1.1365889, 0.8569939, -1.068062)
-
-[node name="Personaje_Alfa8" parent="." unique_id=744309483 instance=ExtResource("15_jv6v5")]
-transform = Transform3D(-1.0845399, 0, 0.44180477, 0, 1.182789, 0, -0.4651384, 0, -1.0301332, -0.5804379, 0.8569939, -0.5669924)
-
-[node name="Personaje_Alfa2" parent="." unique_id=1838348753 instance=ExtResource("15_jv6v5")]
+[node name="Seat_02" type="Marker3D" parent="Seats"]
 transform = Transform3D(0.18223336, 0, -1.1074319, 0, 1.182789, 0, 1.1659207, 0, 0.17309146, 2.1536448, 0.8569939, -2.115009)
 
-[node name="Personaje_Alfa3" parent="." unique_id=876949664 instance=ExtResource("15_jv6v5")]
+[node name="Seat_03" type="Marker3D" parent="Seats"]
 transform = Transform3D(-0.45782948, 0, -1.0330831, 0, 1.1827888, 0, 1.0876453, 0, -0.43486243, 2.0862901, 0.8569939, -1.3885462)
 
-[node name="Personaje_Alfa4" parent="." unique_id=513722407 instance=ExtResource("15_jv6v5")]
+[node name="Seat_04" type="Marker3D" parent="Seats"]
 transform = Transform3D(-0.96285, 0, -0.6480488, 0, 1.1827887, 0, 0.68227565, 0, -0.9145484, 1.6388657, 0.8569939, -0.7919806)
 
+[node name="Seat_05" type="Marker3D" parent="Seats"]
+transform = Transform3D(0.6107898, 0, 0.95905817, 0, 1.182789, 0, -1.0097109, 0, 0.5801494, -1.1150768, 0.8569939, -2.5961106)
+
+[node name="Seat_06" type="Marker3D" parent="Seats"]
+transform = Transform3D(-0.045505643, 0, 1.1200436, 0, 1.182789, 0, -1.1791986, 0, -0.043222606, -1.3415413, 0.8569939, -1.881278)
+
+[node name="Seat_07" type="Marker3D" parent="Seats"]
+transform = Transform3D(-0.6457294, 0, 0.93818194, 0, 1.182789, 0, -0.9877318, 0, -0.6133359, -1.1365889, 0.8569939, -1.068062)
+
+[node name="Seat_08" type="Marker3D" parent="Seats"]
+transform = Transform3D(-1.0845399, 0, 0.44180477, 0, 1.182789, 0, -0.4651384, 0, -1.0301332, -0.5804379, 0.8569939, -0.5669924)
 [node name="Dios_Muerto_RIG_MIRADA_CORREGIDO" parent="." unique_id=864705819 instance=ExtResource("16_oldaa")]
 transform = Transform3D(1.450849, 0, 0, 0, 1.6038504, 0, 0, 0, 1.4423007, 0.5707225, 1.1391557, -5.574239)
 

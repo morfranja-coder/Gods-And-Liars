@@ -30,7 +30,6 @@ var _ghost_transition_started := false
 
 func _ready() -> void:
 	_setup_environment()
-	_build_seat_markers()
 	NetworkManager.peer_joined.connect(_on_roster_changed)
 	NetworkManager.peer_left.connect(_on_roster_changed)
 	NetworkManager.peer_updated.connect(_on_roster_changed)

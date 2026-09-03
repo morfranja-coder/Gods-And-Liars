@@ -3,7 +3,7 @@ extends GdUnitTestSuite
 
 func test_only_blocking_match_phases_have_timeouts() -> void:
 	assert_int(PhaseTimeoutPolicy.timeout_ms_for_phase(GameManager.MatchPhase.ROLE_REVEAL)).is_equal(15000)
-	assert_int(PhaseTimeoutPolicy.timeout_ms_for_phase(GameManager.MatchPhase.GOD_INTRO)).is_equal(9000)
+	assert_int(PhaseTimeoutPolicy.timeout_ms_for_phase(GameManager.MatchPhase.GOD_INTRO)).is_equal(8000)
 	assert_int(PhaseTimeoutPolicy.timeout_ms_for_phase(GameManager.MatchPhase.NIGHT_START)).is_equal(3000)
 	assert_int(PhaseTimeoutPolicy.timeout_ms_for_phase(GameManager.MatchPhase.HERETIC_ACTION)).is_equal(20000)
 	assert_int(PhaseTimeoutPolicy.timeout_ms_for_phase(GameManager.MatchPhase.HEALER_ACTION)).is_equal(20000)

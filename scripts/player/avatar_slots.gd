@@ -52,6 +52,14 @@ func set_player_color(color: Color) -> void:
 func get_player_color() -> Color:
 	return _player_color
 
+func set_local_perspective(enabled: bool) -> void:
+	body_root.visible = not enabled
+	tunic_root.visible = not enabled
+	mask_root.visible = not enabled
+	var label := get_node_or_null("NameLabel") as Label3D
+	if label != null:
+		label.visible = not enabled
+
 func play_movement(index: int) -> bool:
 	if index < 0 or index >= MOVEMENT_ANIMATIONS.size():
 		return false

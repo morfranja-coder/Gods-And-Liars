@@ -33,6 +33,11 @@ func _unhandled_input(event: InputEvent) -> void:
 func set_look_enabled(enabled: bool) -> void:
 	look_enabled = enabled
 
+func anchor_to(anchor_transform: Transform3D) -> void:
+	global_transform = anchor_transform
+	_base_rotation = rotation
+	reset_look()
+
 func reset_look() -> void:
 	_target_yaw = 0.0
 	_target_pitch = 0.0

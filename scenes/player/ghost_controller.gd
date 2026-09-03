@@ -1,6 +1,9 @@
 class_name GhostController
 extends CharacterBody3D
 
+const HERETIC_GHOST_FOLDER := "res://assets/FantasmaHereje"
+const INNOCENT_GHOST_FOLDER := "res://assets/FantasmaPJ"
+
 @export_range(0.5, 10.0, 0.1) var move_speed := 2.8
 @export_range(0.5, 10.0, 0.1) var vertical_speed := 2.0
 @export_range(1.0, 20.0, 0.5) var body_follow_speed := 6.0
@@ -20,6 +23,9 @@ var _movement_player: AnimationPlayer = null
 @onready var ghost_camera: Camera3D = $HeadPivot/Camera3D
 @onready var heretic_visual: Node3D = $BodyVisual/HereticGhost
 @onready var innocent_visual: Node3D = $BodyVisual/InnocentGhost
+
+func _ready() -> void:
+	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
 
 func _physics_process(delta: float) -> void:
 	if not input_enabled or InputBindings.text_entry_active:
@@ -41,6 +47,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		_apply_look_delta(motion.relative * mouse_sensitivity)
 
 func activate(is_heretic: bool) -> void:
+	_ensure_visual_loaded(
+		heretic_visual if is_heretic else innocent_visual,
+		HERETIC_GHOST_FOLDER if is_heretic else INNOCENT_GHOST_FOLDER,
+	)
 	heretic_visual.visible = is_heretic
 	innocent_visual.visible = not is_heretic
 	_movement_player = _find_animation_player(heretic_visual if is_heretic else innocent_visual)
@@ -114,6 +124,28 @@ func _update_movement_animation() -> void:
 			_movement_player.play(movement_animation, 0.18)
 	elif not _movement_player.current_animation.is_empty():
 		_movement_player.stop()
+
+func _ensure_visual_loaded(root: Node3D, folder_path: String) -> void:
+	if root.get_child_count() > 0:
+		return
+	var scene := _load_first_glb(folder_path)
+	if scene != null:
+		root.add_child(scene.instantiate())
+
+func _load_first_glb(folder_path: String) -> PackedScene:
+	var directory := DirAccess.open(folder_path)
+	if directory == null:
+		return null
+	directory.list_dir_begin()
+	var file_name := directory.get_next()
+	while not file_name.is_empty():
+		if not directory.current_is_dir() and file_name.get_extension().to_lower() == "glb":
+			var resource := ResourceLoader.load(folder_path.path_join(file_name))
+			directory.list_dir_end()
+			return resource as PackedScene
+		file_name = directory.get_next()
+	directory.list_dir_end()
+	return null
 
 func _find_animation_player(node: Node) -> AnimationPlayer:
 	if node is AnimationPlayer:

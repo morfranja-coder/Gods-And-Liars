@@ -2,7 +2,7 @@ class_name PhaseTimeoutPolicy
 extends RefCounted
 
 const ROLE_REVEAL_MS := 15000
-const GOD_INTRO_MS := 9000
+const GOD_INTRO_MS := 8000
 const NIGHT_START_MS := 3000
 const NIGHT_ACTION_MS := 20000
 const DAY_ANNOUNCEMENT_MS := 7000

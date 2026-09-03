@@ -1,1 +1,6 @@
 assets/scenario/*.glb filter=lfs diff=lfs merge=lfs -text
+assets/God/*.glb filter=lfs diff=lfs merge=lfs -text
+assets/EvilGod/*.glb filter=lfs diff=lfs merge=lfs -text
+assets/FantasmaPJ/*.glb filter=lfs diff=lfs merge=lfs -text
+assets/FantasmaHereje/*.glb filter=lfs diff=lfs merge=lfs -text
+TripoModels/**/*.fbx filter=lfs diff=lfs merge=lfs -text

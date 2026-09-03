@@ -201,13 +201,17 @@ func _show_day_announcement() -> void:
 			message_label.text = "%s murió anoche." % _peer_name(killed[0])
 		return
 	if MatchAuthority.last_night_priest_saved:
-		message_label.text = (
-			"Esta noche el Sacerdote salvó a una víctima. Los Herejes están atacando."
-			if not MatchAuthority.last_night_was_first
-			else "Hubo un intento de asesinato esta noche. El Sacerdote salvó a la víctima. Los Herejes están atacando."
-		)
+		message_label.text = _priest_saved_announcement()
 		return
 	message_label.text = "La noche terminó sin víctimas. Pero no bajen la guardia."
+
+func _priest_saved_announcement() -> String:
+	if MatchAuthority.last_night_was_first:
+		return (
+			"Hubo un intento de asesinato esta noche. "
+			+ "El Sacerdote salvó a la víctima. Los Herejes están atacando."
+		)
+	return "Esta noche el Sacerdote salvó a una víctima. Los Herejes están atacando."
 
 func _show_sacrifice_narration() -> void:
 	_set_god_camera(true)
@@ -234,28 +238,40 @@ func _heretic_phase_message() -> String:
 
 func _priest_phase_message() -> String:
 	if MatchAuthority.local_role == PlayerState.Role.HEALER:
-		if GameManager.round_number == 1:
-			var victim := _priest_warning_target_peer_id
-			if victim <= 0:
-				return "Voy a ayudarte esta noche. Los Herejes ya eligieron a una víctima."
-			var local_peer_id := _local_peer_id()
-			if victim == local_peer_id:
-				return "Te quieren matar. Atiende tus heridas, sobrevive y salva a mis hijos. Solo hoy te diré a quién atacan."
-			return "Voy a ayudarte. Quieren matar a %s. Ve a salvarlo. Solo hoy te diré a quién atacan; tendrás que salvar a mis hijos." % _peer_name(victim)
-		return "¿A quién irás a salvar hoy? Elegí una máscara antes de que termine el tiempo."
+		return _local_priest_message()
 	if MatchAuthority.local_role == PlayerState.Role.HERETIC:
 		return "El Sacerdote está actuando. Esperemos que no encuentre a su víctima."
 	return "El Sacerdote está actuando. Esperemos que encuentre a la víctima."
+
+func _local_priest_message() -> String:
+	if GameManager.round_number != 1:
+		return "¿A quién irás a salvar hoy? Elegí una máscara antes de que termine el tiempo."
+	var victim := _priest_warning_target_peer_id
+	if victim <= 0:
+		return "Voy a ayudarte esta noche. Los Herejes ya eligieron a una víctima."
+	if victim == _local_peer_id():
+		return (
+			"Te quieren matar. Atiende tus heridas, sobrevive y salva a mis hijos. "
+			+ "Solo hoy te diré a quién atacan."
+		)
+	return (
+		"Voy a ayudarte. Quieren matar a %s. Ve a salvarlo. " % _peer_name(victim)
+		+ "Solo hoy te diré a quién atacan; tendrás que salvar a mis hijos."
+	)
 
 func _inquisitor_phase_message() -> String:
 	if MatchAuthority.local_role == PlayerState.Role.INQUISITOR:
 		if GameManager.round_number == 1:
 			return (
 				"Tu trabajo será descubrir a los Herejes. Podrás hacer una pregunta por noche; "
-				+ "no puedo intervenir demasiado en el mundo humano. Esta noche descansa y piensa bien en tu pregunta de mañana. Busca pistas en los debates."
+				+ "no puedo intervenir demasiado en el mundo humano. Esta noche descansa y piensa "
+				+ "bien en tu pregunta de mañana. Busca pistas en los debates."
 			)
 		return "Elegí una máscara. Mañana conocerás la verdad que se oculta detrás de ella."
-	return "El Inquisidor está hablando con Dios. Mañana sabrá la verdad debajo de la máscara de uno de ustedes."
+	return (
+		"El Inquisidor está hablando con Dios. "
+		+ "Mañana sabrá la verdad debajo de la máscara de uno de ustedes."
+	)
 
 func _should_show_black_overlay() -> bool:
 	if MatchAuthority.is_local_ghost():
@@ -267,21 +283,19 @@ func _should_show_black_overlay() -> bool:
 	return MatchAuthority.local_role != PlayerState.Role.HERETIC
 
 func _local_can_act_in_phase() -> bool:
-	if MatchAuthority.is_local_ghost():
-		return false
+	var can_act := not MatchAuthority.is_local_ghost()
 	var local_peer_id := _local_peer_id()
-	if local_peer_id <= 0 or not MatchAuthority.is_peer_publicly_alive(local_peer_id):
-		return false
+	can_act = can_act and local_peer_id > 0
+	can_act = can_act and MatchAuthority.is_peer_publicly_alive(local_peer_id)
 	var required_role := NightPhaseRules.role_for_phase(GameManager.phase)
-	if required_role != MatchAuthority.local_role:
-		return false
-	if required_role == PlayerState.Role.HERETIC:
-		return MatchAuthority.is_local_heretic_decider()
-	if required_role == PlayerState.Role.HEALER and GameManager.round_number == 1:
-		return false
-	if required_role == PlayerState.Role.INQUISITOR and GameManager.round_number == 1:
-		return false
-	return true
+	can_act = can_act and required_role == MatchAuthority.local_role
+	if can_act and required_role == PlayerState.Role.HERETIC:
+		can_act = MatchAuthority.is_local_heretic_decider()
+	if can_act and required_role == PlayerState.Role.HEALER and GameManager.round_number == 1:
+		can_act = false
+	if can_act and required_role == PlayerState.Role.INQUISITOR and GameManager.round_number == 1:
+		can_act = false
+	return can_act
 
 func _phase_uses_target_cards() -> bool:
 	return GameManager.phase in [
@@ -345,23 +359,23 @@ func _valid_selected_target() -> bool:
 	return selected_peer_id > 0 and _target_allowed_for_local_role(selected_peer_id)
 
 func _phase_title(phase: GameManager.MatchPhase) -> String:
+	var title := "RITUAL"
 	match phase:
 		GameManager.MatchPhase.GOD_INTRO:
-			return "EL DIOS HABLA"
+			title = "EL DIOS HABLA"
 		GameManager.MatchPhase.NIGHT_START:
-			return "NOCHE %d" % GameManager.round_number
+			title = "NOCHE %d" % GameManager.round_number
 		GameManager.MatchPhase.HERETIC_ACTION:
-			return "NOCHE — HEREJES"
+			title = "NOCHE — HEREJES"
 		GameManager.MatchPhase.HEALER_ACTION:
-			return "NOCHE — SACERDOTE"
+			title = "NOCHE — SACERDOTE"
 		GameManager.MatchPhase.INQUISITOR_ACTION:
-			return "NOCHE — INQUISIDOR"
+			title = "NOCHE — INQUISIDOR"
 		GameManager.MatchPhase.DAY_ANNOUNCEMENT:
-			return "DÍA %d" % (GameManager.round_number + 1)
+			title = "DÍA %d" % (GameManager.round_number + 1)
 		GameManager.MatchPhase.SACRIFICE:
-			return "EL DIOS DICTA SENTENCIA"
-		_:
-			return "RITUAL"
+			title = "EL DIOS DICTA SENTENCIA"
+	return title
 
 func _phase_elapsed_seconds() -> float:
 	var duration_ms := PhaseTimeoutPolicy.timeout_ms_for_phase(GameManager.phase)

@@ -10,6 +10,7 @@ const PLAYER_AVATAR_SCENE := preload("res://scenes/player/player_avatar.tscn")
 const GHOST_CONTROLLER_SCENE := preload("res://scenes/player/ghost_controller.tscn")
 const SELECTION_MASK := 2
 const RAY_LENGTH := 100.0
+const LOCAL_CAMERA_HEIGHT := 1.65
 
 var selected_peer_id: int = 0
 var focused_peer_id: int = 0
@@ -30,6 +31,7 @@ var _ghost_transition_started := false
 
 func _ready() -> void:
 	_setup_environment()
+	_ensure_table_center()
 	NetworkManager.peer_joined.connect(_on_roster_changed)
 	NetworkManager.peer_left.connect(_on_roster_changed)
 	NetworkManager.peer_updated.connect(_on_roster_changed)
@@ -216,6 +218,41 @@ func get_seat_marker(seat_id: int) -> Marker3D:
 		return null
 	return get_node_or_null("Seats/Seat_%02d" % (seat_id + 1)) as Marker3D
 
+func _ensure_table_center() -> Marker3D:
+	var existing := get_node_or_null("TableCenter") as Marker3D
+	if existing != null:
+		return existing
+	var center := Marker3D.new()
+	center.name = "TableCenter"
+	add_child(center)
+	var summed_position := Vector3.ZERO
+	var valid_seats := 0
+	for seat_id in range(TableLayout.SEAT_COUNT):
+		var seat := get_seat_marker(seat_id)
+		if seat == null:
+			continue
+		summed_position += seat.global_position
+		valid_seats += 1
+	if valid_seats > 0:
+		center.global_position = summed_position / float(valid_seats)
+	return center
+
+func get_table_center() -> Marker3D:
+	return get_node_or_null("TableCenter") as Marker3D
+
+func _seat_facing_transform(marker: Marker3D) -> Transform3D:
+	var center := get_table_center()
+	if center == null:
+		return marker.global_transform
+	var origin := marker.global_position
+	var target := center.global_position
+	target.y = origin.y
+	if origin.distance_squared_to(target) <= 0.000001:
+		return marker.global_transform
+	var facing := Transform3D(Basis.IDENTITY, origin).looking_at(target, Vector3.UP, true)
+	facing.basis = facing.basis.scaled(marker.global_transform.basis.get_scale())
+	return facing
+
 func _refresh_roster(_unused: int = 0) -> void:
 	var active_ids: Array[int] = []
 	for raw_peer_id in NetworkManager.peers.keys():
@@ -250,7 +287,7 @@ func _spawn_or_update_avatar(peer_id: int, seat_id: int) -> void:
 		avatar.set_meta("peer_id", peer_id)
 		add_child(avatar)
 		_avatars[peer_id] = avatar
-	avatar.global_transform = marker.global_transform
+	avatar.global_transform = _seat_facing_transform(marker)
 	if avatar is AvatarSlots:
 		(avatar as AvatarSlots).set_player_color(PlayerColors.for_seat(seat_id))
 	if peer_id == multiplayer.get_unique_id():
@@ -264,10 +301,19 @@ func _spawn_or_update_avatar(peer_id: int, seat_id: int) -> void:
 		label.text = display_name if MatchAuthority.is_peer_publicly_alive(peer_id) else "† %s" % display_name
 
 func _setup_local_player_view(avatar: Node3D) -> void:
-	var head_anchor := avatar.get_node_or_null("HeadAnchor") as Marker3D
-	if head_anchor == null:
+	var center := get_table_center()
+	if center == null:
 		return
-	table_camera.anchor_to(head_anchor.global_transform)
+	var camera_position := avatar.global_position + Vector3.UP * LOCAL_CAMERA_HEIGHT
+	var camera_target := center.global_position
+	camera_target.y = camera_position.y
+	if camera_position.distance_squared_to(camera_target) <= 0.000001:
+		return
+	var camera_transform := Transform3D(Basis.IDENTITY, camera_position).looking_at(
+		camera_target,
+		Vector3.UP,
+	)
+	table_camera.anchor_to(camera_transform)
 	table_camera.current = true
 	if avatar is AvatarSlots:
 		(avatar as AvatarSlots).set_local_perspective(true)

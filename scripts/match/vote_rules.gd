@@ -26,6 +26,24 @@ static func resolve(players: Array[PlayerState], votes: Dictionary) -> int:
 static func resolve_partial(players: Array[PlayerState], votes: Dictionary) -> int:
 	return _resolve_valid_votes(_valid_votes(players, votes))
 
+static func top_targets(players: Array[PlayerState], votes: Dictionary) -> Array[int]:
+	var valid_votes := _valid_votes(players, votes)
+	var result: Array[int] = []
+	if valid_votes.is_empty():
+		return result
+	var counts: Dictionary = {}
+	var highest := 0
+	for raw_target_id in valid_votes.values():
+		var target_id := int(raw_target_id)
+		var count := int(counts.get(target_id, 0)) + 1
+		counts[target_id] = count
+		highest = maxi(highest, count)
+	for raw_target_id in counts.keys():
+		if int(counts[raw_target_id]) == highest:
+			result.append(int(raw_target_id))
+	result.sort()
+	return result
+
 static func _valid_votes(players: Array[PlayerState], votes: Dictionary) -> Dictionary:
 	var valid_votes: Dictionary = {}
 	for raw_voter_id in votes.keys():

@@ -4,15 +4,22 @@
 [ext_resource type="Theme" path="res://ui/gods_liars_theme.tres" id="2"]
 
 [node name="ChatUI" type="CanvasLayer"]
-layer = 26
+layer = 31
 script = ExtResource("1")
 
 [node name="Panel" type="PanelContainer" parent="."]
 unique_name_in_owner = true
-offset_left = 280.0
-offset_top = 600.0
-offset_right = 1000.0
-offset_bottom = 700.0
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -430.0
+offset_top = -350.0
+offset_right = 430.0
+offset_bottom = -30.0
+grow_horizontal = 2
+grow_vertical = 0
 theme = ExtResource("2")
 
 [node name="Margin" type="MarginContainer" parent="Panel"]
@@ -26,15 +33,32 @@ theme_override_constants/margin_bottom = 14
 layout_mode = 2
 theme_override_constants/separation = 8
 
+[node name="TitleLabel" type="Label" parent="Panel/Margin/VBox"]
+layout_mode = 2
+text = "CHAT PRIVADO 1 A 1"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 20
+
+[node name="Recipient" type="OptionButton" parent="Panel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="History" type="RichTextLabel" parent="Panel/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 175)
+layout_mode = 2
+scroll_following = true
+fit_content = false
+
 [node name="InputLine" type="LineEdit" parent="Panel/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-placeholder_text = "Escribí un mensaje..."
+placeholder_text = "Escribí un mensaje privado..."
 max_length = 220
 clear_button_enabled = true
 
 [node name="HintLabel" type="Label" parent="Panel/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Enter: enviar · Esc/B: cancelar"
+text = "Enter: enviar · Esc/B: cerrar"
 modulate = Color(0.72, 0.68, 0.58, 1)

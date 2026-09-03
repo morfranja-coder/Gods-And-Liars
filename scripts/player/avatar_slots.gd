@@ -48,6 +48,7 @@ func set_player_color(color: Color) -> void:
 	_player_color = color
 	_has_player_color = true
 	_apply_mask_color()
+	_apply_name_color()
 
 func get_player_color() -> Color:
 	return _player_color
@@ -121,6 +122,16 @@ func _apply_mask_color() -> void:
 	if not _has_player_color:
 		return
 	_tint_mask_materials(self)
+
+func _apply_name_color() -> void:
+	if not _has_player_color:
+		return
+	var label := get_node_or_null("NameLabel") as Label3D
+	if label == null:
+		return
+	label.modulate = _player_color
+	label.outline_modulate = Color(0.03, 0.03, 0.03, 1.0)
+	label.outline_size = 10
 
 func _tint_mask_materials(node: Node) -> void:
 	if node is MeshInstance3D:

@@ -26,6 +26,9 @@ mesh = SubResource("CapsuleMesh_placeholder")
 
 [node name="Mask" type="Node3D" parent="."]
 
+[node name="HeadAnchor" type="Marker3D" parent="."]
+position = Vector3(0, 1.65, 0)
+
 [node name="SelectionArea" type="Area3D" parent="."]
 collision_layer = 2
 collision_mask = 0

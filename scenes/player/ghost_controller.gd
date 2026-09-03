@@ -1,12 +1,14 @@
 class_name GhostController
 extends CharacterBody3D
 
-@export_range(1.0, 20.0, 0.5) var move_speed := 7.0
-@export_range(1.0, 20.0, 0.5) var vertical_speed := 5.0
+@export_range(0.5, 10.0, 0.1) var move_speed := 2.8
+@export_range(0.5, 10.0, 0.1) var vertical_speed := 2.0
 @export_range(1.0, 20.0, 0.5) var body_follow_speed := 6.0
 @export_range(0.0005, 0.02, 0.0005) var mouse_sensitivity := 0.0025
 @export_range(0.5, 6.0, 0.1) var controller_sensitivity := 2.2
 @export_range(20.0, 89.0, 1.0) var pitch_limit_degrees := 75.0
+@export_range(1.0, 64.0, 1.0) var edge_turn_margin_pixels := 18.0
+@export_range(15.0, 180.0, 5.0) var edge_turn_speed_degrees := 75.0
 
 var input_enabled := false
 var _target_yaw := 0.0
@@ -24,6 +26,7 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector3.ZERO
 		return
 	_apply_controller_look(delta)
+	_apply_edge_turn(delta)
 	_apply_view_rotation()
 	_apply_body_follow(delta)
 	_apply_movement()
@@ -53,6 +56,20 @@ func _apply_controller_look(delta: float) -> void:
 	var horizontal := Input.get_axis(InputBindings.ACTION_LOOK_LEFT, InputBindings.ACTION_LOOK_RIGHT)
 	var vertical := Input.get_axis(InputBindings.ACTION_LOOK_UP, InputBindings.ACTION_LOOK_DOWN)
 	_apply_look_delta(Vector2(horizontal, vertical) * controller_sensitivity * delta)
+
+func _apply_edge_turn(delta: float) -> void:
+	var viewport_size := get_viewport().get_visible_rect().size
+	if viewport_size.x <= 0.0:
+		return
+	var mouse_x := get_viewport().get_mouse_position().x
+	var edge_direction := 0.0
+	if mouse_x <= edge_turn_margin_pixels:
+		edge_direction = -1.0
+	elif mouse_x >= viewport_size.x - edge_turn_margin_pixels:
+		edge_direction = 1.0
+	if is_zero_approx(edge_direction):
+		return
+	_target_yaw -= edge_direction * deg_to_rad(edge_turn_speed_degrees) * delta
 
 func _apply_look_delta(look_delta: Vector2) -> void:
 	_target_yaw -= look_delta.x

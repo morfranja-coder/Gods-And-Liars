@@ -34,7 +34,7 @@ func test_roster_spawns_avatar_at_authoritative_seat() -> void:
 	assert_object(avatar.get_node_or_null("Body/PersonajeAlfa")).is_not_null()
 	table.queue_free()
 
-func test_table_mounts_alpha_scenario_and_swaps_god_after_local_death() -> void:
+func test_table_mounts_current_scenario_and_swaps_god_after_local_death() -> void:
 	NetworkManager.register_peer(1, 1001, "Host", 0)
 	MatchAuthority.public_alive_by_peer[1] = true
 	var table := TABLE_SCENE.instantiate()
@@ -42,7 +42,7 @@ func test_table_mounts_alpha_scenario_and_swaps_god_after_local_death() -> void:
 	await get_tree().process_frame
 	var living_god := table.get_node("GodState/LivingGod") as Node3D
 	var dead_god := table.get_node("GodState/DeadGod") as Node3D
-	assert_object(table.get_node_or_null("AlphaScenario")).is_not_null()
+	assert_object(_find_scenario_root(table)).is_not_null()
 	assert_bool(living_god.visible).is_true()
 	assert_bool(dead_god.visible).is_false()
 
@@ -103,3 +103,9 @@ func test_table_mounts_match_end_ui() -> void:
 	await get_tree().process_frame
 	assert_object(table.get_node_or_null("MatchEndUI")).is_not_null()
 	table.queue_free()
+
+func _find_scenario_root(table: Node) -> Node:
+	for child in table.get_children():
+		if str(child.name).begins_with("EscenarioAlfa"):
+			return child
+	return null

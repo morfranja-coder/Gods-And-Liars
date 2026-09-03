@@ -7,6 +7,7 @@ extends Camera3D
 @export_range(10.0, 80.0, 1.0) var pitch_up_limit_degrees: float = 45.0
 @export_range(10.0, 80.0, 1.0) var pitch_down_limit_degrees: float = 35.0
 @export_range(1.0, 30.0, 0.5) var smoothing_speed: float = 14.0
+@export_range(0.0, 0.5, 0.01) var eye_height_offset: float = 0.10
 
 var look_enabled: bool = true
 var _base_rotation: Vector3
@@ -38,6 +39,7 @@ func anchor_to(anchor_transform: Transform3D) -> void:
 		anchor_transform.basis.orthonormalized(),
 		anchor_transform.origin,
 	)
+	camera_transform.origin.y -= eye_height_offset
 	global_transform = camera_transform
 	_base_rotation = rotation
 	reset_look()

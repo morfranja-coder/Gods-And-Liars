@@ -34,7 +34,11 @@ func set_look_enabled(enabled: bool) -> void:
 	look_enabled = enabled
 
 func anchor_to(anchor_transform: Transform3D) -> void:
-	global_transform = anchor_transform
+	var camera_transform := Transform3D(
+		anchor_transform.basis.orthonormalized(),
+		anchor_transform.origin,
+	)
+	global_transform = camera_transform
 	_base_rotation = rotation
 	reset_look()
 

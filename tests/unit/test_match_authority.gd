@@ -20,7 +20,7 @@ func test_invalid_private_role_is_ignored() -> void:
 
 func test_private_role_labels_are_local_only() -> void:
 	MatchAuthority._receive_private_role(int(PlayerState.Role.HEALER))
-	assert_str(MatchAuthority.role_title()).is_equal("Sanador")
+	assert_str(MatchAuthority.role_title()).is_equal("Sacerdote")
 	assert_bool(MatchAuthority.role_description().contains("Protegé")).is_true()
 
 func test_heretic_receives_only_private_teammate_identity() -> void:

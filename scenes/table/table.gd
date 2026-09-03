@@ -17,7 +17,7 @@ var _avatars: Dictionary = {}
 var _local_ghost: GhostController = null
 var _ghost_transition_started := false
 
-@onready var table_camera: TableCameraLook = $Camera3D
+@onready var table_camera: TableCameraLook = _ensure_table_camera()
 @onready var world_environment: WorldEnvironment = $WorldEnvironment
 @onready var player_list_ui: PlayerListUI = $PlayerListUI
 @onready var emote_wheel_ui: EmoteWheelUI = $EmoteWheelUI
@@ -117,6 +117,17 @@ func _handle_targeting_input(event: InputEvent) -> void:
 	if event is InputEventJoypadButton and event.is_action_pressed(InputBindings.ACTION_SELECT):
 		_select_focused_target()
 		get_viewport().set_input_as_handled()
+
+func _ensure_table_camera() -> TableCameraLook:
+	var existing := get_node_or_null("Camera3D")
+	if existing is TableCameraLook:
+		return existing as TableCameraLook
+	var camera := TableCameraLook.new()
+	camera.name = "LocalPlayerCamera"
+	camera.fov = 72.0
+	camera.near = 0.05
+	add_child(camera)
+	return camera
 
 func _setup_environment() -> void:
 	if world_environment.environment == null:

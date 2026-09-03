@@ -2,6 +2,7 @@ class_name AvatarSlots
 extends Node3D
 
 const MASK_MATERIAL_NAME := "M_Mask"
+const IDLE_ANIMATION := &"Idle"
 const DEATH_ANIMATION := &"NlaTrack.013"
 const DEATH_FALLBACK_SECONDS := 2.4
 const MOVEMENT_ANIMATIONS := [
@@ -29,6 +30,7 @@ var _has_player_color: bool = false
 func _ready() -> void:
 	_refresh_all()
 	_apply_mask_color()
+	_play_idle()
 
 func set_body(scene: PackedScene) -> void:
 	body_scene = scene
@@ -58,6 +60,16 @@ func play_movement(index: int) -> bool:
 	if animation_player == null or not animation_player.has_animation(animation_name):
 		return false
 	animation_player.play(animation_name, 0.15)
+	return true
+
+func _play_idle() -> bool:
+	var animation_player := _find_animation_player(self)
+	if animation_player == null or not animation_player.has_animation(IDLE_ANIMATION):
+		return false
+	var idle_animation := animation_player.get_animation(IDLE_ANIMATION)
+	if idle_animation != null:
+		idle_animation.loop_mode = Animation.LOOP_LINEAR
+	animation_player.play(IDLE_ANIMATION)
 	return true
 
 func play_death_and_hide() -> void:

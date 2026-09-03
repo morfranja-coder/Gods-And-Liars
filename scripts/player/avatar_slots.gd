@@ -144,8 +144,8 @@ func _apply_name_color() -> void:
 	if label == null:
 		return
 	label.modulate = _player_color
-	label.outline_modulate = Color(0.03, 0.03, 0.03, 1.0)
-	label.outline_size = 10
+	label.outline_modulate = Color(0.015, 0.015, 0.015, 1.0)
+	label.outline_size = 16
 
 func _tint_mask_materials(node: Node) -> void:
 	if node is MeshInstance3D:

@@ -10,7 +10,7 @@ const PLAYER_AVATAR_SCENE := preload("res://scenes/player/player_avatar.tscn")
 const GHOST_CONTROLLER_SCENE := preload("res://scenes/player/ghost_controller.tscn")
 const SELECTION_MASK := 2
 const RAY_LENGTH := 100.0
-const LOCAL_CAMERA_HEIGHT := 1.65
+const LOCAL_CAMERA_HEIGHT := 0.95
 
 var selected_peer_id: int = 0
 var focused_peer_id: int = 0

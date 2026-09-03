@@ -1,5 +1,7 @@
 extends CanvasLayer
 
+const SCREEN_PICK_RADIUS := 110.0
+
 var selected_peer_id: int = 0
 var _table: Node = null
 
@@ -19,6 +21,21 @@ func _ready() -> void:
 	MatchAuthority.phase_synced.connect(_on_phase_synced)
 	MatchAuthority.vote_resolution_received.connect(_on_vote_resolution_received)
 	_refresh()
+
+func _input(event: InputEvent) -> void:
+	if GameManager.phase != GameManager.MatchPhase.VOTING:
+		return
+	if event is not InputEventMouseButton:
+		return
+	var mouse_event := event as InputEventMouseButton
+	if mouse_event.button_index != MOUSE_BUTTON_LEFT or not mouse_event.pressed:
+		return
+	var peer_id := _nearest_avatar_to_screen_position(mouse_event.position)
+	if peer_id <= 0:
+		return
+	selected_peer_id = peer_id
+	_refresh()
+	get_viewport().set_input_as_handled()
 
 func _on_target_selected(peer_id: int) -> void:
 	selected_peer_id = peer_id
@@ -82,6 +99,35 @@ func _valid_selected_target(local_peer_id: int) -> bool:
 	if not NetworkManager.peers.has(selected_peer_id):
 		return false
 	return MatchAuthority.is_peer_publicly_alive(selected_peer_id)
+
+func _nearest_avatar_to_screen_position(screen_position: Vector2) -> int:
+	if _table == null:
+		return 0
+	var camera := get_viewport().get_camera_3d()
+	if camera == null:
+		return 0
+	var local_peer_id := multiplayer.get_unique_id() if multiplayer.multiplayer_peer != null else 0
+	var best_peer_id := 0
+	var best_distance := SCREEN_PICK_RADIUS
+	for child in _table.get_children():
+		if not child.has_meta("peer_id"):
+			continue
+		var peer_id := int(child.get_meta("peer_id"))
+		if peer_id == local_peer_id or not MatchAuthority.is_peer_publicly_alive(peer_id):
+			continue
+		var avatar := child as Node3D
+		if avatar == null:
+			continue
+		var head_anchor := avatar.get_node_or_null("HeadAnchor") as Node3D
+		var target_position := head_anchor.global_position if head_anchor != null else avatar.global_position + Vector3.UP
+		if camera.is_position_behind(target_position):
+			continue
+		var projected := camera.unproject_position(target_position)
+		var distance := screen_position.distance_to(projected)
+		if distance < best_distance:
+			best_distance = distance
+			best_peer_id = peer_id
+	return best_peer_id
 
 func _peer_name(peer_id: int) -> String:
 	if peer_id <= 0:

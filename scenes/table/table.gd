@@ -5,18 +5,23 @@ signal target_focused(peer_id: int)
 signal target_cleared
 signal local_emote_requested(index: int)
 signal local_chat_message_requested(text: String)
+signal private_chat_received(peer_id: int, display_name: String, text: String)
 
 const PLAYER_AVATAR_SCENE := preload("res://scenes/player/player_avatar.tscn")
 const GHOST_CONTROLLER_SCENE := preload("res://scenes/player/ghost_controller.tscn")
 const SELECTION_MASK := 2
 const RAY_LENGTH := 100.0
 const LOCAL_CAMERA_HEIGHT := 0.95
+const SCENARIO_COLLISION_MIN_AXIS := 0.75
+const PRIVATE_CHAT_MAX_LENGTH := 220
+const REMOTE_GHOST_FOLDER := "res://assets/FantasmaPJ"
 
 var selected_peer_id: int = 0
 var focused_peer_id: int = 0
 var _avatars: Dictionary = {}
 var _local_ghost: GhostController = null
 var _ghost_transition_started := false
+var _remote_ghost_visuals: Dictionary = {}
 
 @onready var table_camera: TableCameraLook = _ensure_table_camera()
 @onready var world_environment: WorldEnvironment = $WorldEnvironment
@@ -46,10 +51,13 @@ func _ready() -> void:
 	emote_wheel_ui.emote_requested.connect(_on_emote_requested)
 	chat_ui.open_state_changed.connect(_on_chat_open_state_changed)
 	chat_ui.message_submitted.connect(_on_chat_message_submitted)
+	if chat_ui.has_signal("private_message_submitted"):
+		chat_ui.connect("private_message_submitted", _on_private_message_submitted)
 	pause_ui.leave_pressed.connect(_on_leave_match_pressed)
 	leave_confirm_dialog.confirmed.connect(_on_leave_confirmed)
 	_refresh_roster()
 	_refresh_god_state()
+	call_deferred("_ensure_scenario_collisions")
 	if multiplayer.is_server() and NetworkManager.is_host:
 		MatchAuthority.call_deferred("begin_role_reveal")
 
@@ -90,6 +98,8 @@ func _handle_pause_input(event: InputEvent) -> bool:
 	return true
 
 func _handle_social_input(event: InputEvent) -> bool:
+	if _is_ghost_mode_active():
+		return false
 	if event.is_action_pressed(InputBindings.ACTION_CHAT):
 		_close_social_overlays()
 		chat_ui.open_for_typing(event is InputEventJoypadButton)
@@ -110,6 +120,8 @@ func _handle_social_input(event: InputEvent) -> bool:
 	return false
 
 func _handle_targeting_input(event: InputEvent) -> void:
+	if GameManager.phase == GameManager.MatchPhase.VOTING or NightPhaseRules.is_action_phase(GameManager.phase):
+		return
 	if event is InputEventMouseButton:
 		var mouse_event := event as InputEventMouseButton
 		if mouse_event.button_index == MOUSE_BUTTON_LEFT and mouse_event.pressed:
@@ -130,6 +142,31 @@ func _ensure_table_camera() -> TableCameraLook:
 	camera.near = 0.05
 	add_child(camera)
 	return camera
+
+func focus_camera_on_god() -> void:
+	if _is_ghost_mode_active():
+		return
+	var god := dead_god_visual if MatchAuthority.is_local_ghost() else living_god_visual
+	if god == null:
+		return
+	var camera_position := table_camera.global_position
+	var target := god.global_position + Vector3.UP * 1.15
+	if camera_position.distance_squared_to(target) <= 0.000001:
+		return
+	var transform := Transform3D(Basis.IDENTITY, camera_position).looking_at(target, Vector3.UP)
+	table_camera.anchor_to(transform)
+	table_camera.current = true
+	table_camera.set_look_enabled(false)
+
+func restore_local_player_camera() -> void:
+	if _is_ghost_mode_active():
+		return
+	var local_peer_id := multiplayer.get_unique_id() if multiplayer.multiplayer_peer != null else 0
+	var avatar := _avatars.get(local_peer_id) as Node3D
+	if avatar == null:
+		return
+	_setup_local_player_view(avatar)
+	_update_camera_input_state()
 
 func _setup_environment() -> void:
 	if world_environment.environment == null:
@@ -156,7 +193,49 @@ func _on_emote_requested(index: int) -> void:
 	local_emote_requested.emit(index)
 
 func _on_chat_message_submitted(text: String) -> void:
+	if MatchAuthority.is_local_ghost():
+		return
 	local_chat_message_requested.emit(text)
+
+func _on_private_message_submitted(target_peer_id: int, text: String) -> void:
+	send_private_chat(target_peer_id, text)
+
+func send_private_chat(target_peer_id: int, text: String) -> void:
+	if MatchAuthority.is_local_ghost() or multiplayer.multiplayer_peer == null:
+		return
+	var local_peer_id := multiplayer.get_unique_id()
+	if not _can_private_chat(local_peer_id, target_peer_id):
+		return
+	var clean_text := text.strip_edges().left(PRIVATE_CHAT_MAX_LENGTH)
+	if clean_text.is_empty():
+		return
+	if multiplayer.is_server():
+		_server_route_private_chat(local_peer_id, target_peer_id, clean_text)
+	else:
+		_request_private_chat.rpc_id(1, target_peer_id, clean_text)
+
+func _server_route_private_chat(sender_peer_id: int, target_peer_id: int, text: String) -> void:
+	if not multiplayer.is_server() or not _can_private_chat(sender_peer_id, target_peer_id):
+		return
+	var clean_text := text.strip_edges().left(PRIVATE_CHAT_MAX_LENGTH)
+	if clean_text.is_empty():
+		return
+	var sender_data: Dictionary = NetworkManager.peers.get(sender_peer_id, {})
+	var sender_name := str(sender_data.get("display_name", "Acólito %d" % sender_peer_id))
+	if target_peer_id == multiplayer.get_unique_id():
+		_receive_private_chat(sender_peer_id, sender_name, clean_text)
+	elif not (multiplayer.multiplayer_peer is OfflineMultiplayerPeer):
+		_receive_private_chat.rpc_id(target_peer_id, sender_peer_id, sender_name, clean_text)
+
+func _can_private_chat(sender_peer_id: int, target_peer_id: int) -> bool:
+	if sender_peer_id <= 0 or target_peer_id <= 0 or sender_peer_id == target_peer_id:
+		return false
+	if not NetworkManager.peers.has(sender_peer_id) or not NetworkManager.peers.has(target_peer_id):
+		return false
+	return (
+		MatchAuthority.is_peer_publicly_alive(sender_peer_id)
+		and MatchAuthority.is_peer_publicly_alive(target_peer_id)
+	)
 
 func _close_social_overlays() -> void:
 	if player_list_ui.is_open:
@@ -273,6 +352,7 @@ func _refresh_roster(_unused: int = 0) -> void:
 				selected_peer_id = 0
 			if focused_peer_id == peer_id:
 				_clear_focused_target()
+	_refresh_remote_ghost_visuals()
 
 func _spawn_or_update_avatar(peer_id: int, seat_id: int) -> void:
 	var marker := get_seat_marker(seat_id)
@@ -297,8 +377,9 @@ func _spawn_or_update_avatar(peer_id: int, seat_id: int) -> void:
 	if label != null:
 		var display_name := str(peer.get("display_name", ""))
 		if display_name.is_empty():
-			display_name = "Player %s" % peer_id
-		label.text = display_name if MatchAuthority.is_peer_publicly_alive(peer_id) else "† %s" % display_name
+			display_name = "Acólito %s" % peer_id
+		label.text = display_name
+		label.visible = MatchAuthority.is_peer_publicly_alive(peer_id) and peer_id != multiplayer.get_unique_id()
 
 func _setup_local_player_view(avatar: Node3D) -> void:
 	var center := get_table_center()
@@ -382,6 +463,43 @@ func _peer_id_from_collider(collider: Node) -> int:
 		current = current.get_parent()
 	return 0
 
+func _ensure_scenario_collisions() -> void:
+	var scenario_root := _find_scenario_root()
+	if scenario_root == null:
+		return
+	_add_scenario_collisions_recursive(scenario_root)
+
+func _find_scenario_root() -> Node3D:
+	for child in get_children():
+		if child is Node3D and str(child.name).begins_with("EscenarioAlfa"):
+			return child as Node3D
+	return null
+
+func _add_scenario_collisions_recursive(node: Node) -> void:
+	if node is MeshInstance3D:
+		_ensure_mesh_collision(node as MeshInstance3D)
+	for child in node.get_children():
+		_add_scenario_collisions_recursive(child)
+
+func _ensure_mesh_collision(mesh_instance: MeshInstance3D) -> void:
+	if mesh_instance.mesh == null or not mesh_instance.visible:
+		return
+	for child in mesh_instance.get_children():
+		if child is StaticBody3D:
+			return
+	var size := mesh_instance.get_aabb().size
+	var scale := mesh_instance.global_basis.get_scale()
+	var scaled_size := Vector3(absf(size.x * scale.x), absf(size.y * scale.y), absf(size.z * scale.z))
+	var largest_axis := maxf(scaled_size.x, maxf(scaled_size.y, scaled_size.z))
+	if largest_axis < SCENARIO_COLLISION_MIN_AXIS:
+		return
+	mesh_instance.create_trimesh_collision()
+	for child in mesh_instance.get_children():
+		if child is StaticBody3D:
+			var body := child as StaticBody3D
+			body.collision_layer = 1
+			body.collision_mask = 0
+
 func _on_roster_changed(peer_id: int) -> void:
 	_refresh_roster(peer_id)
 
@@ -389,11 +507,13 @@ func _on_night_resolution_received(_killed_peer_ids: Array[int]) -> void:
 	_refresh_roster()
 	_refresh_god_state()
 	_begin_local_ghost_transition()
+	_refresh_remote_ghost_visuals()
 
 func _on_vote_resolution_received(_sacrificed_peer_id: int, _tied: bool) -> void:
 	_refresh_roster()
 	_refresh_god_state()
 	_begin_local_ghost_transition()
+	_refresh_remote_ghost_visuals()
 
 func _refresh_god_state() -> void:
 	var local_peer_id := multiplayer.get_unique_id()
@@ -415,6 +535,7 @@ func _begin_local_ghost_transition() -> void:
 		spawn_transform = avatar.global_transform
 		await avatar.play_death_and_hide()
 	_spawn_local_ghost(spawn_transform)
+	_refresh_remote_ghost_visuals()
 
 func _spawn_local_ghost(spawn_transform: Transform3D) -> void:
 	_local_ghost = GHOST_CONTROLLER_SCENE.instantiate() as GhostController
@@ -425,7 +546,75 @@ func _spawn_local_ghost(spawn_transform: Transform3D) -> void:
 	_local_ghost.activate(is_heretic)
 	ghost_hud.show_ghost_mode(is_heretic)
 	table_camera.current = false
+	_close_social_overlays()
 	_update_camera_input_state()
+
+func _refresh_remote_ghost_visuals() -> void:
+	if not MatchAuthority.is_local_ghost():
+		_clear_remote_ghost_visuals()
+		return
+	var local_peer_id := multiplayer.get_unique_id() if multiplayer.multiplayer_peer != null else 0
+	for raw_peer_id in NetworkManager.peers.keys():
+		var peer_id := int(raw_peer_id)
+		if peer_id == local_peer_id or MatchAuthority.is_peer_publicly_alive(peer_id):
+			_remove_remote_ghost_visual(peer_id)
+			continue
+		if _remote_ghost_visuals.has(peer_id):
+			continue
+		var avatar := _avatars.get(peer_id) as Node3D
+		if avatar == null:
+			continue
+		var visual := _create_remote_ghost_visual(peer_id)
+		add_child(visual)
+		visual.global_transform = avatar.global_transform
+		_remote_ghost_visuals[peer_id] = visual
+
+func _create_remote_ghost_visual(peer_id: int) -> Node3D:
+	var root := Node3D.new()
+	root.name = "RemoteGhost_%d" % peer_id
+	var ghost_scene := _load_first_glb_from_folder(REMOTE_GHOST_FOLDER)
+	if ghost_scene != null:
+		root.add_child(ghost_scene.instantiate())
+		return root
+	var fallback := MeshInstance3D.new()
+	var mesh := CapsuleMesh.new()
+	mesh.radius = 0.35
+	mesh.height = 1.4
+	fallback.mesh = mesh
+	fallback.position.y = 0.7
+	var material := StandardMaterial3D.new()
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.albedo_color = Color(0.72, 0.82, 0.9, 0.28)
+	fallback.material_override = material
+	root.add_child(fallback)
+	return root
+
+func _load_first_glb_from_folder(folder_path: String) -> PackedScene:
+	var directory := DirAccess.open(folder_path)
+	if directory == null:
+		return null
+	directory.list_dir_begin()
+	var file_name := directory.get_next()
+	while not file_name.is_empty():
+		if not directory.current_is_dir() and file_name.get_extension().to_lower() == "glb":
+			var resource := ResourceLoader.load(folder_path.path_join(file_name))
+			directory.list_dir_end()
+			return resource as PackedScene
+		file_name = directory.get_next()
+	directory.list_dir_end()
+	return null
+
+func _remove_remote_ghost_visual(peer_id: int) -> void:
+	if not _remote_ghost_visuals.has(peer_id):
+		return
+	var visual := _remote_ghost_visuals[peer_id] as Node
+	if is_instance_valid(visual):
+		visual.queue_free()
+	_remote_ghost_visuals.erase(peer_id)
+
+func _clear_remote_ghost_visuals() -> void:
+	for raw_peer_id in _remote_ghost_visuals.keys():
+		_remove_remote_ghost_visual(int(raw_peer_id))
 
 func _is_ghost_mode_active() -> bool:
 	return _local_ghost != null
@@ -435,9 +624,22 @@ func _on_rematch_received() -> void:
 	if _local_ghost != null:
 		_local_ghost.queue_free()
 		_local_ghost = null
+	_clear_remote_ghost_visuals()
 	for avatar in _avatars.values():
 		(avatar as Node3D).visible = true
 	ghost_hud.hide_ghost_mode()
 	table_camera.current = true
 	_refresh_god_state()
 	_update_camera_input_state()
+
+@rpc("any_peer", "reliable")
+func _request_private_chat(target_peer_id: int, text: String) -> void:
+	if not multiplayer.is_server():
+		return
+	_server_route_private_chat(multiplayer.get_remote_sender_id(), target_peer_id, text)
+
+@rpc("authority", "call_remote", "reliable")
+func _receive_private_chat(sender_peer_id: int, sender_name: String, text: String) -> void:
+	if MatchAuthority.is_local_ghost():
+		return
+	private_chat_received.emit(sender_peer_id, sender_name, text)

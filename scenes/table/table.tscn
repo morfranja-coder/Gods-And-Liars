@@ -14,8 +14,15 @@
 [ext_resource type="Texture2D" uid="uid://bw1q3vh56l0se" path="res://TripoModels/ornate_religious_sculpture_3d_model/ornate+religious+sculpture+3d+model.fbm/ornate+religious+sculpture+3d+model_basecolor.jpg" id="13_chfws"]
 [ext_resource type="PackedScene" uid="uid://bqvyi1ohqb4j3" path="res://assets/God/dios_RIG_MIRADA_CORREGIDO.glb" id="14_1vdx5"]
 [ext_resource type="PackedScene" path="res://scenes/table/ghost_hud.tscn" id="14_ghost_hud"]
-[ext_resource type="PackedScene" uid="uid://dk0ofnewfqk8u" path="res://assets/PJ/Personaje_Alfa.glb" id="15_jv6v5"]
 [ext_resource type="PackedScene" uid="uid://7k86n810m5l" path="res://assets/EvilGod/Dios_Muerto_RIG_MIRADA_CORREGIDO.glb" id="16_oldaa"]
+
+[sub_resource type="Environment" id="Environment_wkc0u"]
+fog_light_color = Color(0.45, 0.45, 0.45, 1)
+fog_light_energy = 5.0
+fog_sun_scatter = 0.06
+volumetric_fog_density = 0.1613
+
+[sub_resource type="Compositor" id="Compositor_v660f"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_6wwcm"]
 resource_name = "tripo_node_56f95dd0-7c02-48d6-8cab-4c27caaaf429_material"
@@ -58,7 +65,7 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_yem5u")
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_d3651"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_chfws"]
 resource_local_to_scene = true
 resource_name = "tripo_node_56f95dd0-7c02-48d6-8cab-4c27caaaf429_material"
 vertex_color_use_as_albedo = true
@@ -76,7 +83,155 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9862158, -3.6623273)
 [node name="DeadGod" type="Node3D" parent="GodState" unique_id=2039717559]
 visible = false
 
+[node name="EscenarioAlfaV3" parent="." unique_id=226464980 instance=ExtResource("11_vkoix")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.22892153, 0.22718525, 0.49473327)
+
+[node name="Luces" type="Node3D" parent="EscenarioAlfaV3" unique_id=435016279]
+
+[node name="OmniLight3D3" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=1697036714]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.8538884, 1.6445532, -0.3389097)
+light_color = Color(0.6218762, 0.37765974, 0.11345372, 1)
+light_energy = 0.4
+shadow_enabled = true
+shadow_bias = 0.0
+shadow_normal_bias = 2.026
+omni_range = 3.0
+
+[node name="OmniLight3D5" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=45642219]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.4514184, 1.6445532, -0.44644827)
+light_color = Color(0.5603702, 0.3948989, 0.16220614, 1)
+light_energy = 0.4
+shadow_enabled = true
+shadow_bias = 0.0
+shadow_normal_bias = 2.026
+omni_range = 3.0
+
+[node name="OmniLight3D6" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=128276113]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.6950412, 2.2421913, -1.4145948)
+light_color = Color(0.9471641, 0.61118996, 0.23413023, 1)
+light_energy = 0.2
+light_specular = 0.0
+shadow_bias = 0.0
+shadow_normal_bias = 2.026
+omni_range = 2.0
+
+[node name="OmniLight3D7" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=886400603]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.942015, 2.3447585, -1.3800557)
+light_color = Color(0.9471641, 0.61118996, 0.23413023, 1)
+light_energy = 0.1
+light_specular = 0.2
+shadow_bias = 0.0
+shadow_normal_bias = 2.026
+omni_range = 2.0
+
+[node name="OmniLight3D8" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=1798031684]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.26881123, 2.1552713, -6.4172716)
+light_color = Color(0.9471641, 0.61118996, 0.23413023, 1)
+light_energy = 0.6
+light_specular = 0.0
+shadow_bias = 0.0
+shadow_normal_bias = 2.026
+omni_range = 2.0
+
+[node name="OmniLight3D9" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=420464694]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.7315998, 2.1819844, -6.331565)
+light_color = Color(0.9471641, 0.61118996, 0.23413023, 1)
+light_energy = 0.6
+light_specular = 0.0
+shadow_bias = 0.0
+shadow_normal_bias = 2.026
+omni_range = 2.0
+
+[node name="OmniLight3D12" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=639231566]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.6870923, 1.2985787, -3.8906379)
+light_color = Color(0.9471641, 0.61118996, 0.23413023, 1)
+light_energy = 0.3
+shadow_bias = 0.0
+shadow_normal_bias = 2.026
+omni_range = 3.0
+omni_attenuation = 0.7
+
+[node name="OmniLight3D13" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=685124316]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.0945636, 1.479758, -3.8906379)
+light_color = Color(0.9471641, 0.61118996, 0.23413023, 1)
+light_energy = 0.3
+light_size = 0.054
+shadow_bias = 0.0
+shadow_normal_bias = 2.026
+omni_range = 3.0
+omni_attenuation = 0.7
+
+[node name="OmniLight3D15" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=92555974]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.6379604, 1.4900883, -2.3622243)
+light_color = Color(0.9471641, 0.61118996, 0.23413023, 1)
+light_energy = 0.1
+light_specular = 0.0
+shadow_bias = 0.0
+shadow_normal_bias = 2.026
+omni_range = 1.0
+omni_attenuation = 0.0
+
+[node name="OmniLight3D16" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=1917954777]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.6378188, 1.1306393, -2.6022873)
+light_color = Color(0.9471641, 0.61118996, 0.23413023, 1)
+light_energy = 0.1
+light_specular = 0.0
+shadow_bias = 0.0
+shadow_normal_bias = 2.026
+omni_range = 2.0
+omni_attenuation = 0.0
+
+[node name="OmniLight3D10" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=1411618623]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.6762092, 1.5602765, -5.8724484)
+light_color = Color(0.78, 0.31563997, 0.0468, 1)
+light_energy = 0.5
+shadow_bias = 0.0
+shadow_normal_bias = 2.026
+omni_range = 2.0
+
+[node name="OmniLight3D11" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=1750032698]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.17605174, 1.5602765, -5.8724484)
+light_color = Color(0.78, 0.31563997, 0.0468, 1)
+light_energy = 0.5
+shadow_bias = 0.0
+shadow_normal_bias = 2.026
+omni_range = 2.0
+
+[node name="OmniLight3D2" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=128820733]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.2310367, 2.3565974, 1.09075)
+light_color = Color(0.81, 0.3105, 0, 1)
+light_energy = 0.1
+shadow_enabled = true
+shadow_bias = 0.0
+shadow_normal_bias = 2.026
+omni_range = 4.0
+
+[node name="OmniLight3D4" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=1427076219]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.67784417, 2.3565974, 1.09075)
+light_color = Color(0.81, 0.3105, 0, 1)
+light_energy = 0.1
+shadow_enabled = true
+shadow_bias = 0.0
+shadow_normal_bias = 2.026
+omni_range = 4.0
+
+[node name="OmniLight3D" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=811115392]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.4658631, 1.3349996, -2.1686044)
+light_color = Color(0.647884, 0.6530854, 0.66733414, 1)
+light_energy = 2.0
+light_specular = 0.0
+omni_range = 10.0
+
+[node name="OmniLight3D14" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=1727074432]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.119568944, 1.3349996, -2.2255454)
+light_color = Color(0.647884, 0.6530854, 0.66733414, 1)
+light_energy = 2.0
+light_specular = 0.0
+omni_range = 10.0
+
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=2030944540]
+environment = SubResource("Environment_wkc0u")
+compositor = SubResource("Compositor_v660f")
 
 [node name="RoleReveal" parent="." unique_id=1909578880 instance=ExtResource("2")]
 
@@ -106,173 +261,61 @@ ok_button_text = "Abandonar"
 dialog_text = "¿Seguro que querés abandonar esta partida?"
 cancel_button_text = "Cancelar"
 
-[node name="EscenarioAlfaV3" parent="." unique_id=226464980 instance=ExtResource("11_vkoix")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.22892153, 0.22718525, 0.49473327)
-
-[node name="Luces" type="Node3D" parent="EscenarioAlfaV3" unique_id=435016279]
-
-[node name="OmniLight3D3" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=1697036714]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.8538884, 1.6445532, -0.3389097)
-light_color = Color(0.6218762, 0.37765974, 0.11345372, 1)
-light_energy = 2.0
-shadow_enabled = true
-shadow_bias = 0.0
-shadow_normal_bias = 2.026
-omni_range = 3.0
-
-[node name="OmniLight3D5" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=45642219]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.4514184, 1.6445532, -0.44644827)
-light_color = Color(0.5603702, 0.3948989, 0.16220614, 1)
-light_energy = 2.0
-shadow_enabled = true
-shadow_bias = 0.0
-shadow_normal_bias = 2.026
-omni_range = 3.0
-
-[node name="OmniLight3D6" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=128276113]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.6950412, 2.2421913, -1.4145948)
-light_color = Color(0.9471641, 0.61118996, 0.23413023, 1)
-light_specular = 0.0
-shadow_bias = 0.0
-shadow_normal_bias = 2.026
-omni_range = 2.0
-
-[node name="OmniLight3D7" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=886400603]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.942015, 2.3447585, -1.3800557)
-light_color = Color(0.9471641, 0.61118996, 0.23413023, 1)
-light_specular = 0.2
-shadow_bias = 0.0
-shadow_normal_bias = 2.026
-omni_range = 2.0
-
-[node name="OmniLight3D8" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=1798031684]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.26881123, 2.1552713, -6.4172716)
-light_color = Color(0.9471641, 0.61118996, 0.23413023, 1)
-light_specular = 0.0
-shadow_bias = 0.0
-shadow_normal_bias = 2.026
-omni_range = 2.0
-
-[node name="OmniLight3D9" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=420464694]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.7315998, 2.1819844, -6.331565)
-light_color = Color(0.9471641, 0.61118996, 0.23413023, 1)
-light_specular = 0.0
-shadow_bias = 0.0
-shadow_normal_bias = 2.026
-omni_range = 2.0
-
-[node name="OmniLight3D12" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=639231566]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.6870923, 1.2985787, -3.8906379)
-light_color = Color(0.9471641, 0.61118996, 0.23413023, 1)
-light_energy = 1.2
-shadow_bias = 0.0
-shadow_normal_bias = 2.026
-omni_range = 3.0
-omni_attenuation = 0.7
-
-[node name="OmniLight3D13" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=685124316]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.0945636, 1.479758, -3.8906379)
-light_color = Color(0.9471641, 0.61118996, 0.23413023, 1)
-light_energy = 1.2
-light_size = 0.054
-shadow_bias = 0.0
-shadow_normal_bias = 2.026
-omni_range = 3.0
-omni_attenuation = 0.7
-
-[node name="OmniLight3D15" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=92555974]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.6379604, 1.4900883, -2.3622243)
-light_color = Color(0.9471641, 0.61118996, 0.23413023, 1)
-light_energy = 0.5
-light_specular = 0.0
-shadow_bias = 0.0
-shadow_normal_bias = 2.026
-omni_range = 2.0
-omni_attenuation = 0.0
-
-[node name="OmniLight3D16" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=1917954777]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.6378188, 1.1306393, -2.6022873)
-light_color = Color(0.9471641, 0.61118996, 0.23413023, 1)
-light_energy = 0.5
-light_specular = 0.0
-shadow_bias = 0.0
-shadow_normal_bias = 2.026
-omni_range = 2.0
-omni_attenuation = 0.0
-
-[node name="OmniLight3D10" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=1411618623]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.6762092, 1.5602765, -5.8724484)
-light_color = Color(0.78, 0.31563997, 0.0468, 1)
-shadow_bias = 0.0
-shadow_normal_bias = 2.026
-omni_range = 2.0
-
-[node name="OmniLight3D11" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=1750032698]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.17605174, 1.5602765, -5.8724484)
-light_color = Color(0.78, 0.31563997, 0.0468, 1)
-shadow_bias = 0.0
-shadow_normal_bias = 2.026
-omni_range = 2.0
-
-[node name="OmniLight3D2" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=128820733]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.2310367, 2.3565974, 1.09075)
-light_color = Color(0.81, 0.3105, 0, 1)
-shadow_enabled = true
-shadow_bias = 0.0
-shadow_normal_bias = 2.026
-omni_range = 4.0
-
-[node name="OmniLight3D4" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=1427076219]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.67784417, 2.3565974, 1.09075)
-light_color = Color(0.81, 0.3105, 0, 1)
-shadow_enabled = true
-shadow_bias = 0.0
-shadow_normal_bias = 2.026
-omni_range = 4.0
-
-[node name="OmniLight3D" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=811115392]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.8447297, 2.6299324, -2.220378)
-light_color = Color(1, 0.47516668, 0.32999998, 1)
-light_energy = 0.5
-light_specular = 0.0
-omni_range = 4096.0
-
 [node name="ornate_religious_sculpture_3d_model" parent="." unique_id=1828394913 instance=ExtResource("12_cm5o7")]
 
 [node name="tripo_node_56f95dd0-7c02-48d6-8cab-4c27caaaf429" parent="ornate_religious_sculpture_3d_model" index="0" unique_id=2059536618]
 transform = Transform3D(7.955005, 0, 0, 0, -0.011758756, -4.6044726, 0, 8.918222, -0.0060710385, 0.4738345, 3.8455658, -5.8516245)
 mesh = SubResource("ArrayMesh_il2ij")
-surface_material_override/0 = SubResource("StandardMaterial3D_d3651")
+surface_material_override/0 = SubResource("StandardMaterial3D_chfws")
 
 [node name="dios_RIG_MIRADA_CORREGIDO" parent="." unique_id=711684568 instance=ExtResource("14_1vdx5")]
-transform = Transform3D(1.8048122, 0, 0, 0, 1.7662884, 0, 0, 0, 1.4115162, 0.564028, 1.0935789, -5.6623263)
+transform = Transform3D(1.8048122, 0, 0, 0, 1.7662884, 0, 0, 0, 1.4115162, 0.47108114, 1.1310617, -5.738134)
 
-[node name="Seats" type="Node3D" parent="."]
+[node name="LuzDios Bueno" type="OmniLight3D" parent="dios_RIG_MIRADA_CORREGIDO" unique_id=1237676443]
+transform = Transform3D(0.5540743, 0, 0, 0, 0.56615895, 0, 0, 0, 0.708458, -0.0029082894, 0.52539563, -0.005273342)
+light_specular = 0.0
+shadow_enabled = true
+shadow_bias = 0.0
+shadow_normal_bias = 2.026
+omni_range = 1.3
 
-[node name="Seat_01" type="Marker3D" parent="Seats"]
+[node name="Seats" type="Node3D" parent="." unique_id=402444335]
+
+[node name="Seat_01" type="Marker3D" parent="Seats" unique_id=1180215640]
 transform = Transform3D(0.71815664, 0, -0.8894183, 0, 1.182789, 0, 0.9363928, 0, 0.6821299, 1.9756372, 0.8549348, -2.5961106)
 
-[node name="Seat_02" type="Marker3D" parent="Seats"]
+[node name="Seat_02" type="Marker3D" parent="Seats" unique_id=819440063]
 transform = Transform3D(0.18223336, 0, -1.1074319, 0, 1.182789, 0, 1.1659207, 0, 0.17309146, 2.1536448, 0.8569939, -2.115009)
 
-[node name="Seat_03" type="Marker3D" parent="Seats"]
+[node name="Seat_03" type="Marker3D" parent="Seats" unique_id=1304789653]
 transform = Transform3D(-0.45782948, 0, -1.0330831, 0, 1.1827888, 0, 1.0876453, 0, -0.43486243, 2.0862901, 0.8569939, -1.3885462)
 
-[node name="Seat_04" type="Marker3D" parent="Seats"]
+[node name="Seat_04" type="Marker3D" parent="Seats" unique_id=151089224]
 transform = Transform3D(-0.96285, 0, -0.6480488, 0, 1.1827887, 0, 0.68227565, 0, -0.9145484, 1.6388657, 0.8569939, -0.7919806)
 
-[node name="Seat_05" type="Marker3D" parent="Seats"]
+[node name="Seat_05" type="Marker3D" parent="Seats" unique_id=834389684]
 transform = Transform3D(0.6107898, 0, 0.95905817, 0, 1.182789, 0, -1.0097109, 0, 0.5801494, -1.1150768, 0.8569939, -2.5961106)
 
-[node name="Seat_06" type="Marker3D" parent="Seats"]
+[node name="Seat_06" type="Marker3D" parent="Seats" unique_id=133796039]
 transform = Transform3D(-0.045505643, 0, 1.1200436, 0, 1.182789, 0, -1.1791986, 0, -0.043222606, -1.3415413, 0.8569939, -1.881278)
 
-[node name="Seat_07" type="Marker3D" parent="Seats"]
+[node name="Seat_07" type="Marker3D" parent="Seats" unique_id=538109890]
 transform = Transform3D(-0.6457294, 0, 0.93818194, 0, 1.182789, 0, -0.9877318, 0, -0.6133359, -1.1365889, 0.8569939, -1.068062)
 
-[node name="Seat_08" type="Marker3D" parent="Seats"]
+[node name="Seat_08" type="Marker3D" parent="Seats" unique_id=1533312544]
 transform = Transform3D(-1.0845399, 0, 0.44180477, 0, 1.182789, 0, -0.4651384, 0, -1.0301332, -0.5804379, 0.8569939, -0.5669924)
+
 [node name="Dios_Muerto_RIG_MIRADA_CORREGIDO" parent="." unique_id=864705819 instance=ExtResource("16_oldaa")]
-transform = Transform3D(1.450849, 0, 0, 0, 1.6038504, 0, 0, 0, 1.4423007, 0.5707225, 1.1391557, -5.574239)
+transform = Transform3D(1.450849, 0, 0, 0, 1.6038504, 0, 0, 0, 1.4423007, 0.48275465, 1.1391557, -5.574239)
+visible = false
+
+[node name="LuzDios Bueno2" type="OmniLight3D" parent="Dios_Muerto_RIG_MIRADA_CORREGIDO" unique_id=966817101]
+transform = Transform3D(0.68925154, 0, 0, 0, 0.6234995, 0, 0, 0, 0.69333667, -0.017312318, 0.57694656, 0.026703835)
+light_color = Color(0.67, 0.0066999937, 0.017754832, 1)
+light_energy = 2.982
+light_specular = 0.0
+shadow_bias = 0.0
+shadow_normal_bias = 2.026
+omni_range = 1.5
 
 [editable path="ornate_religious_sculpture_3d_model"]

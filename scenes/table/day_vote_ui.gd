@@ -158,7 +158,6 @@ func _add_target_card(peer_id: int) -> void:
 	portrait_button.custom_minimum_size = Vector2(145, 135)
 	portrait_button.toggle_mode = true
 	portrait_button.expand_icon = true
-	portrait_button.icon_max_width = 120
 	portrait_button.tooltip_text = _peer_name(peer_id)
 	portrait_button.button_pressed = peer_id == selected_peer_id
 	portrait_button.pressed.connect(_select_target.bind(peer_id))

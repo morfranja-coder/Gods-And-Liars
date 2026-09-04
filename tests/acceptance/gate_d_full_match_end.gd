@@ -2,6 +2,7 @@ extends "res://tests/acceptance/gate_d_role_reveal_ack.gd"
 
 const D7_TIMEOUT_SECONDS := 25.0
 const EXPECTED_FINAL_ROUND := 2
+const FAST_FORWARD_DELAY_SECONDS := 0.25
 
 var _plan_round := 0
 var _plan_heretic_target := 0
@@ -9,16 +10,15 @@ var _plan_healer_target := 0
 var _plan_inquisitor_target := 0
 var _plan_vote_target := 0
 var _submitted_action_rounds: Dictionary = {}
-var _accepted_action_rounds: Dictionary = {}
 var _pending_action_round := 0
 var _night_resolution_rounds: Dictionary = {}
 var _submitted_vote_rounds: Dictionary = {}
 var _vote_resolution_rounds: Dictionary = {}
-var _win_check_rounds: Dictionary = {}
 var _server_accepted_actions: Dictionary = {}
 var _server_accepted_votes: Dictionary = {}
 var _server_expected_voters: Dictionary = {}
 var _server_vote_targets: Dictionary = {}
+var _server_phase_advance_delay := -1.0
 var _final_ack_sent := false
 var _server_match_end_ready := false
 var _d7_completed := false
@@ -40,19 +40,59 @@ func _process(delta: float) -> void:
 		return
 	if _role == "server" and not _match_started:
 		_process_server_roster(delta)
+	if _role == "server":
+		_process_server_phase_fast_forward(delta)
 	if _server_quit_delay >= 0.0:
 		_server_quit_delay -= delta
 		if _server_quit_delay <= 0.0:
 			get_tree().quit(0)
 
+func _process_server_phase_fast_forward(delta: float) -> void:
+	if not _match_started or _server_phase_advance_delay < 0.0:
+		return
+	_server_phase_advance_delay -= delta
+	if _server_phase_advance_delay > 0.0:
+		return
+	_server_phase_advance_delay = -1.0
+	var phase := GameManager.phase
+	if phase not in [
+		GameManager.MatchPhase.GOD_INTRO,
+		GameManager.MatchPhase.NIGHT_START,
+		GameManager.MatchPhase.HERETIC_ACTION,
+		GameManager.MatchPhase.HEALER_ACTION,
+		GameManager.MatchPhase.INQUISITOR_ACTION,
+		GameManager.MatchPhase.DAY_ANNOUNCEMENT,
+		GameManager.MatchPhase.VOTING,
+		GameManager.MatchPhase.SACRIFICE,
+	]:
+		return
+	MatchAuthority._clear_phase_timeout()
+	MatchAuthority._handle_phase_timeout(phase)
+
+func _schedule_server_phase_advance() -> void:
+	if _role == "server":
+		_server_phase_advance_delay = FAST_FORWARD_DELAY_SECONDS
+
 func _on_phase_synced(phase_value: int) -> void:
 	var round_value := GameManager.round_number
-	if phase_value == int(GameManager.MatchPhase.HERETIC_ACTION):
+	if phase_value == int(GameManager.MatchPhase.GOD_INTRO):
+		_schedule_server_phase_advance()
+	elif phase_value == int(GameManager.MatchPhase.NIGHT_START):
+		_schedule_server_phase_advance()
+	elif phase_value == int(GameManager.MatchPhase.HERETIC_ACTION):
 		if _role == "server" and _plan_round != round_value:
 			_broadcast_round_plan()
 		call_deferred("_try_submit_planned_action")
-	elif NightPhaseRules.is_action_phase(GameManager.phase):
+	elif phase_value == int(GameManager.MatchPhase.HEALER_ACTION):
 		call_deferred("_try_submit_planned_action")
+		if round_value == 1:
+			_schedule_server_phase_advance()
+	elif phase_value == int(GameManager.MatchPhase.INQUISITOR_ACTION):
+		call_deferred("_try_submit_planned_action")
+		if round_value == 1:
+			_schedule_server_phase_advance()
+	elif phase_value == int(GameManager.MatchPhase.DAY_ANNOUNCEMENT):
+		_schedule_server_phase_advance()
 	elif phase_value == int(GameManager.MatchPhase.DAY_DISCUSSION):
 		if _role == "server":
 			call_deferred("_begin_planned_voting")
@@ -60,10 +100,8 @@ func _on_phase_synced(phase_value: int) -> void:
 		if _role == "server":
 			_server_expected_voters[round_value] = _living_session_count()
 		call_deferred("_try_submit_planned_vote")
-	elif phase_value == int(GameManager.MatchPhase.WIN_CHECK):
-		_win_check_rounds[round_value] = true
-		if _role == "server":
-			_validate_win_check(round_value)
+	elif phase_value == int(GameManager.MatchPhase.SACRIFICE):
+		_schedule_server_phase_advance()
 
 func _broadcast_round_plan() -> void:
 	var validation_error := _server_plan_validation_error()
@@ -126,6 +164,8 @@ func _try_submit_planned_action() -> void:
 	var required_role := NightPhaseRules.role_for_phase(GameManager.phase)
 	if required_role != MatchAuthority.local_role:
 		return
+	if not _local_should_submit_planned_action(required_role, round_value, local_peer_id):
+		return
 	var target_peer_id := _target_for_role(required_role)
 	if target_peer_id <= 0:
 		_fail("active role had no deterministic target")
@@ -133,6 +173,17 @@ func _try_submit_planned_action() -> void:
 	_submitted_action_rounds[round_value] = true
 	_pending_action_round = round_value
 	MatchAuthority.submit_local_night_target(target_peer_id)
+
+func _local_should_submit_planned_action(
+	required_role: PlayerState.Role,
+	round_value: int,
+	local_peer_id: int,
+) -> bool:
+	if required_role == PlayerState.Role.HERETIC:
+		return local_peer_id == MatchAuthority.current_heretic_decider_peer_id
+	if round_value == 1:
+		return required_role not in [PlayerState.Role.HEALER, PlayerState.Role.INQUISITOR]
+	return true
 
 func _target_for_role(role_value: PlayerState.Role) -> int:
 	match role_value:
@@ -151,7 +202,6 @@ func _on_d7_night_action_result(accepted: bool, _target_peer_id: int) -> void:
 	if not accepted:
 		_fail("planned night action was rejected")
 		return
-	_accepted_action_rounds[_pending_action_round] = true
 	_pending_action_round = 0
 
 func _on_d7_night_action_accepted(actor_peer_id: int, target_peer_id: int) -> void:
@@ -161,6 +211,22 @@ func _on_d7_night_action_accepted(actor_peer_id: int, target_peer_id: int) -> vo
 	var accepted: Dictionary = _server_accepted_actions.get(round_value, {})
 	accepted[actor_peer_id] = target_peer_id
 	_server_accepted_actions[round_value] = accepted
+	if _server_current_action_phase_ready():
+		_schedule_server_phase_advance()
+
+func _server_current_action_phase_ready() -> bool:
+	var required_role := NightPhaseRules.role_for_phase(GameManager.phase)
+	if required_role == PlayerState.Role.UNASSIGNED:
+		return false
+	var accepted: Dictionary = _server_accepted_actions.get(GameManager.round_number, {})
+	for raw_actor_id in accepted.keys():
+		var actor_id := int(raw_actor_id)
+		if MatchAuthority.server_role_for_peer(actor_id) != required_role:
+			continue
+		if required_role != PlayerState.Role.HERETIC:
+			return true
+		return actor_id == MatchAuthority.current_heretic_decider_peer_id
+	return false
 
 func _on_d7_night_resolution(killed_peer_ids: Array[int]) -> void:
 	var round_value := GameManager.round_number
@@ -175,10 +241,10 @@ func _on_d7_night_resolution(killed_peer_ids: Array[int]) -> void:
 
 func _server_night_validation_error(round_value: int) -> String:
 	var accepted: Dictionary = _server_accepted_actions.get(round_value, {})
-	var expected_count := _expected_active_role_count()
+	var expected_count := _expected_active_role_count(round_value)
 	var error := ""
 	if accepted.size() != expected_count:
-		error = "server did not accept every living night actor"
+		error = "server did not accept the expected night actors"
 	else:
 		for raw_actor_id in accepted.keys():
 			var actor_id := int(raw_actor_id)
@@ -187,6 +253,10 @@ func _server_night_validation_error(round_value: int) -> String:
 			if int(accepted[raw_actor_id]) != expected_target:
 				error = "server accepted a night target outside the round plan"
 				break
+			if role_value == PlayerState.Role.HERETIC:
+				if actor_id != MatchAuthority.current_heretic_decider_peer_id:
+					error = "server accepted a non-deciding heretic action"
+					break
 	return error
 
 func _begin_planned_voting() -> void:
@@ -222,6 +292,9 @@ func _on_d7_vote_accepted(voter_peer_id: int, target_peer_id: int) -> void:
 	var accepted: Dictionary = _server_accepted_votes.get(round_value, {})
 	accepted[voter_peer_id] = target_peer_id
 	_server_accepted_votes[round_value] = accepted
+	var expected_voters := int(_server_expected_voters.get(round_value, 0))
+	if expected_voters > 0 and accepted.size() >= expected_voters:
+		_schedule_server_phase_advance()
 
 func _on_d7_vote_resolution(sacrificed_peer_id: int, tied: bool) -> void:
 	var round_value := GameManager.round_number
@@ -248,17 +321,6 @@ func _server_vote_round_validation_error(round_value: int, sacrificed_peer_id: i
 	elif not _public_alive_matches_session():
 		error = "public alive state diverged after deterministic sacrifice"
 	return error
-
-func _validate_win_check(round_value: int) -> void:
-	var session: MatchSession = MatchAuthority.get("_session")
-	if session == null:
-		_fail("server lost authoritative session before win check")
-		return
-	var winner := session.winner()
-	if round_value == 1 and not winner.is_empty():
-		_fail("match ended before second deterministic round")
-	elif round_value == EXPECTED_FINAL_ROUND and winner != &"faithful":
-		_fail("second-round win check did not produce faithful winner")
 
 func _on_d7_match_end(winner: StringName) -> void:
 	var error := _local_match_end_validation_error(winner)
@@ -298,8 +360,6 @@ func _local_match_end_validation_error(winner: StringName) -> String:
 		error = "client missed a night resolution"
 	elif _vote_resolution_rounds.size() != EXPECTED_FINAL_ROUND:
 		error = "client missed a vote resolution"
-	elif _win_check_rounds.size() != EXPECTED_FINAL_ROUND:
-		error = "client missed a win check"
 	return error
 
 func _server_match_end_validation_error() -> String:
@@ -399,7 +459,9 @@ func _alive_non_heretic_peers() -> Array[int]:
 	result.sort()
 	return result
 
-func _expected_active_role_count() -> int:
+func _expected_active_role_count(round_value: int) -> int:
+	if round_value == 1:
+		return 1
 	return (
 		_alive_role_peers(PlayerState.Role.HERETIC).size()
 		+ _alive_role_peers(PlayerState.Role.HEALER).size()

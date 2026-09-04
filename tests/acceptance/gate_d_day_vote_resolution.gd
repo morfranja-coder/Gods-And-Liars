@@ -5,9 +5,9 @@ var _vote_sent := false
 var _planned_vote_target := 0
 var _living_before_vote := 0
 var _vote_resolution_seen := false
+var _vote_resolution_requested := false
 var _sacrificed_peer_id := 0
 var _vote_tied := false
-var _win_check_seen := false
 var _vote_ack_sent := false
 var _server_vote_ready := false
 var _d6_completed := false
@@ -15,6 +15,7 @@ var _vote_validated_clients: Dictionary = {}
 
 func _ready() -> void:
 	super()
+	MatchAuthority.vote_accepted.connect(_on_d6_vote_accepted)
 	MatchAuthority.vote_resolution_received.connect(_on_vote_resolution_received)
 	MatchAuthority.phase_synced.connect(_on_d6_phase_synced)
 
@@ -43,8 +44,7 @@ func _on_d6_phase_synced(phase_value: int) -> void:
 			_fail("could not choose public vote target")
 			return
 		call_deferred("_submit_day_vote")
-	elif phase_value == int(GameManager.MatchPhase.WIN_CHECK):
-		_win_check_seen = true
+	elif phase_value == int(GameManager.MatchPhase.SACRIFICE):
 		if _role == "server":
 			_server_vote_ready = true
 			_try_complete_d6_server()
@@ -65,6 +65,22 @@ func _submit_day_vote() -> void:
 		_fail("living voter could not choose a valid target")
 		return
 	MatchAuthority.submit_local_vote(vote_target)
+
+func _on_d6_vote_accepted(_voter_peer_id: int, _target_peer_id: int) -> void:
+	if _role != "server" or _vote_resolution_requested:
+		return
+	if GameManager.phase != GameManager.MatchPhase.VOTING or _living_before_vote <= 0:
+		return
+	if MatchAuthority._valid_vote_count() < _living_before_vote:
+		return
+	_vote_resolution_requested = true
+	call_deferred("_resolve_d6_vote")
+
+func _resolve_d6_vote() -> void:
+	if GameManager.phase != GameManager.MatchPhase.VOTING:
+		return
+	MatchAuthority._clear_phase_timeout()
+	MatchAuthority._handle_phase_timeout(GameManager.MatchPhase.VOTING)
 
 func _first_alive_peer() -> int:
 	var peer_ids := _sorted_peer_ids()
@@ -113,7 +129,7 @@ func _on_vote_resolution_received(sacrificed_peer_id: int, tied: bool) -> void:
 		_try_send_vote_ack()
 
 func _try_send_vote_ack() -> void:
-	if _vote_ack_sent or not _vote_resolution_seen or not _win_check_seen:
+	if _vote_ack_sent or not _vote_resolution_seen or not _saw_vote_sequence():
 		return
 	_vote_ack_sent = true
 	_ack_vote_state.rpc_id(
@@ -129,7 +145,6 @@ func _saw_vote_sequence() -> bool:
 		GameManager.MatchPhase.DAY_DISCUSSION,
 		GameManager.MatchPhase.VOTING,
 		GameManager.MatchPhase.SACRIFICE,
-		GameManager.MatchPhase.WIN_CHECK,
 	]:
 		if int(required_phase) not in _visited_phases:
 			return false
@@ -180,7 +195,7 @@ func _client_vote_ack_validation_error(
 func _server_vote_validation_error() -> String:
 	var votes: Dictionary = MatchAuthority.get("_votes")
 	var error := ""
-	if not _vote_resolution_seen or not _win_check_seen:
+	if not _vote_resolution_seen or not _server_vote_ready:
 		error = "server did not observe complete vote resolution"
 	elif _vote_tied or _sacrificed_peer_id != _planned_vote_target:
 		error = "server deterministic vote resolved incorrectly"
@@ -190,6 +205,8 @@ func _server_vote_validation_error() -> String:
 		error = "server sacrifice did not update public alive state"
 	elif not _public_alive_matches_session():
 		error = "server public alive state diverged after sacrifice"
+	elif not _saw_vote_sequence():
+		error = "server missed part of day vote sequence"
 	return error
 
 func _try_complete_d6_server() -> void:

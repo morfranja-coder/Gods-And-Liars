@@ -66,7 +66,7 @@ func test_table_social_overlays_block_and_restore_gameplay_look() -> void:
 	add_child(table)
 	await get_tree().process_frame
 	await get_tree().process_frame
-	var camera := table.get_node("Camera3D") as TableCameraLook
+	var camera := table.get_node("LocalPlayerCamera") as TableCameraLook
 	var chat := table.get_node("ChatUI") as ChatUI
 	var player_list := table.get_node("PlayerListUI") as PlayerListUI
 
@@ -93,7 +93,7 @@ func test_table_ui_contract_keeps_all_b1_to_b7_overlays_mounted() -> void:
 	var table := TABLE_SCENE.instantiate()
 	add_child(table)
 	await get_tree().process_frame
-	assert_object(table.get_node_or_null("Camera3D") as TableCameraLook).is_not_null()
+	assert_object(table.get_node_or_null("LocalPlayerCamera") as TableCameraLook).is_not_null()
 	assert_object(table.get_node_or_null("RoleReveal")).is_not_null()
 	assert_object(table.get_node_or_null("NightActionUI")).is_not_null()
 	assert_object(table.get_node_or_null("DayVoteUI")).is_not_null()

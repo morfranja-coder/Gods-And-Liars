@@ -6,8 +6,10 @@ const TABLE_SCENE := preload("res://scenes/table/table.tscn")
 func before_test() -> void:
 	NetworkManager.reset()
 	MatchAuthority.reset()
+	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 
 func after_test() -> void:
+	multiplayer.multiplayer_peer = null
 	NetworkManager.reset()
 	MatchAuthority.reset()
 

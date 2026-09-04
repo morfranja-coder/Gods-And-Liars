@@ -96,13 +96,22 @@ static func _run_vote(
 		var target := brain.choose_vote_target(session.players, player.peer_id)
 		if target > 0:
 			votes[player.peer_id] = target
-	var sacrificed_peer_id := VoteRules.resolve(session.players, votes)
+
+	var top_targets := VoteRules.top_targets(session.players, votes)
+	var tied := top_targets.size() > 1
+	var sacrificed_peer_id := 0
+	if top_targets.size() == 1:
+		sacrificed_peer_id = top_targets[0]
+	elif tied:
+		sacrificed_peer_id = top_targets[session.rng.randi_range(0, top_targets.size() - 1)]
+
+	var was_heretic := false
 	_sync_phase(GameManager.MatchPhase.SACRIFICE, round_value, visited_phases)
 	if sacrificed_peer_id > 0:
+		var sacrificed := session.get_player(sacrificed_peer_id)
+		was_heretic = sacrificed != null and sacrificed.role == PlayerState.Role.HERETIC
 		session.sacrifice(sacrificed_peer_id)
-		MatchAuthority._sync_sacrifice(sacrificed_peer_id, false)
-	else:
-		MatchAuthority._sync_sacrifice(0, true)
+	MatchAuthority._sync_sacrifice(sacrificed_peer_id, tied, was_heretic)
 	_sync_phase(GameManager.MatchPhase.WIN_CHECK, round_value, visited_phases)
 
 static func _night_target_for_role(

@@ -3,11 +3,14 @@ extends SceneTree
 const PROBE_SCRIPT := preload("res://scripts/qa/qa_local_transport_probe.gd")
 const DEFAULT_PORT := 24681
 const TIMEOUT_SECONDS := 10.0
+const SUCCESS_QUIT_DELAY_SECONDS := 0.25
 
 var _probe: QALocalTransportProbe
 var _elapsed := 0.0
 var _role := ""
 var _transport_started := false
+var _completed := false
+var _success_quit_delay := -1.0
 
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
@@ -27,6 +30,12 @@ func _process(delta: float) -> bool:
 	if not _transport_started:
 		_transport_started = true
 		_start_transport()
+		return false
+
+	if _completed:
+		_success_quit_delay -= delta
+		if _success_quit_delay <= 0.0:
+			quit(0)
 		return false
 
 	_elapsed += delta
@@ -49,8 +58,11 @@ func _on_completed(success: bool, message: String) -> void:
 	if not success:
 		_fail(message)
 		return
+	if _completed:
+		return
+	_completed = true
+	_success_quit_delay = SUCCESS_QUIT_DELAY_SECONDS
 	print("GREEN: Gate D1 %s - %s" % [_role, message])
-	quit(0)
 
 func _fail(message: String) -> void:
 	push_error("RED: Gate D1 %s - %s" % [_role, message])

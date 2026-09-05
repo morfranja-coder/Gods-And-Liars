@@ -1,2 +1,5 @@
 max-line-length: 180
-disable: []
+disable:
+  - max-file-lines
+  - class-definitions-order
+  - unused-argument

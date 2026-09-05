@@ -38,7 +38,6 @@ func _ready() -> void:
 	MatchAuthority.sacrifice_reveal_received.connect(_on_sacrifice_reveal_received)
 	_refresh_for_phase()
 
-
 func _build_minimal_subtitles() -> void:
 	_subtitle_root = Control.new()
 	_subtitle_root.name = "MinimalNarrative"
@@ -99,7 +98,6 @@ func _build_minimal_subtitles() -> void:
 	timer_label.visible = false
 	message_label.visible = false
 
-
 func _sync_minimal_subtitles() -> void:
 	if _subtitle_root == null:
 		return
@@ -109,18 +107,15 @@ func _sync_minimal_subtitles() -> void:
 		return
 
 	var phase := GameManager.phase
-
 	var narrative_phase := phase in [
 		GameManager.MatchPhase.GOD_INTRO,
 		GameManager.MatchPhase.DAY_ANNOUNCEMENT,
 		GameManager.MatchPhase.SACRIFICE,
 	]
-
 	var night_info_phase := (
 		phase == GameManager.MatchPhase.NIGHT_START
 		or NightPhaseRules.is_action_phase(phase)
 	)
-
 	var show_subtitles := narrative_phase or night_info_phase
 	_subtitle_root.visible = show_subtitles
 
@@ -130,30 +125,23 @@ func _sync_minimal_subtitles() -> void:
 	_subtitle_title.text = _phase_title(phase)
 	_subtitle_message.text = message_label.text
 
-
 func _update_minimal_timer(seconds: int) -> void:
 	if _subtitle_timer == null:
 		return
 
 	var phase := GameManager.phase
-
 	var timed_action := (
 		phase == GameManager.MatchPhase.HERETIC_ACTION
 		or phase == GameManager.MatchPhase.HEALER_ACTION
 		or phase == GameManager.MatchPhase.INQUISITOR_ACTION
 	)
-
 	_subtitle_timer.visible = timed_action and seconds > 0
 	_subtitle_timer.text = str(seconds) if timed_action and seconds > 0 else ""
-
 
 func _process(_delta: float) -> void:
 	if MatchAuthority.is_local_ghost():
 		panel.visible = false
-
-		# El fantasma sigue viendo la secuencia nocturna.
 		black_overlay.visible = _should_show_black_overlay()
-
 		if _subtitle_root != null:
 			_subtitle_root.visible = (
 				GameManager.phase == GameManager.MatchPhase.NIGHT_START
@@ -161,11 +149,11 @@ func _process(_delta: float) -> void:
 				or GameManager.phase == GameManager.MatchPhase.DAY_ANNOUNCEMENT
 				or GameManager.phase == GameManager.MatchPhase.SACRIFICE
 			)
-
 		var ghost_seconds := MatchAuthority.phase_seconds_remaining()
 		_update_minimal_timer(ghost_seconds)
 		_refresh_narrative()
 		return
+
 	var seconds := MatchAuthority.phase_seconds_remaining()
 	if seconds != _last_timer_second:
 		_last_timer_second = seconds
@@ -175,17 +163,12 @@ func _process(_delta: float) -> void:
 func _clear_narrative_surface() -> void:
 	message_label.text = ""
 	phase_label.text = ""
-
 	if _subtitle_message != null:
 		_subtitle_message.text = ""
-
 	if _subtitle_title != null:
 		_subtitle_title.text = ""
-
 	if _subtitle_root != null:
 		_subtitle_root.visible = false
-
-
 
 func _on_phase_synced(_phase: int) -> void:
 	_clear_narrative_surface()
@@ -255,25 +238,19 @@ func _on_sacrifice_reveal_received(
 func _refresh_for_phase() -> void:
 	var can_act := _local_can_act_in_phase()
 	var action_phase := _phase_uses_target_cards()
-
-	# El cuadro grande solo existe cuando realmente hay que elegir.
 	panel.visible = (
 		not MatchAuthority.is_local_ghost()
 		and can_act
 		and action_phase
 	)
-
 	black_overlay.visible = _should_show_black_overlay()
-
 	phase_label.visible = false
 	timer_label.visible = false
 	message_label.visible = false
-
 	_refresh_action_controls()
 	_refresh_narrative()
 	_sync_minimal_subtitles()
 	_force_action_ui_input_state()
-
 	if _table != null and _table.has_method("_update_camera_input_state"):
 		_table.call_deferred("_update_camera_input_state")
 
@@ -308,46 +285,31 @@ func _refresh_timer(seconds: int) -> void:
 func _refresh_narrative() -> void:
 	message_label.text = ""
 	phase_label.text = ""
-
 	var phase: GameManager.MatchPhase = GameManager.phase
-
 	phase_label.text = _phase_title(phase)
-
 	match phase:
 		GameManager.MatchPhase.GOD_INTRO:
 			_show_god_intro()
-
 		GameManager.MatchPhase.NIGHT_START:
 			_set_god_camera(false)
-
-			message_label.text = (
-				"ESTÁN PASANDO COSAS ESTA NOCHE.\n"
-				+ "Aguardá..."
-			)
-
+			message_label.text = "ESTÁN PASANDO COSAS ESTA NOCHE.\nAguardá..."
 		GameManager.MatchPhase.HERETIC_ACTION:
 			_set_god_camera(false)
 			message_label.text = _heretic_phase_message()
-
 		GameManager.MatchPhase.HEALER_ACTION:
 			_set_god_camera(true)
 			message_label.text = _priest_phase_message()
-
 		GameManager.MatchPhase.INQUISITOR_ACTION:
 			_set_god_camera(false)
 			message_label.text = _inquisitor_phase_message()
-
 		GameManager.MatchPhase.DAY_ANNOUNCEMENT:
 			_show_day_announcement()
-
 		GameManager.MatchPhase.SACRIFICE:
 			_show_sacrifice_narration()
-
 		_:
 			_set_god_camera(false)
 			message_label.text = ""
 			phase_label.text = ""
-
 	_sync_minimal_subtitles()
 
 func _show_god_intro() -> void:
@@ -387,17 +349,10 @@ func _priest_saved_announcement() -> String:
 
 func _show_sacrifice_narration() -> void:
 	_set_god_camera(true)
-
-	var peer_id: int = (
-		MatchAuthority.last_sacrificed_peer_id
-	)
-
+	var peer_id: int = MatchAuthority.last_sacrificed_peer_id
 	if peer_id <= 0:
-		message_label.text = (
-			"El juicio terminó sin sacrificio."
-		)
+		message_label.text = "El juicio terminó sin sacrificio."
 		return
-
 	message_label.text = (
 		"Se sacrificó a un Hereje."
 		if MatchAuthority.last_sacrifice_was_heretic
@@ -450,20 +405,14 @@ func _inquisitor_phase_message() -> String:
 
 func _should_show_black_overlay() -> bool:
 	var phase := GameManager.phase
-
 	var night_phase := (
 		phase == GameManager.MatchPhase.NIGHT_START
 		or NightPhaseRules.is_action_phase(phase)
 	)
-
 	if not night_phase:
 		return false
-
-	# Los fantasmas tambien observan la secuencia nocturna.
 	if MatchAuthority.is_local_ghost():
 		return true
-
-	# Los Herejes vivos necesitan ver su interfaz cuando actuan.
 	return MatchAuthority.local_role != PlayerState.Role.HERETIC
 
 func _local_can_act_in_phase() -> bool:
@@ -515,36 +464,26 @@ func _rebuild_action_cards() -> void:
 		cards_grid.add_child(card)
 		_cards_by_peer[peer_id] = card
 	_update_card_selection()
-
 	if not _cards_by_peer.is_empty():
 		call_deferred("_focus_first_night_card")
-
 
 func _on_card_pressed(peer_id: int) -> void:
 	if not _target_allowed_for_local_role(peer_id):
 		return
-
 	selected_peer_id = peer_id
 	_update_card_selection()
-
-	# ESPACIO sobre la tarjeta confirma directamente.
 	if _valid_selected_target():
 		_on_confirm_pressed()
-
 
 func _focus_night_target(peer_id: int) -> void:
 	if not _target_allowed_for_local_role(peer_id):
 		return
-
 	selected_peer_id = peer_id
 	_update_card_selection()
-
 	target_label.text = (
-		"WASD  Elegir     ESPACIO  Confirmar
-"
+		"WASD  Elegir     ESPACIO  Confirmar\n"
 		+ "Objetivo: %s" % _peer_name(peer_id)
 	)
-
 
 func _focus_first_night_card() -> void:
 	for child in cards_grid.get_children():
@@ -615,35 +554,27 @@ func _set_god_camera(enabled: bool) -> void:
 	elif not enabled and _table.has_method("restore_local_player_camera"):
 		_table.call("restore_local_player_camera")
 
-
 func _force_action_ui_input_state() -> void:
 	var active := (
 		panel.visible
 		and cards_scroll.visible
 		and _local_can_act_in_phase()
 	)
-
 	if active:
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-
 		if _table != null:
 			var camera: Object = _table.get("table_camera") as Object
 			if camera != null and camera.has_method("set_look_enabled"):
 				camera.call("set_look_enabled", false)
 
-
-
 func blocks_gameplay_input() -> bool:
 	if MatchAuthority.is_local_ghost():
 		return false
-
 	return (
 		panel.visible
 		and cards_scroll.visible
 		and _local_can_act_in_phase()
 	)
-
-
 
 func _local_peer_id() -> int:
 	return multiplayer.get_unique_id() if multiplayer.multiplayer_peer != null else 0

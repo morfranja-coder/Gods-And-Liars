@@ -127,10 +127,10 @@ func _on_input_gui_input(event: InputEvent) -> void:
 		return
 	if key_event.keycode == KEY_UP:
 		_history_previous()
-		accept_event()
+		_input.accept_event()
 	elif key_event.keycode == KEY_DOWN:
 		_history_next()
-		accept_event()
+		_input.accept_event()
 
 func _refocus_input() -> void:
 	if _is_open and _input != null:

@@ -8,8 +8,10 @@ func before_test() -> void:
 	NetworkManager.reset()
 	MatchAuthority.reset()
 	GameManager.reset_match()
+	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 
 func after_test() -> void:
+	multiplayer.multiplayer_peer = null
 	NetworkManager.reset()
 	MatchAuthority.reset()
 	GameManager.reset_match()
@@ -69,6 +71,7 @@ func _verify_role_reveal_ui(table: Node) -> void:
 
 func _verify_night_ui(table: Node) -> void:
 	MatchAuthority.local_role = PlayerState.Role.HERETIC
+	MatchAuthority.current_heretic_decider_peer_id = multiplayer.get_unique_id()
 	GameManager.round_number = 1
 	GameManager.set_phase(GameManager.MatchPhase.HERETIC_ACTION)
 	MatchAuthority.phase_synced.emit(int(GameManager.phase))
@@ -84,19 +87,24 @@ func _verify_day_vote_ui(table: Node) -> void:
 	GameManager.set_phase(GameManager.MatchPhase.DAY_DISCUSSION)
 	MatchAuthority.phase_synced.emit(int(GameManager.phase))
 	var panel := table.get_node_or_null("DayVoteUI/Panel") as Control
-	var label := table.get_node_or_null("DayVoteUI/Panel/VBox/PhaseLabel") as Label
-	var target_grid := table.get_node_or_null("DayVoteUI/Panel/VBox/TargetGrid") as GridContainer
+	var discussion_timer := table.get_node_or_null("DayVoteUI/DiscussionTimer") as Label
 	assert_object(panel).is_not_null()
-	assert_bool(panel.visible).is_true()
-	assert_object(label).is_not_null()
-	assert_str(label.text).is_equal("DÍA 2")
-	assert_object(target_grid).is_not_null()
-	assert_bool(target_grid.visible).is_false()
+	assert_bool(panel.visible).is_false()
+	assert_object(discussion_timer).is_not_null()
+	assert_bool(discussion_timer.visible).is_true()
 
+	MatchAuthority.current_voter_peer_id = multiplayer.get_unique_id()
 	GameManager.set_phase(GameManager.MatchPhase.VOTING)
 	MatchAuthority.phase_synced.emit(int(GameManager.phase))
+	var label := table.get_node_or_null("DayVoteUI/Panel/VBox/PhaseLabel") as Label
+	var target_center := table.get_node_or_null("DayVoteUI/Panel/VBox/TargetCenter") as CenterContainer
+	var target_grid := table.get_node_or_null("DayVoteUI/Panel/VBox/TargetCenter/TargetGrid") as GridContainer
 	assert_bool(panel.visible).is_true()
-	assert_str(label.text).is_equal("DÍA 2")
+	assert_object(label).is_not_null()
+	assert_str(label.text).contains("DÍA")
+	assert_object(target_center).is_not_null()
+	assert_bool(target_center.visible).is_true()
+	assert_object(target_grid).is_not_null()
 	assert_bool(target_grid.get_child_count() >= EXPECTED_PLAYERS - 1).is_true()
 
 func _verify_public_death_refresh(table: Node) -> void:

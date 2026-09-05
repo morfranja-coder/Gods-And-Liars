@@ -1,0 +1,2 @@
+max-line-length: 180
+disable: [max-file-lines, class-definitions-order, unused-argument, function-arguments-number]

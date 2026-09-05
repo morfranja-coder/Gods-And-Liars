@@ -6,6 +6,7 @@ signal message_submitted(text: String)
 signal private_message_submitted(target_peer_id: int, text: String)
 
 const MAX_MESSAGE_LENGTH := 220
+const GENERAL_CHANNEL_ID := 0
 
 var is_open: bool = false
 var _history_by_peer: Dictionary = {}
@@ -43,7 +44,9 @@ func handle_input(event: InputEvent) -> bool:
 func open_for_typing(from_controller: bool = false) -> void:
 	if MatchAuthority.is_local_ghost():
 		return
-	_rebuild_recipients()
+	_rebuild_recipients(GENERAL_CHANNEL_ID)
+	_select_recipient_by_peer_id(GENERAL_CHANNEL_ID)
+	_refresh_history()
 	_set_open(true)
 	input_line.grab_focus()
 	if from_controller:
@@ -72,15 +75,50 @@ func _on_text_submitted(text: String) -> void:
 	if message.length() > MAX_MESSAGE_LENGTH:
 		message = message.left(MAX_MESSAGE_LENGTH)
 	var target_peer_id := _selected_peer_id()
-	if target_peer_id <= 0:
-		hint_label.text = "Elegí un destinatario vivo."
-		return
-	_append_history(target_peer_id, "Vos: %s" % message)
-	private_message_submitted.emit(target_peer_id, message)
-	message_submitted.emit(message)
+	if target_peer_id == GENERAL_CHANNEL_ID:
+		_send_general_message(message)
+		message_submitted.emit(message)
+	else:
+		_append_history(target_peer_id, "Vos: %s" % message)
+		private_message_submitted.emit(target_peer_id, message)
 	input_line.text = ""
 	_refresh_history()
 	input_line.grab_focus()
+
+func _send_general_message(text: String) -> void:
+	if MatchAuthority.is_local_ghost() or multiplayer.multiplayer_peer == null:
+		return
+	var local_peer_id := multiplayer.get_unique_id()
+	if not MatchAuthority.is_peer_publicly_alive(local_peer_id):
+		return
+	var clean_text := text.strip_edges().left(MAX_MESSAGE_LENGTH)
+	if clean_text.is_empty():
+		return
+	if multiplayer.is_server():
+		_server_route_general_chat(local_peer_id, clean_text)
+	else:
+		_request_general_chat.rpc_id(1, clean_text)
+
+func _server_route_general_chat(sender_peer_id: int, text: String) -> void:
+	if not multiplayer.is_server():
+		return
+	if not NetworkManager.peers.has(sender_peer_id):
+		return
+	if not MatchAuthority.is_peer_publicly_alive(sender_peer_id):
+		return
+	var clean_text := text.strip_edges().left(MAX_MESSAGE_LENGTH)
+	if clean_text.is_empty():
+		return
+	var sender_data: Dictionary = NetworkManager.peers.get(sender_peer_id, {})
+	var sender_name := str(sender_data.get("display_name", "Acólito %d" % sender_peer_id))
+	for raw_peer_id in NetworkManager.peers.keys():
+		var peer_id := int(raw_peer_id)
+		if not MatchAuthority.is_peer_publicly_alive(peer_id):
+			continue
+		if peer_id == multiplayer.get_unique_id():
+			_receive_general_chat(sender_peer_id, sender_name, clean_text)
+		elif not (multiplayer.multiplayer_peer is OfflineMultiplayerPeer):
+			_receive_general_chat.rpc_id(peer_id, sender_peer_id, sender_name, clean_text)
 
 func _on_private_chat_received(sender_peer_id: int, sender_name: String, text: String) -> void:
 	if MatchAuthority.is_local_ghost():
@@ -89,7 +127,7 @@ func _on_private_chat_received(sender_peer_id: int, sender_name: String, text: S
 	if _selected_peer_id() == sender_peer_id:
 		_refresh_history()
 	else:
-		hint_label.text = "Mensaje nuevo de %s" % sender_name
+		hint_label.text = "Mensaje privado nuevo de %s" % sender_name
 
 func _on_recipient_selected(_index: int) -> void:
 	_refresh_history()
@@ -100,9 +138,11 @@ func _on_roster_changed(_peer_id: int) -> void:
 	var previous_peer_id := _selected_peer_id()
 	_rebuild_recipients(previous_peer_id)
 
-func _rebuild_recipients(preferred_peer_id: int = 0) -> void:
-	var previous := preferred_peer_id if preferred_peer_id > 0 else _selected_peer_id()
+func _rebuild_recipients(preferred_peer_id: int = GENERAL_CHANNEL_ID) -> void:
+	var previous := preferred_peer_id
 	recipient.clear()
+	recipient.add_item("GENERAL")
+	recipient.set_item_metadata(0, GENERAL_CHANNEL_ID)
 	var local_peer_id := multiplayer.get_unique_id() if multiplayer.multiplayer_peer != null else 0
 	var peer_ids := NetworkManager.peers.keys()
 	peer_ids.sort_custom(func(a, b):
@@ -117,20 +157,10 @@ func _rebuild_recipients(preferred_peer_id: int = 0) -> void:
 		var index := recipient.item_count
 		recipient.add_item(_peer_name(peer_id))
 		recipient.set_item_metadata(index, peer_id)
-	if recipient.item_count == 0:
-		hint_label.text = "No hay otros jugadores vivos disponibles."
-		_refresh_history()
-		return
-	var desired := previous
-	if desired <= 0 and MatchAuthority.local_role == PlayerState.Role.HERETIC:
-		desired = MatchAuthority.local_heretic_teammate_peer_id
-	_select_recipient_by_peer_id(desired)
+	_select_recipient_by_peer_id(previous)
 	_refresh_history()
 
 func _select_recipient_by_peer_id(peer_id: int) -> void:
-	if peer_id <= 0:
-		recipient.select(0)
-		return
 	for index in range(recipient.item_count):
 		if int(recipient.get_item_metadata(index)) == peer_id:
 			recipient.select(index)
@@ -139,7 +169,7 @@ func _select_recipient_by_peer_id(peer_id: int) -> void:
 
 func _selected_peer_id() -> int:
 	if not is_instance_valid(recipient) or recipient.item_count == 0 or recipient.selected < 0:
-		return 0
+		return GENERAL_CHANNEL_ID
 	return int(recipient.get_item_metadata(recipient.selected))
 
 func _append_history(peer_id: int, line: String) -> void:
@@ -151,15 +181,15 @@ func _append_history(peer_id: int, line: String) -> void:
 
 func _refresh_history() -> void:
 	var peer_id := _selected_peer_id()
-	if peer_id <= 0:
-		history.text = ""
-		return
 	var lines: Array = _history_by_peer.get(peer_id, [])
 	var packed := PackedStringArray()
 	for raw_line in lines:
 		packed.append(str(raw_line))
 	history.text = "\n".join(packed)
-	hint_label.text = "Chat privado con %s · Enter: enviar · Esc/B: cerrar" % _peer_name(peer_id)
+	if peer_id == GENERAL_CHANNEL_ID:
+		hint_label.text = "Chat general · Enter: enviar · Esc/B: cerrar · Elegí un jugador para chat privado"
+	else:
+		hint_label.text = "Chat privado con %s · Enter: enviar · Esc/B: cerrar" % _peer_name(peer_id)
 
 func _peer_name(peer_id: int) -> String:
 	var data: Dictionary = NetworkManager.peers.get(peer_id, {})
@@ -177,3 +207,19 @@ func _show_virtual_keyboard_if_supported() -> void:
 		input_line.caret_column,
 		input_line.caret_column
 	)
+
+@rpc("any_peer", "reliable")
+func _request_general_chat(text: String) -> void:
+	if not multiplayer.is_server():
+		return
+	_server_route_general_chat(multiplayer.get_remote_sender_id(), text)
+
+@rpc("authority", "call_remote", "reliable")
+func _receive_general_chat(sender_peer_id: int, sender_name: String, text: String) -> void:
+	if MatchAuthority.is_local_ghost():
+		return
+	_append_history(GENERAL_CHANNEL_ID, "%s: %s" % [sender_name, text])
+	if _selected_peer_id() == GENERAL_CHANNEL_ID:
+		_refresh_history()
+	else:
+		hint_label.text = "Mensaje nuevo en chat general"

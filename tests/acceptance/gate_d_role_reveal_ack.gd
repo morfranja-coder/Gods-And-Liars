@@ -1,7 +1,7 @@
 extends Node
 
 const PORT := 24684
-const TIMEOUT_SECONDS := 15.0
+const TIMEOUT_SECONDS := 30.0
 const HOST_STEAM_ID := 930000
 const CLIENT_STEAM_ID_BASE := 930000
 const EXPECTED_PLAYERS := 8

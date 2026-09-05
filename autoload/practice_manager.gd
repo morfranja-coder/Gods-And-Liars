@@ -8,13 +8,20 @@ const BOT_COUNT := 7
 const BOT_NAME_PREFIX := "Acólito"
 
 var active: bool = false
+var forced_human_role: PlayerState.Role = PlayerState.Role.UNASSIGNED
 var _bot_peer_ids: Array[int] = []
+var _rng := RandomNumberGenerator.new()
 
 func _ready() -> void:
+	_rng.randomize()
 	MatchAuthority.phase_synced.connect(_on_phase_synced)
 
-func start_seven_bot_match() -> void:
+func start_seven_bot_match(
+	forced_role: PlayerState.Role = PlayerState.Role.UNASSIGNED
+) -> void:
 	stop_practice()
+	forced_human_role = forced_role
+	_rng.randomize()
 	active = true
 	_setup_offline_host()
 	_seed_roster()
@@ -22,8 +29,10 @@ func start_seven_bot_match() -> void:
 
 func stop_practice() -> void:
 	if not active and multiplayer.multiplayer_peer == null:
+		forced_human_role = PlayerState.Role.UNASSIGNED
 		return
 	active = false
+	forced_human_role = PlayerState.Role.UNASSIGNED
 	_bot_peer_ids.clear()
 	MatchAuthority.reset()
 	GameManager.reset_match()
@@ -31,6 +40,19 @@ func stop_practice() -> void:
 	if multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
 		multiplayer.multiplayer_peer = null
 	practice_stopped.emit()
+
+func role_for_practice_command(command: String) -> PlayerState.Role:
+	match command.strip_edges().to_upper():
+		"PRACTICA1_HEREJE":
+			return PlayerState.Role.HERETIC
+		"PRACTICA1_FIEL":
+			return PlayerState.Role.FAITHFUL
+		"PRACTICA1_SACERDOTE":
+			return PlayerState.Role.HEALER
+		"PRACTICA1_INQUISIDOR":
+			return PlayerState.Role.INQUISITOR
+		_:
+			return PlayerState.Role.UNASSIGNED
 
 func bot_peer_ids() -> Array[int]:
 	return _bot_peer_ids.duplicate()
@@ -63,6 +85,7 @@ func _on_phase_synced(phase_value: int) -> void:
 		return
 	match phase_value:
 		GameManager.MatchPhase.ROLE_REVEAL:
+			_apply_forced_human_role()
 			call_deferred("_acknowledge_bot_roles")
 		GameManager.MatchPhase.HERETIC_ACTION, \
 		GameManager.MatchPhase.HEALER_ACTION, \
@@ -70,6 +93,26 @@ func _on_phase_synced(phase_value: int) -> void:
 			call_deferred("_play_bot_night_actions")
 		GameManager.MatchPhase.VOTING:
 			call_deferred("_play_bot_votes")
+
+func _apply_forced_human_role() -> void:
+	if forced_human_role == PlayerState.Role.UNASSIGNED:
+		return
+	var session: MatchSession = MatchAuthority.get("_session") as MatchSession
+	if session == null:
+		return
+	var human := session.get_player(HUMAN_PEER_ID)
+	if human == null or human.role == forced_human_role:
+		return
+	var swap_player: PlayerState = null
+	for player in session.players:
+		if player.peer_id != HUMAN_PEER_ID and player.role == forced_human_role:
+			swap_player = player
+			break
+	if swap_player == null:
+		return
+	var original_human_role: PlayerState.Role = human.role
+	human.role = forced_human_role
+	swap_player.role = original_human_role
 
 func _acknowledge_bot_roles() -> void:
 	if not active or GameManager.phase != GameManager.MatchPhase.ROLE_REVEAL:
@@ -105,17 +148,22 @@ func _bot_can_act(peer_id: int, required_role: PlayerState.Role) -> bool:
 
 func _pick_night_target(peer_id: int, role: PlayerState.Role) -> int:
 	if role == PlayerState.Role.HEALER:
-		return _pick_living_peer()
+		return _pick_random_other_living_peer(peer_id)
 	if role == PlayerState.Role.HERETIC:
 		return _pick_living_non_heretic(peer_id)
 	return _pick_other_living_peer(peer_id)
 
-func _pick_living_peer() -> int:
+func _pick_random_other_living_peer(actor_peer_id: int) -> int:
+	var candidates: Array[int] = []
 	for raw_peer_id in NetworkManager.peers.keys():
 		var peer_id := int(raw_peer_id)
+		if peer_id == actor_peer_id:
+			continue
 		if MatchAuthority.is_peer_publicly_alive(peer_id):
-			return peer_id
-	return 0
+			candidates.append(peer_id)
+	if candidates.is_empty():
+		return 0
+	return candidates[_rng.randi_range(0, candidates.size() - 1)]
 
 func _pick_living_non_heretic(actor_peer_id: int) -> int:
 	for raw_peer_id in NetworkManager.peers.keys():

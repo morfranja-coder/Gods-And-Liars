@@ -30,6 +30,7 @@ func _ready() -> void:
 	MatchAuthority.night_action_accepted.connect(_on_d7_night_action_accepted)
 	MatchAuthority.night_resolution_received.connect(_on_d7_night_resolution)
 	MatchAuthority.vote_accepted.connect(_on_d7_vote_accepted)
+	MatchAuthority.vote_state_synced.connect(_on_d7_vote_state_synced)
 	MatchAuthority.vote_resolution_received.connect(_on_d7_vote_resolution)
 	MatchAuthority.match_end_received.connect(_on_d7_match_end)
 
@@ -99,9 +100,17 @@ func _on_phase_synced(phase_value: int) -> void:
 	elif phase_value == int(GameManager.MatchPhase.VOTING):
 		if _role == "server":
 			_server_expected_voters[round_value] = _living_session_count()
-		call_deferred("_try_submit_planned_vote")
 	elif phase_value == int(GameManager.MatchPhase.SACRIFICE):
 		_schedule_server_phase_advance()
+
+func _on_d7_vote_state_synced(_votes: Dictionary, voter_peer_id: int) -> void:
+	if GameManager.phase != GameManager.MatchPhase.VOTING:
+		return
+	if multiplayer.multiplayer_peer == null:
+		return
+	if voter_peer_id != multiplayer.get_unique_id():
+		return
+	call_deferred("_try_submit_planned_vote")
 
 func _broadcast_round_plan() -> void:
 	var validation_error := _server_plan_validation_error()
@@ -275,6 +284,8 @@ func _try_submit_planned_vote() -> void:
 		return
 	var local_peer_id := multiplayer.get_unique_id()
 	if not MatchAuthority.is_peer_publicly_alive(local_peer_id):
+		return
+	if MatchAuthority.current_voter_peer_id != local_peer_id:
 		return
 	var target_peer_id := _plan_vote_target
 	if local_peer_id == target_peer_id:

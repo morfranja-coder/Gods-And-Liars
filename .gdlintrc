@@ -3,3 +3,4 @@ disable:
   - max-file-lines
   - class-definitions-order
   - unused-argument
+  - function-arguments-number

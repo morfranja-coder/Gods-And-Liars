@@ -359,33 +359,33 @@ func _local_peer_id() -> int:
 
 func _phase_from_name(raw_name: String) -> int:
 	var name := raw_name.to_lower().replace("-", "_")
+	var phase_value := -1
 	match name:
 		"role_reveal", "roles":
-			return int(GameManager.MatchPhase.ROLE_REVEAL)
+			phase_value = int(GameManager.MatchPhase.ROLE_REVEAL)
 		"god_intro", "god":
-			return int(GameManager.MatchPhase.GOD_INTRO)
+			phase_value = int(GameManager.MatchPhase.GOD_INTRO)
 		"night_start", "night":
-			return int(GameManager.MatchPhase.NIGHT_START)
+			phase_value = int(GameManager.MatchPhase.NIGHT_START)
 		"heretic_action", "heretic":
-			return int(GameManager.MatchPhase.HERETIC_ACTION)
+			phase_value = int(GameManager.MatchPhase.HERETIC_ACTION)
 		"healer_action", "healer", "priest":
-			return int(GameManager.MatchPhase.HEALER_ACTION)
+			phase_value = int(GameManager.MatchPhase.HEALER_ACTION)
 		"inquisitor_action", "inquisitor":
-			return int(GameManager.MatchPhase.INQUISITOR_ACTION)
+			phase_value = int(GameManager.MatchPhase.INQUISITOR_ACTION)
 		"night_resolution", "resolution":
-			return int(GameManager.MatchPhase.NIGHT_RESOLUTION)
+			phase_value = int(GameManager.MatchPhase.NIGHT_RESOLUTION)
 		"day_announcement", "announcement":
-			return int(GameManager.MatchPhase.DAY_ANNOUNCEMENT)
+			phase_value = int(GameManager.MatchPhase.DAY_ANNOUNCEMENT)
 		"day_discussion", "discussion":
-			return int(GameManager.MatchPhase.DAY_DISCUSSION)
+			phase_value = int(GameManager.MatchPhase.DAY_DISCUSSION)
 		"voting", "vote":
-			return int(GameManager.MatchPhase.VOTING)
+			phase_value = int(GameManager.MatchPhase.VOTING)
 		"sacrifice":
-			return int(GameManager.MatchPhase.SACRIFICE)
+			phase_value = int(GameManager.MatchPhase.SACRIFICE)
 		"match_end", "end":
-			return int(GameManager.MatchPhase.MATCH_END)
-		_:
-			return -1
+			phase_value = int(GameManager.MatchPhase.MATCH_END)
+	return phase_value
 
 func _phase_name(phase: GameManager.MatchPhase) -> String:
 	return GameManager.MatchPhase.keys()[int(phase)].to_lower()

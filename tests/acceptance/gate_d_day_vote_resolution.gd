@@ -17,6 +17,7 @@ func _ready() -> void:
 	super()
 	MatchAuthority.vote_accepted.connect(_on_d6_vote_accepted)
 	MatchAuthority.vote_resolution_received.connect(_on_vote_resolution_received)
+	MatchAuthority.vote_state_synced.connect(_on_vote_state_synced)
 	MatchAuthority.phase_synced.connect(_on_d6_phase_synced)
 
 func _handle_day_discussion() -> void:
@@ -42,8 +43,6 @@ func _on_d6_phase_synced(phase_value: int) -> void:
 		_planned_vote_target = _first_alive_peer()
 		if _planned_vote_target <= 0:
 			_fail("could not choose public vote target")
-			return
-		call_deferred("_submit_day_vote")
 	elif phase_value == int(GameManager.MatchPhase.SACRIFICE):
 		if _role == "server":
 			_server_vote_ready = true
@@ -51,11 +50,19 @@ func _on_d6_phase_synced(phase_value: int) -> void:
 		else:
 			_try_send_vote_ack()
 
+func _on_vote_state_synced(_votes: Dictionary, current_voter_peer_id: int) -> void:
+	if GameManager.phase != GameManager.MatchPhase.VOTING:
+		return
+	if current_voter_peer_id != multiplayer.get_unique_id():
+		return
+	call_deferred("_submit_day_vote")
+
 func _submit_day_vote() -> void:
 	if _vote_sent or GameManager.phase != GameManager.MatchPhase.VOTING:
 		return
-	_vote_sent = true
 	var local_peer_id := multiplayer.get_unique_id()
+	if MatchAuthority.current_voter_peer_id != local_peer_id:
+		return
 	if not MatchAuthority.is_peer_publicly_alive(local_peer_id):
 		return
 	var vote_target := _planned_vote_target
@@ -64,6 +71,7 @@ func _submit_day_vote() -> void:
 	if vote_target <= 0:
 		_fail("living voter could not choose a valid target")
 		return
+	_vote_sent = true
 	MatchAuthority.submit_local_vote(vote_target)
 
 func _on_d6_vote_accepted(_voter_peer_id: int, _target_peer_id: int) -> void:

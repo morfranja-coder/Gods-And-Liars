@@ -3,6 +3,7 @@ extends CharacterBody3D
 
 const HERETIC_GHOST_FOLDER := "res://assets/FantasmaHereje"
 const INNOCENT_GHOST_FOLDER := "res://assets/FantasmaPJ"
+const GHOST_CAMERA_FAR := 18.0
 
 @export_range(0.5, 10.0, 0.1) var move_speed := 2.8
 @export_range(0.5, 10.0, 0.1) var vertical_speed := 2.0
@@ -26,7 +27,8 @@ var _movement_player: AnimationPlayer = null
 
 func _ready() -> void:
 	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
-	call_deferred("_ensure_environment_collisions")
+	ghost_camera.near = 0.05
+	ghost_camera.far = GHOST_CAMERA_FAR
 
 func _physics_process(delta: float) -> void:
 	if not input_enabled or InputBindings.text_entry_active:
@@ -48,7 +50,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		_apply_look_delta(motion.relative * mouse_sensitivity)
 
 func activate(is_heretic: bool) -> void:
-	_ensure_environment_collisions()
 	_ensure_visual_loaded(
 		heretic_visual if is_heretic else innocent_visual,
 		HERETIC_GHOST_FOLDER if is_heretic else INNOCENT_GHOST_FOLDER,
@@ -58,6 +59,7 @@ func activate(is_heretic: bool) -> void:
 	_movement_player = _find_animation_player(
 		heretic_visual if is_heretic else innocent_visual
 	)
+	ghost_camera.far = GHOST_CAMERA_FAR
 	input_enabled = true
 	ghost_camera.current = true
 
@@ -65,55 +67,10 @@ func restore_camera() -> void:
 	if ghost_camera != null:
 		ghost_camera.current = true
 
-
 func set_input_enabled(enabled: bool) -> void:
 	input_enabled = enabled
 	if not input_enabled:
 		velocity = Vector3.ZERO
-
-func _ensure_environment_collisions() -> void:
-	var table_root := get_parent()
-
-	if table_root == null or not table_root.has_method("_add_scenario_collisions_recursive"):
-		return
-
-	var collision_roots: Array[Node] = []
-
-	# Escenario principal.
-	for child in table_root.get_children():
-		if child is not Node3D:
-			continue
-
-		var node_name := str(child.name).to_lower()
-
-		if _is_environment_collision_root(node_name):
-			if child not in collision_roots:
-				collision_roots.append(child)
-
-	# Buscar tambien techos anidados dentro de todo el escenario.
-	var all_nodes := table_root.find_children("*", "Node3D", true, false)
-
-	for node in all_nodes:
-		var node_name := str(node.name).to_lower()
-
-		if (
-			node_name.contains("techo")
-			or node_name.contains("ceiling")
-			or node_name.contains("roof")
-		):
-			if node not in collision_roots:
-				collision_roots.append(node)
-
-	for root in collision_roots:
-		table_root.call("_add_scenario_collisions_recursive", root)
-
-func _is_environment_collision_root(node_name: String) -> bool:
-	return (
-		node_name.begins_with("alphascenario")
-		or node_name.begins_with("escenarioalfa")
-		or node_name.begins_with("techo")
-		or node_name.begins_with("ceiling")
-	)
 
 func _apply_controller_look(delta: float) -> void:
 	var horizontal := Input.get_axis(InputBindings.ACTION_LOOK_LEFT, InputBindings.ACTION_LOOK_RIGHT)

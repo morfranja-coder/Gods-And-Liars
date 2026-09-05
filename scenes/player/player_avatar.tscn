@@ -38,14 +38,15 @@ position = Vector3(0, 0.95, 0)
 shape = SubResource("CapsuleShape_selection")
 
 [node name="NameLabel" type="Label3D" parent="."]
-position = Vector3(0, 1.95, 0)
+position = Vector3(0, 0.936, 0)
 text = "Player"
 billboard = 1
-fixed_size = true
+fixed_size = false
 no_depth_test = true
-pixel_size = 0.01
-font_size = 64
-outline_size = 16
-outline_modulate = Color(0.015, 0.015, 0.015, 1)
+pixel_size = 0.004
+font_size = 32
+outline_size = 5
+outline_modulate = Color(0.01, 0.01, 0.01, 0.95)
+modulate = Color(0.92, 0.90, 0.84, 1)
 
 [node name="AliveMarker" type="Node3D" parent="."]

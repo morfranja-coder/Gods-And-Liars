@@ -91,7 +91,7 @@ func _can_receive_voice(sender_id: int, compressed: PackedByteArray) -> bool:
 		return false
 	if not VoicePolicy.accepts_compressed_size(compressed.size()):
 		return false
-	var sender_alive := MatchAuthority.is_peer_publicly_alive(sender_id)
+	var sender_alive: bool = MatchAuthority.is_peer_publicly_alive(sender_id)
 	return VoiceRouter.can_receive(GameManager.phase, sender_alive, _local_alive())
 
 func _valid_decompressed_voice(decompressed: Dictionary) -> bool:

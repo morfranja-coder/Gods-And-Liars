@@ -124,6 +124,17 @@ func _ensure_ui_actions() -> void:
 	_ensure_direction_action(ACTION_UI_DOWN, &"ui_down", JOY_BUTTON_DPAD_DOWN, JOY_AXIS_LEFT_Y, 1.0)
 	_ensure_direction_action(ACTION_UI_LEFT, &"ui_left", JOY_BUTTON_DPAD_LEFT, JOY_AXIS_LEFT_X, -1.0)
 	_ensure_direction_action(ACTION_UI_RIGHT, &"ui_right", JOY_BUTTON_DPAD_RIGHT, JOY_AXIS_LEFT_X, 1.0)
+
+	# Navegacion principal de selecciones en GODS & LIARS.
+	_add_key(ACTION_UI_UP, KEY_W)
+	_add_key(ACTION_UI_DOWN, KEY_S)
+	_add_key(ACTION_UI_LEFT, KEY_A)
+	_add_key(ACTION_UI_RIGHT, KEY_D)
+
+	_add_key(&"ui_up", KEY_W)
+	_add_key(&"ui_down", KEY_S)
+	_add_key(&"ui_left", KEY_A)
+	_add_key(&"ui_right", KEY_D)
 	_ensure_action(ACTION_UI_CONFIRM)
 	_ensure_action(&"ui_accept")
 	_add_key(ACTION_UI_CONFIRM, KEY_ENTER)

@@ -140,12 +140,17 @@ func _apply_mask_color() -> void:
 func _apply_name_color() -> void:
 	if not _has_player_color:
 		return
+
 	var label := get_node_or_null("NameLabel") as Label3D
 	if label == null:
 		return
-	label.modulate = _player_color
-	label.outline_modulate = Color(0.015, 0.015, 0.015, 1.0)
-	label.outline_size = 16
+
+	# Mantiene identidad por color, pero evita texto saturado.
+	var softened := _player_color.lerp(Color(0.95, 0.92, 0.85, 1.0), 0.35)
+
+	label.modulate = softened
+	label.outline_modulate = Color(0.01, 0.01, 0.01, 0.95)
+	label.outline_size = 5
 
 func _tint_mask_materials(node: Node) -> void:
 	if node is MeshInstance3D:

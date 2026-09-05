@@ -18,7 +18,6 @@ static func create_player_button(peer_id: int, minimum_size: Vector2 = Vector2(1
 	button.tooltip_text = display_name
 	button.set_meta("peer_id", peer_id)
 	button.expand_icon = true
-	button.icon_max_width = PORTRAIT_SIZE.x
 	button.add_theme_color_override("font_color", player_color)
 	button.add_theme_color_override("font_hover_color", player_color.lightened(0.15))
 	button.add_theme_color_override("font_pressed_color", player_color.lightened(0.25))
@@ -51,9 +50,12 @@ static func create_player_button(peer_id: int, minimum_size: Vector2 = Vector2(1
 	var camera := Camera3D.new()
 	camera.name = "PortraitCamera"
 	camera.fov = 32.0
-	camera.position = Vector3(0.0, 1.25, 3.1)
 	world_root.add_child(camera)
-	camera.look_at(Vector3(0.0, 1.05, 0.0), Vector3.UP)
+	camera.look_at_from_position(
+		Vector3(0.0, 1.25, 3.1),
+		Vector3(0.0, 1.05, 0.0),
+		Vector3.UP
+	)
 	camera.current = true
 
 	var key_light := DirectionalLight3D.new()

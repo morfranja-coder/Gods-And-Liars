@@ -61,6 +61,11 @@ func activate(is_heretic: bool) -> void:
 	input_enabled = true
 	ghost_camera.current = true
 
+func restore_camera() -> void:
+	if ghost_camera != null:
+		ghost_camera.current = true
+
+
 func set_input_enabled(enabled: bool) -> void:
 	input_enabled = enabled
 	if not input_enabled:
@@ -68,20 +73,37 @@ func set_input_enabled(enabled: bool) -> void:
 
 func _ensure_environment_collisions() -> void:
 	var table_root := get_parent()
+
 	if table_root == null or not table_root.has_method("_add_scenario_collisions_recursive"):
 		return
+
 	var collision_roots: Array[Node] = []
-	var alpha_scenario := table_root.get_node_or_null("AlphaScenario")
-	if alpha_scenario != null:
-		collision_roots.append(alpha_scenario)
+
+	# Escenario principal.
 	for child in table_root.get_children():
 		if child is not Node3D:
 			continue
+
 		var node_name := str(child.name).to_lower()
-		if not _is_environment_collision_root(node_name):
-			continue
-		if child not in collision_roots:
-			collision_roots.append(child)
+
+		if _is_environment_collision_root(node_name):
+			if child not in collision_roots:
+				collision_roots.append(child)
+
+	# Buscar tambien techos anidados dentro de todo el escenario.
+	var all_nodes := table_root.find_children("*", "Node3D", true, false)
+
+	for node in all_nodes:
+		var node_name := str(node.name).to_lower()
+
+		if (
+			node_name.contains("techo")
+			or node_name.contains("ceiling")
+			or node_name.contains("roof")
+		):
+			if node not in collision_roots:
+				collision_roots.append(node)
+
 	for root in collision_roots:
 		table_root.call("_add_scenario_collisions_recursive", root)
 
@@ -124,8 +146,21 @@ func _apply_view_rotation() -> void:
 	head_pivot.rotation = Vector3(_target_pitch, _target_yaw, 0.0)
 
 func _apply_body_follow(delta: float) -> void:
-	var weight := 1.0 - exp(-body_follow_speed * delta)
-	body_visual.rotation.y = lerp_angle(body_visual.rotation.y, _target_yaw, weight)
+	var weight: float = (
+		1.0
+		- exp(-body_follow_speed * delta)
+	)
+
+	var visual_yaw: float = (
+		_target_yaw
+		+ PI
+	)
+
+	body_visual.rotation.y = lerp_angle(
+		body_visual.rotation.y,
+		visual_yaw,
+		weight
+	)
 
 func _apply_movement() -> void:
 	var input_vector := Input.get_vector(

@@ -22,12 +22,15 @@ var _avatars: Dictionary = {}
 var _local_ghost: GhostController = null
 var _ghost_transition_started := false
 var _remote_ghost_visuals: Dictionary = {}
+var _god_head_tween: Tween = null
 
 @onready var table_camera: TableCameraLook = _ensure_table_camera()
 @onready var world_environment: WorldEnvironment = $WorldEnvironment
 @onready var player_list_ui: PlayerListUI = $PlayerListUI
 @onready var emote_wheel_ui: EmoteWheelUI = $EmoteWheelUI
 @onready var chat_ui: ChatUI = $ChatUI
+@onready var day_vote_ui: CanvasLayer = $DayVoteUI
+@onready var night_action_ui: CanvasLayer = $NightActionUI
 @onready var ghost_hud: GhostHUD = $GhostHUD
 @onready var pause_ui: CanvasLayer = $PauseUI
 @onready var leave_confirm_dialog: ConfirmationDialog = %LeaveConfirmDialog
@@ -42,7 +45,9 @@ func _ready() -> void:
 	NetworkManager.peer_updated.connect(_on_roster_changed)
 	MatchAuthority.night_resolution_received.connect(_on_night_resolution_received)
 	MatchAuthority.vote_resolution_received.connect(_on_vote_resolution_received)
+	MatchAuthority.vote_state_synced.connect(_on_vote_state_synced)
 	MatchAuthority.rematch_received.connect(_on_rematch_received)
+	MatchAuthority.phase_synced.connect(_on_match_phase_synced_for_input)
 	MatchLeaveManager.leave_started.connect(_on_leave_started)
 	MatchLeaveManager.leave_rejected.connect(_on_leave_rejected)
 	VideoSettings.settings_changed.connect(_apply_video_environment)
@@ -58,10 +63,13 @@ func _ready() -> void:
 	_refresh_roster()
 	_refresh_god_state()
 	call_deferred("_ensure_scenario_collisions")
+	call_deferred("_ensure_named_environment_collision", "ornate_religious_sculpture_3d_model")
 	if multiplayer.is_server() and NetworkManager.is_host:
 		MatchAuthority.call_deferred("begin_role_reveal")
 
 func _physics_process(_delta: float) -> void:
+	_update_camera_input_state()
+
 	if _gameplay_input_blocked() or _is_ghost_mode_active():
 		_clear_focused_target()
 		return
@@ -143,29 +151,174 @@ func _ensure_table_camera() -> TableCameraLook:
 	add_child(camera)
 	return camera
 
+
+
 func focus_camera_on_god() -> void:
 	if _is_ghost_mode_active():
 		return
-	var god := dead_god_visual if MatchAuthority.is_local_ghost() else living_god_visual
+
+	var god_camera := _get_manual_god_camera()
+	if god_camera == null:
+		push_warning("No se encontro una Camera3D llamada CamaraDios ni una Camera3D dentro de CamaraDios.")
+		return
+
+	table_camera.set_look_enabled(false)
+	table_camera.current = false
+	god_camera.current = true
+	_play_god_head_motion()
+
+
+func _get_manual_god_camera() -> Camera3D:
+	# Nombre exacto creado manualmente en la escena.
+	var camera_node := find_child("CameraDios", true, false)
+
+	if camera_node is Camera3D:
+		return camera_node as Camera3D
+
+	if camera_node != null:
+		var cameras := camera_node.find_children("*", "Camera3D", true, false)
+		if not cameras.is_empty():
+			return cameras[0] as Camera3D
+
+	push_warning("No se encontro CameraDios en la escena.")
+	return null
+
+
+func _play_god_head_motion() -> void:
+	var god: Node3D = living_god_visual
+
+	if MatchAuthority.is_local_ghost():
+		god = dead_god_visual
+
 	if god == null:
 		return
-	var camera_position := table_camera.global_position
-	var target := god.global_position + Vector3.UP * 1.15
-	if camera_position.distance_squared_to(target) <= 0.000001:
+
+	var skeleton: Skeleton3D = _find_god_head_skeleton(god)
+
+	if skeleton == null:
 		return
-	var transform := Transform3D(Basis.IDENTITY, camera_position).looking_at(target, Vector3.UP)
-	table_camera.anchor_to(transform)
-	table_camera.current = true
-	table_camera.set_look_enabled(false)
+
+	var bone_index: int = _find_god_head_bone(skeleton)
+
+	if bone_index < 0:
+		return
+
+	if _god_head_tween != null:
+		_god_head_tween.kill()
+
+	var base_rotation: Quaternion = skeleton.get_bone_pose_rotation(bone_index)
+
+	var first_rotation: Quaternion = (
+		Quaternion(Vector3.UP, deg_to_rad(4.0))
+		* Quaternion(Vector3.RIGHT, deg_to_rad(-2.0))
+		* base_rotation
+	)
+
+	var second_rotation: Quaternion = (
+		Quaternion(Vector3.UP, deg_to_rad(-3.0))
+		* Quaternion(Vector3.RIGHT, deg_to_rad(1.5))
+		* base_rotation
+	)
+
+	_god_head_tween = create_tween()
+
+	_god_head_tween.tween_method(
+		func(value: Quaternion) -> void:
+			skeleton.set_bone_pose_rotation(bone_index, value),
+		base_rotation,
+		first_rotation,
+		0.75
+	)
+
+	_god_head_tween.tween_method(
+		func(value: Quaternion) -> void:
+			skeleton.set_bone_pose_rotation(bone_index, value),
+		first_rotation,
+		second_rotation,
+		0.90
+	)
+
+	_god_head_tween.tween_method(
+		func(value: Quaternion) -> void:
+			skeleton.set_bone_pose_rotation(bone_index, value),
+		second_rotation,
+		base_rotation,
+		0.75
+	)
+
+
+func _find_god_head_skeleton(node: Node) -> Skeleton3D:
+	if node is Skeleton3D:
+		var skeleton: Skeleton3D = node as Skeleton3D
+
+		if _find_god_head_bone(skeleton) >= 0:
+			return skeleton
+
+	for child in node.get_children():
+		var found: Skeleton3D = _find_god_head_skeleton(child)
+
+		if found != null:
+			return found
+
+	return null
+
+
+func _find_god_head_bone(skeleton: Skeleton3D) -> int:
+	var fallback: int = -1
+
+	for bone_index in range(skeleton.get_bone_count()):
+		var bone_name: String = str(
+			skeleton.get_bone_name(bone_index)
+		).to_lower()
+
+		if bone_name.contains("head") or bone_name.contains("cabeza"):
+			return bone_index
+
+		if (
+			fallback < 0
+			and (
+				bone_name.contains("neck")
+				or bone_name.contains("cuello")
+			)
+		):
+			fallback = bone_index
+
+	return fallback
+
+
 
 func restore_local_player_camera() -> void:
 	if _is_ghost_mode_active():
+		if _local_ghost != null:
+			_local_ghost.restore_camera()
+
 		return
-	var local_peer_id := multiplayer.get_unique_id() if multiplayer.multiplayer_peer != null else 0
-	var avatar := _avatars.get(local_peer_id) as Node3D
+
+	var god_camera: Camera3D = (
+		_get_manual_god_camera()
+	)
+
+	if god_camera != null:
+		god_camera.current = false
+
+	var local_peer_id: int = (
+		multiplayer.get_unique_id()
+		if multiplayer.multiplayer_peer != null
+		else 0
+	)
+
+	var avatar: Node3D = (
+		_avatars.get(local_peer_id)
+		as Node3D
+	)
+
 	if avatar == null:
 		return
+
 	_setup_local_player_view(avatar)
+
+	table_camera.current = true
+
 	_update_camera_input_state()
 
 func _setup_environment() -> void:
@@ -246,18 +399,38 @@ func _close_social_overlays() -> void:
 		chat_ui.close()
 
 func _gameplay_input_blocked() -> bool:
+	var vote_blocks_input := false
+	if day_vote_ui != null and day_vote_ui.has_method("blocks_gameplay_input"):
+		vote_blocks_input = bool(day_vote_ui.call("blocks_gameplay_input"))
+
+	var night_blocks_input := false
+	if night_action_ui != null and night_action_ui.has_method("blocks_gameplay_input"):
+		night_blocks_input = bool(night_action_ui.call("blocks_gameplay_input"))
+
 	return (
 		pause_ui.is_open
 		or player_list_ui.is_open
 		or emote_wheel_ui.is_open
 		or chat_ui.is_open
+		or vote_blocks_input
+		or night_blocks_input
 	)
 
 func _update_camera_input_state() -> void:
 	var gameplay_enabled := not _gameplay_input_blocked()
 	table_camera.set_look_enabled(gameplay_enabled and not _is_ghost_mode_active())
+
+	if gameplay_enabled:
+		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	else:
+		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+
 	if _local_ghost != null:
 		_local_ghost.set_input_enabled(gameplay_enabled)
+
+
+func _on_match_phase_synced_for_input(_phase: int) -> void:
+	call_deferred("_update_camera_input_state")
 
 func _on_leave_match_pressed() -> void:
 	if MatchLeaveManager.leave_pending:
@@ -368,6 +541,11 @@ func _spawn_or_update_avatar(peer_id: int, seat_id: int) -> void:
 		add_child(avatar)
 		_avatars[peer_id] = avatar
 	avatar.global_transform = _seat_facing_transform(marker)
+
+	_ensure_vote_turn_effect_anchor(
+		avatar,
+		peer_id
+	)
 	if avatar is AvatarSlots:
 		(avatar as AvatarSlots).set_player_color(PlayerColors.for_seat(seat_id))
 	if peer_id == multiplayer.get_unique_id():
@@ -380,6 +558,82 @@ func _spawn_or_update_avatar(peer_id: int, seat_id: int) -> void:
 			display_name = "Acólito %s" % peer_id
 		label.text = display_name
 		label.visible = MatchAuthority.is_peer_publicly_alive(peer_id) and peer_id != multiplayer.get_unique_id()
+
+func _ensure_vote_turn_effect_anchor(
+	avatar: Node3D,
+	peer_id: int
+) -> Marker3D:
+	var existing := (
+		avatar.get_node_or_null(
+			"VoteTurnEffectAnchor"
+		)
+		as Marker3D
+	)
+
+	if existing != null:
+		return existing
+
+	var vote_marker := Marker3D.new()
+
+	vote_marker.name = "VoteTurnEffectAnchor"
+
+	vote_marker.position = Vector3(
+		0.0,
+		1.75,
+		0.0
+	)
+
+	# Invisible por ahora.
+	# Este es el punto donde luego se monta el efecto.
+	vote_marker.visible = false
+
+	vote_marker.set_meta(
+		"peer_id",
+		peer_id
+	)
+
+	vote_marker.set_meta(
+		"vote_turn_active",
+		false
+	)
+
+	avatar.add_child(vote_marker)
+
+	return vote_marker
+
+
+func _on_vote_state_synced(
+	_votes: Dictionary,
+	current_voter_peer_id: int
+) -> void:
+	for raw_peer_id in _avatars.keys():
+		var peer_id: int = int(raw_peer_id)
+
+		var avatar: Node3D = (
+			_avatars[raw_peer_id]
+			as Node3D
+		)
+
+		if avatar == null:
+			continue
+
+		var vote_marker: Marker3D = (
+			_ensure_vote_turn_effect_anchor(
+				avatar,
+				peer_id
+			)
+		)
+
+		vote_marker.set_meta(
+			"vote_turn_active",
+			peer_id == current_voter_peer_id
+		)
+
+		vote_marker.set_meta(
+			"current_voter_peer_id",
+			current_voter_peer_id
+		)
+
 
 func _setup_local_player_view(avatar: Node3D) -> void:
 	var center := get_table_center()
@@ -463,6 +717,32 @@ func _peer_id_from_collider(collider: Node) -> int:
 		current = current.get_parent()
 	return 0
 
+
+func _ensure_named_environment_collision(target_name: String) -> void:
+	var target := _find_node_name_recursive(self, target_name.to_lower())
+
+	if target == null:
+		push_warning("No se encontro objeto para colision: %s" % target_name)
+		return
+
+	_add_scenario_collisions_recursive(target)
+
+
+func _find_node_name_recursive(node: Node, target_name: String) -> Node:
+	var current_name := str(node.name).to_lower()
+
+	if current_name.contains(target_name):
+		return node
+
+	for child in node.get_children():
+		var found := _find_node_name_recursive(child, target_name)
+		if found != null:
+			return found
+
+	return null
+
+
+
 func _ensure_scenario_collisions() -> void:
 	var scenario_root := _find_scenario_root()
 	if scenario_root == null:
@@ -541,7 +821,7 @@ func _spawn_local_ghost(spawn_transform: Transform3D) -> void:
 	_local_ghost = GHOST_CONTROLLER_SCENE.instantiate() as GhostController
 	_local_ghost.name = "LocalGhost"
 	add_child(_local_ghost)
-	_local_ghost.global_transform = spawn_transform.translated_local(Vector3.UP * 0.35)
+	_local_ghost.global_transform = spawn_transform
 	var is_heretic := MatchAuthority.local_role == PlayerState.Role.HERETIC
 	_local_ghost.activate(is_heretic)
 	ghost_hud.show_ghost_mode(is_heretic)

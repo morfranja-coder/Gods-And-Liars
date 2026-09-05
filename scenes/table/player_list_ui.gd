@@ -101,7 +101,7 @@ func _update_row(peer_id: int) -> void:
 	var row := _row_by_peer.get(peer_id) as HBoxContainer
 	if row == null:
 		return
-	var alive := MatchAuthority.is_peer_publicly_alive(peer_id)
+	var alive: bool = MatchAuthority.is_peer_publicly_alive(peer_id)
 	var status := row.get_node("Status") as Label
 	var name_label := row.get_node("PlayerName") as Label
 	var voice_label := row.get_node("VoiceState") as Label

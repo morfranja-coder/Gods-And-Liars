@@ -14,6 +14,10 @@ signal night_resolution_received(killed_peer_ids: Array[int])
 signal night_public_report_received(killed_peer_ids: Array[int], priest_saved: bool, first_night: bool)
 signal private_investigation_received(target_peer_id: int, is_heretic: bool)
 signal vote_accepted(voter_peer_id: int, target_peer_id: int)
+signal vote_state_synced(
+votes: Dictionary,
+current_voter_peer_id: int
+)
 signal vote_resolution_received(sacrificed_peer_id: int, tied: bool)
 signal sacrifice_reveal_received(sacrificed_peer_id: int, tied: bool, was_heretic: bool)
 signal match_end_received(winner: StringName)
@@ -31,6 +35,8 @@ var last_night_was_first: bool = false
 var last_sacrificed_peer_id: int = 0
 var last_sacrifice_was_tie: bool = false
 var last_sacrifice_was_heretic: bool = false
+var public_votes: Dictionary = {}
+var current_voter_peer_id: int = 0
 
 var _session: MatchSession = null
 var _roles_dispatched: bool = false
@@ -40,6 +46,14 @@ var _healer_target_peer_id: int = 0
 var _inquisitor_target_peer_id: int = 0
 var _healer_self_save_used: bool = false
 var _votes: Dictionary = {}
+const VOTE_TURN_MS := 8000
+
+var _vote_order: Array[int] = []
+var _vote_turn_index: int = -1
+var _vote_turn_deadline_ms: int = 0
+
+var _local_vote_turn_started_ms: int = 0
+var _local_vote_turn_duration_ms: int = 0
 var _phase_deadline_ms: int = 0
 var _phase_deadline_phase: int = -1
 var _local_phase_started_ms: int = 0
@@ -50,19 +64,39 @@ func _ready() -> void:
 	NetworkManager.peer_left.connect(_on_peer_left)
 
 func _process(_delta: float) -> void:
-	if _phase_deadline_ms <= 0 or _session == null:
+	if _session == null:
 		return
+
+	if multiplayer.is_server() and NetworkManager.is_host:
+		if (
+			GameManager.phase == GameManager.MatchPhase.VOTING
+			and _vote_turn_deadline_ms > 0
+			and Time.get_ticks_msec() >= _vote_turn_deadline_ms
+		):
+			_vote_turn_deadline_ms = 0
+			_advance_vote_turn()
+			return
+
+	if _phase_deadline_ms <= 0:
+		return
+
 	if not multiplayer.is_server() or not NetworkManager.is_host:
 		return
+
 	if int(GameManager.phase) != _phase_deadline_phase:
 		_clear_phase_timeout()
 		return
+
 	if Time.get_ticks_msec() < _phase_deadline_ms:
 		return
-	var expired_phase := GameManager.phase
+
+	var expired_phase: GameManager.MatchPhase = GameManager.phase
+
 	_clear_phase_timeout()
+
 	phase_timeout_triggered.emit(int(expired_phase))
 	_handle_phase_timeout(expired_phase)
+
 
 func reset() -> void:
 	local_role = PlayerState.Role.UNASSIGNED
@@ -77,6 +111,13 @@ func reset() -> void:
 	last_sacrificed_peer_id = 0
 	last_sacrifice_was_tie = false
 	last_sacrifice_was_heretic = false
+	public_votes.clear()
+	current_voter_peer_id = 0
+	_vote_order.clear()
+	_vote_turn_index = -1
+	_vote_turn_deadline_ms = 0
+	_local_vote_turn_started_ms = 0
+	_local_vote_turn_duration_ms = 0
 	_session = null
 	_roles_dispatched = false
 	_role_acknowledged.clear()
@@ -127,23 +168,45 @@ func submit_local_night_target(target_peer_id: int) -> void:
 func request_begin_voting() -> void:
 	if not multiplayer.is_server() or not NetworkManager.is_host:
 		return
-	if GameManager.phase != GameManager.MatchPhase.DAY_DISCUSSION or _session == null:
+
+	if (
+		GameManager.phase != GameManager.MatchPhase.DAY_DISCUSSION
+		or _session == null
+	):
 		return
+
 	_votes.clear()
+	public_votes.clear()
+
+	_prepare_vote_order()
+
 	_broadcast_phase(GameManager.MatchPhase.VOTING)
+
+	_vote_turn_index = 0
+
+	call_deferred("_start_current_vote_turn")
+
 
 func submit_local_vote(target_peer_id: int) -> void:
 	if GameManager.phase != GameManager.MatchPhase.VOTING:
 		return
+
 	if multiplayer.multiplayer_peer == null:
 		return
-	var local_peer_id := multiplayer.get_unique_id()
+
+	var local_peer_id: int = multiplayer.get_unique_id()
+
 	if not is_peer_publicly_alive(local_peer_id):
 		return
+
+	if local_peer_id != current_voter_peer_id:
+		return
+
 	if multiplayer.is_server():
 		_server_submit_vote(local_peer_id, target_peer_id)
 	else:
 		_request_vote.rpc_id(1, target_peer_id)
+
 
 func request_rematch() -> void:
 	if not multiplayer.is_server() or not NetworkManager.is_host:
@@ -179,6 +242,26 @@ func phase_seconds_remaining() -> int:
 	var elapsed := Time.get_ticks_msec() - _local_phase_started_ms
 	var remaining := maxi(0, _local_phase_duration_ms - elapsed)
 	return int(ceil(float(remaining) / 1000.0))
+
+func vote_turn_seconds_remaining() -> int:
+	if _local_vote_turn_duration_ms <= 0:
+		return 0
+
+	var elapsed: int = (
+		Time.get_ticks_msec()
+		- _local_vote_turn_started_ms
+	)
+
+	var remaining: int = maxi(
+		0,
+		_local_vote_turn_duration_ms - elapsed
+	)
+
+	return int(
+		ceil(float(remaining) / 1000.0)
+	)
+
+
 
 func role_title(role: PlayerState.Role = local_role) -> String:
 	match role:
@@ -469,15 +552,160 @@ func _dispatch_investigation_result(result: NightResolver.NightResult) -> void:
 				)
 			return
 
-func _server_submit_vote(voter_peer_id: int, target_peer_id: int) -> void:
+func _server_submit_vote(
+	voter_peer_id: int,
+	target_peer_id: int
+) -> void:
 	if not multiplayer.is_server() or _session == null:
 		return
+
 	if GameManager.phase != GameManager.MatchPhase.VOTING:
 		return
-	if not VoteRules.can_vote(_session.players, voter_peer_id, target_peer_id):
+
+	if voter_peer_id != current_voter_peer_id:
 		return
+
+	if not VoteRules.can_vote(
+		_session.players,
+		voter_peer_id,
+		target_peer_id
+	):
+		return
+
 	_votes[voter_peer_id] = target_peer_id
-	vote_accepted.emit(voter_peer_id, target_peer_id)
+
+	vote_accepted.emit(
+		voter_peer_id,
+		target_peer_id
+	)
+
+	_sync_vote_state.rpc(
+		_votes,
+		current_voter_peer_id,
+		VOTE_TURN_MS
+	)
+
+	_vote_turn_deadline_ms = 0
+
+	_advance_vote_turn()
+
+
+func _prepare_vote_order() -> void:
+	_vote_order.clear()
+
+	if _session == null:
+		return
+
+	for player in _session.players:
+		if player.alive:
+			_vote_order.append(player.peer_id)
+
+	_vote_order.sort_custom(
+		func(a: int, b: int) -> bool:
+			var player_a: PlayerState = _session.get_player(a)
+			var player_b: PlayerState = _session.get_player(b)
+
+			if player_a == null or player_b == null:
+				return a < b
+
+			return player_a.seat_id < player_b.seat_id
+	)
+
+
+func _start_current_vote_turn() -> void:
+	if _session == null:
+		return
+
+	while _vote_turn_index < _vote_order.size():
+		var candidate_peer_id: int = _vote_order[_vote_turn_index]
+
+		if is_peer_publicly_alive(candidate_peer_id):
+			break
+
+		_vote_turn_index += 1
+
+	if _vote_turn_index >= _vote_order.size():
+		current_voter_peer_id = 0
+		_vote_turn_deadline_ms = 0
+
+		_sync_vote_state.rpc(
+			_votes,
+			0,
+			0
+		)
+
+		_resolve_vote(true)
+		return
+
+	current_voter_peer_id = _vote_order[_vote_turn_index]
+
+	_vote_turn_deadline_ms = (
+		Time.get_ticks_msec()
+		+ VOTE_TURN_MS
+	)
+
+	_sync_vote_state.rpc(
+		_votes,
+		current_voter_peer_id,
+		VOTE_TURN_MS
+	)
+
+	if _is_offline_synthetic_peer(current_voter_peer_id):
+		call_deferred("_auto_vote_synthetic_current")
+
+
+func _advance_vote_turn() -> void:
+	if GameManager.phase != GameManager.MatchPhase.VOTING:
+		return
+
+	_vote_turn_deadline_ms = 0
+	_vote_turn_index += 1
+
+	_start_current_vote_turn()
+
+
+func _auto_vote_synthetic_current() -> void:
+	var voter_peer_id: int = current_voter_peer_id
+
+	if voter_peer_id <= 0:
+		return
+
+	await get_tree().create_timer(0.8).timeout
+
+	if GameManager.phase != GameManager.MatchPhase.VOTING:
+		return
+
+	if current_voter_peer_id != voter_peer_id:
+		return
+
+	if _session == null:
+		return
+
+	var candidates: Array[int] = []
+
+	for player in _session.players:
+		if VoteRules.can_vote(
+			_session.players,
+			voter_peer_id,
+			player.peer_id
+		):
+			candidates.append(player.peer_id)
+
+	if candidates.is_empty():
+		_advance_vote_turn()
+		return
+
+	var index: int = _session.rng.randi_range(
+		0,
+		candidates.size() - 1
+	)
+
+	_server_submit_vote(
+		voter_peer_id,
+		candidates[index]
+	)
+
+
 
 func _valid_vote_count() -> int:
 	if _session == null:
@@ -736,6 +964,30 @@ func _sync_public_night_report(
 		priest_saved,
 		first_night,
 	)
+
+@rpc("authority", "call_local", "reliable")
+func _sync_vote_state(
+	votes_value: Dictionary,
+	voter_peer_id: int,
+	turn_duration_ms: int
+) -> void:
+	public_votes.clear()
+
+	for raw_voter_id in votes_value.keys():
+		public_votes[int(raw_voter_id)] = int(
+			votes_value[raw_voter_id]
+		)
+
+	current_voter_peer_id = voter_peer_id
+
+	_local_vote_turn_started_ms = Time.get_ticks_msec()
+	_local_vote_turn_duration_ms = turn_duration_ms
+
+	vote_state_synced.emit(
+		public_votes.duplicate(),
+		current_voter_peer_id
+	)
+
 
 @rpc("authority", "call_local", "reliable")
 func _sync_sacrifice(sacrificed_peer_id: int, tied: bool, was_heretic: bool) -> void:

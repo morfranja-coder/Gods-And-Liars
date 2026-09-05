@@ -142,6 +142,24 @@ shadow_bias = 0.0
 shadow_normal_bias = 2.026
 omni_range = 2.0
 
+[node name="OmniLight3D17" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=1572916711]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.162897, 0.8025094, -4.827839)
+light_color = Color(0.9471641, 0.61118996, 0.23413023, 1)
+light_energy = 0.6
+light_specular = 0.0
+shadow_bias = 0.0
+shadow_normal_bias = 2.026
+omni_range = 2.0
+
+[node name="OmniLight3D18" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=2047573330]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.21429825, 0.8025094, -4.827839)
+light_color = Color(0.9471641, 0.61118996, 0.23413023, 1)
+light_energy = 0.6
+light_specular = 0.0
+shadow_bias = 0.0
+shadow_normal_bias = 2.026
+omni_range = 2.0
+
 [node name="OmniLight3D12" type="OmniLight3D" parent="EscenarioAlfaV3/Luces" unique_id=639231566]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.6870923, 1.2985787, -3.8906379)
 light_color = Color(0.9471641, 0.61118996, 0.23413023, 1)
@@ -317,5 +335,8 @@ light_specular = 0.0
 shadow_bias = 0.0
 shadow_normal_bias = 2.026
 omni_range = 1.5
+
+[node name="CameraDios" type="Camera3D" parent="." unique_id=278091572]
+transform = Transform3D(1, 0, 0, 0, 0.9608722, 0.27699214, 0, -0.27699214, 0.9608722, 0.50556606, 2.6050303, -4.5391207)
 
 [editable path="ornate_religious_sculpture_3d_model"]

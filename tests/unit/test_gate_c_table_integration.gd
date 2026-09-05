@@ -3,6 +3,8 @@ extends GdUnitTestSuite
 
 const TABLE_SCENE := preload("res://scenes/table/table.tscn")
 const EXPECTED_PLAYERS := 8
+const NAME_COLOR_TARGET := Color(0.95, 0.92, 0.85, 1.0)
+const NAME_COLOR_SOFTENING := 0.35
 
 func before_test() -> void:
 	NetworkManager.reset()
@@ -26,7 +28,7 @@ func test_exact_eight_table_and_phase_ui_integration() -> void:
 	_verify_table_hydration(table)
 	_verify_role_reveal_ui(table)
 	_verify_night_ui(table)
-	_verify_day_vote_ui(table)
+	await _verify_day_vote_ui(table)
 	await _verify_public_death_refresh(table)
 	_verify_match_end_ui(table)
 
@@ -56,7 +58,10 @@ func _verify_table_hydration(table: Node) -> void:
 		var label := avatar.get_node_or_null("NameLabel") as Label3D
 		assert_object(label).is_not_null()
 		assert_str(label.text).is_equal("Gate C Bot %d" % peer_id)
-		assert_bool(label.modulate.is_equal_approx(PlayerColors.for_seat(peer_id - 1))).is_true()
+		var seat_color := PlayerColors.for_seat(peer_id - 1)
+		assert_bool((avatar as AvatarSlots).get_player_color().is_equal_approx(seat_color)).is_true()
+		var expected_label_color := seat_color.lerp(NAME_COLOR_TARGET, NAME_COLOR_SOFTENING)
+		assert_bool(label.modulate.is_equal_approx(expected_label_color)).is_true()
 
 func _verify_role_reveal_ui(table: Node) -> void:
 	MatchAuthority.local_role = PlayerState.Role.FAITHFUL
@@ -86,6 +91,7 @@ func _verify_day_vote_ui(table: Node) -> void:
 	GameManager.round_number = 1
 	GameManager.set_phase(GameManager.MatchPhase.DAY_DISCUSSION)
 	MatchAuthority.phase_synced.emit(int(GameManager.phase))
+	await get_tree().process_frame
 	var panel := table.get_node_or_null("DayVoteUI/Panel") as Control
 	var discussion_timer := table.get_node_or_null("DayVoteUI/DiscussionTimer") as Label
 	assert_object(panel).is_not_null()
@@ -96,6 +102,7 @@ func _verify_day_vote_ui(table: Node) -> void:
 	MatchAuthority.current_voter_peer_id = multiplayer.get_unique_id()
 	GameManager.set_phase(GameManager.MatchPhase.VOTING)
 	MatchAuthority.phase_synced.emit(int(GameManager.phase))
+	await get_tree().process_frame
 	var label := table.get_node_or_null("DayVoteUI/Panel/VBox/PhaseLabel") as Label
 	var target_center := table.get_node_or_null("DayVoteUI/Panel/VBox/TargetCenter") as CenterContainer
 	var target_grid := table.get_node_or_null("DayVoteUI/Panel/VBox/TargetCenter/TargetGrid") as GridContainer

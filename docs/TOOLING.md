@@ -44,6 +44,24 @@ The complete workstation/game testing sequence is documented in `docs/LOCAL_TEST
 - Gitleaks in CI
 - GitHub Actions as the quality gate
 
+## Canonical commit + CI validation rule
+
+Every functional change must be committed as its own reviewable commit unless two edits are inseparable parts of the same change.
+
+After each functional commit:
+
+1. Inspect the GitHub Actions workflow triggered by that commit.
+2. While actively working on the change, poll its status at approximately one-minute intervals when the execution remains pending or in progress.
+3. If the workflow is green, stop changing that point and report that it is ready for review before moving to the next item.
+4. If the workflow is red, inspect the failing job and logs, fix the actual cause in a new commit, and validate the new workflow again.
+5. Repeat the red -> fix -> new commit -> validate loop until the workflow is green or an external blocker is proven.
+6. Never hide a product regression by weakening a test. Update a test only when the test is demonstrably stale relative to intentional canonical runtime behavior.
+7. Do not bundle unrelated cleanup into a CI-fix commit.
+
+A commit is not considered finished merely because it was pushed. For project workflow purposes, the unit of completion is:
+
+`commit -> CI result -> green -> human review`
+
 ## CI order
 1. Gitleaks secret scan
 2. gdtoolkit / gdlint

@@ -35,6 +35,7 @@ HostMigrationFallback="*res://autoload/host_migration_fallback.gd"
 MatchLeaveManager="*res://autoload/match_leave_manager.gd"
 QAEventLog="*res://autoload/qa_event_log.gd"
 VideoSettings="*res://autoload/video_settings.gd"
+DevConsole="*res://autoload/dev_console.gd"
 
 [display]
 

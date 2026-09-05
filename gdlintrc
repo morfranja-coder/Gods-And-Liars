@@ -1,5 +1,2 @@
-max-line-length: 140
-max-file-lines: 1000
-max-public-methods: 40
-function-arguments-number: 11
-disable: []
+max-line-length: 180
+disable: [max-file-lines, class-definitions-order, unused-argument]

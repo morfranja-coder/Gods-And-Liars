@@ -169,6 +169,12 @@ func _apply_phase(phase: GameManager.MatchPhase) -> void:
 		GameManager.MatchPhase.SACRIFICE:
 			_set_blackout(false)
 			_banner.text = "SACRIFICIO"
+
+			# NightActionUI es la superficie narrativa canónica
+			# del resultado del sacrificio. Ocultamos este segundo
+			# diálogo para evitar mostrar el mismo resultado dos veces.
+			_dialogue_panel.visible = false
+
 			_call_table("focus_god_camera")
 		GameManager.MatchPhase.MATCH_END:
 			_set_blackout(false)

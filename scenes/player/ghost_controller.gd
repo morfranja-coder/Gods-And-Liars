@@ -4,6 +4,7 @@ extends CharacterBody3D
 const HERETIC_GHOST_FOLDER := "res://assets/FantasmaHereje"
 const INNOCENT_GHOST_FOLDER := "res://assets/FantasmaPJ"
 const GHOST_CAMERA_FAR := 18.0
+const GHOST_VISUAL_SCALE := 8.0
 
 @export_range(0.5, 10.0, 0.1) var move_speed := 2.8
 @export_range(0.5, 10.0, 0.1) var vertical_speed := 2.0
@@ -29,8 +30,10 @@ func _ready() -> void:
 	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
 	ghost_camera.near = 0.05
 	ghost_camera.far = GHOST_CAMERA_FAR
+	heretic_visual.scale = Vector3.ONE * GHOST_VISUAL_SCALE
+	innocent_visual.scale = Vector3.ONE * GHOST_VISUAL_SCALE
 
-func _physics_process(delta: float) -> void:
+func _process(delta: float) -> void:
 	if not input_enabled or InputBindings.text_entry_active:
 		velocity = Vector3.ZERO
 		return
@@ -40,7 +43,11 @@ func _physics_process(delta: float) -> void:
 	_apply_body_follow(delta)
 	_apply_movement()
 	_update_movement_animation()
-	move_and_slide()
+
+	# El fantasma no necesita resolver colisiones complejas.
+	# Movimiento directo = sin move_and_slide contra los
+	# trimesh del escenario y movimiento visual más fluido.
+	global_position += velocity * delta
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not input_enabled or InputBindings.text_entry_active:

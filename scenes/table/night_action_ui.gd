@@ -102,10 +102,6 @@ func _sync_minimal_subtitles() -> void:
 	if _subtitle_root == null:
 		return
 
-	if MatchAuthority.is_local_ghost():
-		_subtitle_root.visible = false
-		return
-
 	var phase := GameManager.phase
 	var narrative_phase := phase in [
 		GameManager.MatchPhase.GOD_INTRO,
@@ -116,7 +112,15 @@ func _sync_minimal_subtitles() -> void:
 		phase == GameManager.MatchPhase.NIGHT_START
 		or NightPhaseRules.is_action_phase(phase)
 	)
+
 	var show_subtitles := narrative_phase or night_info_phase
+
+	if MatchAuthority.is_local_ghost():
+		show_subtitles = phase in [
+			GameManager.MatchPhase.DAY_ANNOUNCEMENT,
+			GameManager.MatchPhase.SACRIFICE,
+		]
+
 	_subtitle_root.visible = show_subtitles
 
 	if not show_subtitles:
@@ -142,16 +146,14 @@ func _process(_delta: float) -> void:
 	if MatchAuthority.is_local_ghost():
 		panel.visible = false
 		black_overlay.visible = _should_show_black_overlay()
-		if _subtitle_root != null:
-			_subtitle_root.visible = (
-				GameManager.phase == GameManager.MatchPhase.NIGHT_START
-				or NightPhaseRules.is_action_phase(GameManager.phase)
-				or GameManager.phase == GameManager.MatchPhase.DAY_ANNOUNCEMENT
-				or GameManager.phase == GameManager.MatchPhase.SACRIFICE
-			)
+
 		var ghost_seconds := MatchAuthority.phase_seconds_remaining()
-		_update_minimal_timer(ghost_seconds)
-		_refresh_narrative()
+
+		if ghost_seconds != _last_timer_second:
+			_last_timer_second = ghost_seconds
+			_update_minimal_timer(ghost_seconds)
+			_refresh_narrative()
+
 		return
 
 	var seconds := MatchAuthority.phase_seconds_remaining()

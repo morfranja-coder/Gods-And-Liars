@@ -266,6 +266,7 @@ compositor = SubResource("Compositor_v660f")
 [node name="ChatUI" parent="." unique_id=2103427711 instance=ExtResource("10")]
 
 [node name="GhostHUD" parent="." unique_id=1353842235 instance=ExtResource("14_ghost_hud")]
+visible = true
 
 [node name="PauseUI" parent="." unique_id=1106661316 instance=ExtResource("6")]
 

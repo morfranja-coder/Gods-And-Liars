@@ -15,6 +15,7 @@ const LOCAL_CAMERA_HEIGHT := 0.95
 const SCENARIO_COLLISION_MIN_AXIS := 0.75
 const PRIVATE_CHAT_MAX_LENGTH := 220
 const REMOTE_GHOST_FOLDER := "res://assets/FantasmaPJ"
+const REMOTE_GHOST_VISUAL_SCALE := 8.0
 
 var selected_peer_id: int = 0
 var focused_peer_id: int = 0
@@ -418,14 +419,24 @@ func _gameplay_input_blocked() -> bool:
 
 func _update_camera_input_state() -> void:
 	var gameplay_enabled := not _gameplay_input_blocked()
-	table_camera.set_look_enabled(gameplay_enabled and not _is_ghost_mode_active())
+	var look_enabled := gameplay_enabled and not _is_ghost_mode_active()
 
-	if gameplay_enabled:
-		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
-	else:
-		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	if table_camera.look_enabled != look_enabled:
+		table_camera.set_look_enabled(look_enabled)
 
-	if _local_ghost != null:
+	var desired_mouse_mode := (
+		Input.MOUSE_MODE_CAPTURED
+		if gameplay_enabled
+		else Input.MOUSE_MODE_VISIBLE
+	)
+
+	if Input.get_mouse_mode() != desired_mouse_mode:
+		Input.set_mouse_mode(desired_mouse_mode)
+
+	if (
+		_local_ghost != null
+		and _local_ghost.input_enabled != gameplay_enabled
+	):
 		_local_ghost.set_input_enabled(gameplay_enabled)
 
 
@@ -854,7 +865,12 @@ func _create_remote_ghost_visual(peer_id: int) -> Node3D:
 	root.name = "RemoteGhost_%d" % peer_id
 	var ghost_scene := _load_first_glb_from_folder(REMOTE_GHOST_FOLDER)
 	if ghost_scene != null:
-		root.add_child(ghost_scene.instantiate())
+		var ghost_instance := ghost_scene.instantiate()
+		if ghost_instance is Node3D:
+			(ghost_instance as Node3D).scale = (
+				Vector3.ONE * REMOTE_GHOST_VISUAL_SCALE
+			)
+		root.add_child(ghost_instance)
 		return root
 	var fallback := MeshInstance3D.new()
 	var mesh := CapsuleMesh.new()

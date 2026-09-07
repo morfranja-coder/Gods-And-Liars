@@ -7,7 +7,7 @@ const MAX_HISTORY := 40
 var _root: Control
 var _panel: PanelContainer
 var _output: RichTextLabel
-var _input: LineEdit
+var _command_input: LineEdit
 var _history: Array[String] = []
 var _history_index := 0
 var _is_open := false
@@ -86,12 +86,12 @@ func _build_ui() -> void:
 	_output.selection_enabled = true
 	column.add_child(_output)
 
-	_input = LineEdit.new()
-	_input.placeholder_text = "Comando...  (help para ayuda)"
-	_input.clear_button_enabled = true
-	_input.text_submitted.connect(_on_command_submitted)
-	_input.gui_input.connect(_on_input_gui_input)
-	column.add_child(_input)
+	_command_input = LineEdit.new()
+	_command_input.placeholder_text = "Comando...  (help para ayuda)"
+	_command_input.clear_button_enabled = true
+	_command_input.text_submitted.connect(_on_command_submitted)
+	_command_input.gui_input.connect(_on_input_gui_input)
+	column.add_child(_command_input)
 
 func _set_open(value: bool) -> void:
 	_is_open = value
@@ -101,17 +101,17 @@ func _set_open(value: bool) -> void:
 		_previous_mouse_mode = Input.get_mouse_mode()
 		InputBindings.set_text_entry_active(true)
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-		if _input != null:
-			_input.grab_focus()
+		if _command_input != null:
+			_command_input.grab_focus()
 	else:
 		InputBindings.set_text_entry_active(false)
-		if _input != null:
-			_input.release_focus()
+		if _command_input != null:
+			_command_input.release_focus()
 		Input.set_mouse_mode(_previous_mouse_mode)
 
 func _on_command_submitted(raw_text: String) -> void:
 	var command_line := raw_text.strip_edges()
-	_input.clear()
+	_command_input.clear()
 	if command_line.is_empty():
 		return
 	_push_history(command_line)
@@ -127,14 +127,14 @@ func _on_input_gui_input(event: InputEvent) -> void:
 		return
 	if key_event.keycode == KEY_UP:
 		_history_previous()
-		_input.accept_event()
+		_command_input.accept_event()
 	elif key_event.keycode == KEY_DOWN:
 		_history_next()
-		_input.accept_event()
+		_command_input.accept_event()
 
 func _refocus_input() -> void:
-	if _is_open and _input != null:
-		_input.grab_focus()
+	if _is_open and _command_input != null:
+		_command_input.grab_focus()
 
 func _push_history(command_line: String) -> void:
 	if _history.is_empty() or _history.back() != command_line:
@@ -147,15 +147,15 @@ func _history_previous() -> void:
 	if _history.is_empty():
 		return
 	_history_index = maxi(0, _history_index - 1)
-	_input.text = _history[_history_index]
-	_input.caret_column = _input.text.length()
+	_command_input.text = _history[_history_index]
+	_command_input.caret_column = _command_input.text.length()
 
 func _history_next() -> void:
 	if _history.is_empty():
 		return
 	_history_index = mini(_history.size(), _history_index + 1)
-	_input.text = "" if _history_index >= _history.size() else _history[_history_index]
-	_input.caret_column = _input.text.length()
+	_command_input.text = "" if _history_index >= _history.size() else _history[_history_index]
+	_command_input.caret_column = _command_input.text.length()
 
 func _execute_command(command_line: String) -> void:
 	var parts := command_line.split(" ", false)

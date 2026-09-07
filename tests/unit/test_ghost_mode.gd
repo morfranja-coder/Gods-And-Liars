@@ -22,11 +22,11 @@ func test_text_entry_suppresses_ghost_movement() -> void:
 	add_child(ghost)
 	ghost.activate(false)
 	Input.action_press(InputBindings.ACTION_GHOST_FORWARD)
-	ghost._physics_process(0.016)
+	ghost._process(0.016)
 	assert_bool(ghost.velocity.length_squared() > 0.01).is_true()
 
 	InputBindings.set_text_entry_active(true)
-	ghost._physics_process(0.016)
+	ghost._process(0.016)
 	assert_vector(ghost.velocity).is_equal(Vector3.ZERO)
 	ghost.queue_free()
 

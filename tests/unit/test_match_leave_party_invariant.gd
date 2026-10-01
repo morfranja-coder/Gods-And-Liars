@@ -27,6 +27,13 @@ func test_party_lobby_or_target_change_breaks_invariant() -> void:
 	changed_target["match_target_lobby_id"] = 0
 	assert_bool(MatchLeavePartyInvariant.is_preserved(before, changed_target)).is_false()
 
+func test_host_can_clear_match_target_without_mutating_party_membership() -> void:
+	var before := _baseline()
+	var after := _baseline()
+	after["match_target_lobby_id"] = 0
+	assert_bool(MatchLeavePartyInvariant.is_membership_preserved(before, after)).is_true()
+	assert_bool(MatchLeavePartyInvariant.is_preserved(before, after)).is_false()
+
 func test_leader_or_members_change_breaks_invariant() -> void:
 	var before := _baseline()
 	var changed_leader := _baseline()

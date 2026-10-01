@@ -128,9 +128,11 @@ func _capture_party_invariant() -> Dictionary:
 		PartyManager.state.members,
 	)
 
-func _cleanup_local_match_state() -> void:
+func _cleanup_local_match_state(clear_party_match_target: bool = false) -> void:
 	VoiceChat.reset_for_match_leave()
 	NetworkManager.leave_lobby()
+	if clear_party_match_target:
+		PartyManager.clear_match_target()
 	MatchAuthority.reset()
 	HostMigrationManager.reset()
 	HostMigrationTransport.reset()
@@ -160,16 +162,24 @@ func _complete_local_leave(was_host: bool) -> void:
 	_host_leave_pending = false
 	last_leave_error = ""
 	last_leave_message = (
-		"Transferiste el host y abandonaste la partida. Tu grupo se mantiene."
+		"Abandonaste la partida como host. La partida terminó para todos; tu grupo se mantiene."
 		if was_host
 		else "Abandonaste la partida. Tu grupo se mantiene."
 	)
-	_cleanup_local_match_state()
+	_cleanup_local_match_state(was_host)
 	if not _local_cleanup_is_valid():
 		push_error("Match leave local cleanup postcondition failed.")
 		local_cleanup_failed.emit()
-	if not MatchLeavePartyInvariant.is_preserved(party_before, _capture_party_invariant()):
-		push_error("Match leave mutated Party state; Party preservation invariant failed.")
+	var party_after := _capture_party_invariant()
+	var party_preserved := (
+		MatchLeavePartyInvariant.is_membership_preserved(party_before, party_after)
+		if was_host
+		else MatchLeavePartyInvariant.is_preserved(party_before, party_after)
+	)
+	if was_host and int(party_after.get("match_target_lobby_id", 0)) != 0:
+		party_preserved = false
+	if not party_preserved:
+		push_error("Match leave mutated Party membership or left a stale Match target.")
 		party_preservation_failed.emit()
 	leave_completed.emit()
 	var tree := get_tree()

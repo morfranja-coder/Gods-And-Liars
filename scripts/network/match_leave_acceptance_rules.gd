@@ -4,7 +4,7 @@ extends RefCounted
 enum ExitMode {
 	REJECT,
 	CLIENT_HANDSHAKE,
-	HOST_MIGRATION,
+	HOST_TERMINATES_MATCH,
 }
 
 static func exit_mode(
@@ -18,7 +18,7 @@ static func exit_mode(
 		return ExitMode.REJECT
 	if is_host:
 		return (
-			ExitMode.HOST_MIGRATION
+			ExitMode.HOST_TERMINATES_MATCH
 			if MatchLeaveRules.can_request_host_leave(
 				lobby_id,
 				is_host,

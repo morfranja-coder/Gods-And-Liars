@@ -447,7 +447,7 @@ func _on_leave_match_pressed() -> void:
 	if MatchLeaveManager.leave_pending:
 		return
 	leave_confirm_dialog.dialog_text = (
-		"Sos el host. Se transferirá la autoridad antes de salir. ¿Querés continuar?"
+		"Sos el host. Si salís, la partida terminará para todos. Tu grupo se conservará. ¿Querés continuar?"
 		if NetworkManager.is_host
 		else "¿Seguro que querés abandonar esta partida? Tu grupo se conservará."
 	)

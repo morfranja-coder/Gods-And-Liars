@@ -242,7 +242,7 @@ func _on_leave_match_confirmed() -> void:
 func _on_match_leave_started() -> void:
 	leave_match_button.disabled = true
 	status_label.text = (
-		"Transfiriendo host antes de salir..."
+		"Cerrando la partida para todos..."
 		if NetworkManager.is_host
 		else "Abandonando partida..."
 	)

@@ -6,10 +6,10 @@ func test_started_non_host_uses_client_handshake() -> void:
 		MatchLeaveAcceptanceRules.exit_mode(9001, false, true, false, true)
 	).is_equal(MatchLeaveAcceptanceRules.ExitMode.CLIENT_HANDSHAKE)
 
-func test_started_host_uses_host_migration() -> void:
+func test_started_host_terminates_match_for_mvp() -> void:
 	assert_int(
 		MatchLeaveAcceptanceRules.exit_mode(9001, true, true, false, true)
-	).is_equal(MatchLeaveAcceptanceRules.ExitMode.HOST_MIGRATION)
+	).is_equal(MatchLeaveAcceptanceRules.ExitMode.HOST_TERMINATES_MATCH)
 
 func test_pending_or_invalid_started_match_rejects_duplicate_exit() -> void:
 	assert_int(

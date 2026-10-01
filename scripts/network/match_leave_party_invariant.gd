@@ -16,14 +16,19 @@ static func capture(
 		"members": members.duplicate(true),
 	}
 
-static func is_preserved(before: Dictionary, after: Dictionary) -> bool:
+static func is_membership_preserved(before: Dictionary, after: Dictionary) -> bool:
 	if before.is_empty() or after.is_empty():
 		return false
 	return (
 		int(before.get("party_lobby_id", 0)) == int(after.get("party_lobby_id", 0))
-		and int(before.get("match_target_lobby_id", 0))
-		== int(after.get("match_target_lobby_id", 0))
 		and int(before.get("party_id", 0)) == int(after.get("party_id", 0))
 		and int(before.get("leader_steam_id", 0)) == int(after.get("leader_steam_id", 0))
 		and before.get("members", {}) == after.get("members", {})
+	)
+
+static func is_preserved(before: Dictionary, after: Dictionary) -> bool:
+	return (
+		is_membership_preserved(before, after)
+		and int(before.get("match_target_lobby_id", 0))
+		== int(after.get("match_target_lobby_id", 0))
 	)

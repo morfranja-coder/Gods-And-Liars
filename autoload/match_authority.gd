@@ -395,15 +395,10 @@ func _advance_night_phase() -> void:
 func _choose_heretic_decider() -> int:
 	if _session == null:
 		return 0
-	var living_heretics: Array[int] = []
-	for player in _session.players:
-		if player.alive and player.role == PlayerState.Role.HERETIC:
-			living_heretics.append(player.peer_id)
-	living_heretics.sort()
-	if living_heretics.is_empty():
-		return 0
-	var index := (maxi(1, GameManager.round_number) - 1) % living_heretics.size()
-	return living_heretics[index]
+	return NightRoundRules.choose_heretic_decider(
+		_session.players,
+		GameManager.round_number,
+	)
 
 func _heretic_decider_recipients() -> Array[int]:
 	var recipients: Array[int] = []
@@ -451,14 +446,14 @@ func _server_submit_night_action(actor_peer_id: int, target_peer_id: int) -> voi
 	if required_role == PlayerState.Role.UNASSIGNED:
 		_send_night_action_result(actor_peer_id, false, target_peer_id)
 		return
-	if not _night_role_specific_validation(actor_peer_id, target_peer_id, required_role):
-		_send_night_action_result(actor_peer_id, false, target_peer_id)
-		return
-	if not NightActionRules.can_target(
+	if not NightRoundRules.can_submit_action(
 		_session.players,
 		actor_peer_id,
 		target_peer_id,
 		required_role,
+		GameManager.round_number,
+		current_heretic_decider_peer_id,
+		_healer_self_save_used,
 	):
 		_send_night_action_result(actor_peer_id, false, target_peer_id)
 		return
@@ -472,22 +467,6 @@ func _server_submit_night_action(actor_peer_id: int, target_peer_id: int) -> voi
 			_inquisitor_target_peer_id = target_peer_id
 	_send_night_action_result(actor_peer_id, true, target_peer_id)
 	night_action_accepted.emit(actor_peer_id, target_peer_id)
-
-func _night_role_specific_validation(
-	actor_peer_id: int,
-	target_peer_id: int,
-	required_role: PlayerState.Role
-) -> bool:
-	if required_role == PlayerState.Role.HERETIC:
-		return actor_peer_id == current_heretic_decider_peer_id
-	if required_role == PlayerState.Role.HEALER:
-		if GameManager.round_number == 1:
-			return false
-		if actor_peer_id == target_peer_id and _healer_self_save_used:
-			return false
-	if required_role == PlayerState.Role.INQUISITOR and GameManager.round_number == 1:
-		return false
-	return true
 
 func _send_night_action_result(actor_peer_id: int, accepted: bool, target_peer_id: int) -> void:
 	if multiplayer.multiplayer_peer == null or actor_peer_id == multiplayer.get_unique_id():

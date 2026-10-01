@@ -20,12 +20,13 @@ static func run(seed_value: int, max_rounds: int = DEFAULT_MAX_ROUNDS) -> Dictio
 		brains[player.peer_id] = QABotBrain.new(QABotBrain.Profile.BALANCED)
 
 	var rounds := 0
+	var night_state := {"healer_self_save_used": false}
 	while rounds < max_rounds:
 		var current_winner := session.winner()
 		if not current_winner.is_empty():
 			return _result(session, current_winner, rounds, true)
 		rounds += 1
-		_run_night(session, brains)
+		_run_night(session, brains, rounds, night_state)
 		current_winner = session.winner()
 		if not current_winner.is_empty():
 			return _result(session, current_winner, rounds, true)
@@ -36,30 +37,98 @@ static func run(seed_value: int, max_rounds: int = DEFAULT_MAX_ROUNDS) -> Dictio
 
 	return _result(session, session.winner(), rounds, false)
 
-static func _run_night(session: MatchSession, brains: Dictionary) -> void:
-	var heretic_targets: Array[int] = []
+static func _run_night(
+	session: MatchSession,
+	brains: Dictionary,
+	round_number: int,
+	night_state: Dictionary,
+) -> void:
+	var decider_peer_id := NightRoundRules.choose_heretic_decider(
+		session.players,
+		round_number,
+	)
+	var heretic_target := _choose_role_target(
+		session,
+		brains,
+		PlayerState.Role.HERETIC,
+		round_number,
+		decider_peer_id,
+		bool(night_state.get("healer_self_save_used", false)),
+	)
 	var healer_target := 0
 	var inquisitor_target := 0
-	for player in session.players:
-		if not player.alive:
-			continue
-		var brain: QABotBrain = brains[player.peer_id]
-		var target := brain.choose_night_target(session.players, player.peer_id)
-		match player.role:
-			PlayerState.Role.HERETIC:
-				if target != 0:
-					heretic_targets.append(target)
-			PlayerState.Role.HEALER:
-				healer_target = target
-			PlayerState.Role.INQUISITOR:
-				inquisitor_target = target
+	if NightRoundRules.is_first_night(round_number):
+		if heretic_target > 0 and _living_role_peer_id(
+			session.players,
+			PlayerState.Role.HEALER,
+		) > 0:
+			healer_target = heretic_target
+	else:
+		healer_target = _choose_role_target(
+			session,
+			brains,
+			PlayerState.Role.HEALER,
+			round_number,
+			decider_peer_id,
+			bool(night_state.get("healer_self_save_used", false)),
+		)
+		inquisitor_target = _choose_role_target(
+			session,
+			brains,
+			PlayerState.Role.INQUISITOR,
+			round_number,
+			decider_peer_id,
+			bool(night_state.get("healer_self_save_used", false)),
+		)
+		var healer_peer_id := _living_role_peer_id(
+			session.players,
+			PlayerState.Role.HEALER,
+		)
+		if healer_peer_id > 0 and healer_target == healer_peer_id:
+			night_state["healer_self_save_used"] = true
+
+	var targets: Array[int] = []
+	if heretic_target > 0:
+		targets.append(heretic_target)
 	NightResolver.resolve_many(
 		session.players,
-		heretic_targets,
+		targets,
 		healer_target,
 		inquisitor_target,
+		NightRoundRules.is_first_night(round_number),
 	)
 
+static func _choose_role_target(
+	session: MatchSession,
+	brains: Dictionary,
+	role: PlayerState.Role,
+	round_number: int,
+	decider_peer_id: int,
+	healer_self_save_used: bool,
+) -> int:
+	for player in session.players:
+		if not player.alive or player.role != role:
+			continue
+		if role == PlayerState.Role.HERETIC and player.peer_id != decider_peer_id:
+			continue
+		var brain: QABotBrain = brains[player.peer_id]
+		return brain.choose_runtime_night_target(
+			session.players,
+			player.peer_id,
+			round_number,
+			decider_peer_id,
+			healer_self_save_used,
+		)
+	return 0
+
+static func _living_role_peer_id(
+	players: Array[PlayerState],
+	role: PlayerState.Role,
+) -> int:
+	for player in players:
+		if player.alive and player.role == role:
+			return player.peer_id
+	return 0
 static func _run_vote(session: MatchSession, brains: Dictionary) -> void:
 	var votes: Dictionary = {}
 	for player in session.players:

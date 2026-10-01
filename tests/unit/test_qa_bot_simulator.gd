@@ -18,6 +18,33 @@ func test_balanced_bot_chooses_only_valid_targets() -> void:
 				NightActionRules.can_target(session.players, player.peer_id, target, player.role)
 			).is_true()
 
+
+func test_runtime_night_target_respects_decider_and_first_night() -> void:
+	var session := MatchSession.new(9001)
+	for peer_id in range(1, QuickMatchRules.TARGET_PLAYERS + 1):
+		session.add_player(peer_id, 820000 + peer_id, "Bot %d" % peer_id)
+	session.prepare_match()
+	var brain := QABotBrain.new(QABotBrain.Profile.BALANCED)
+	var decider := NightRoundRules.choose_heretic_decider(session.players, 1)
+	for player in session.players:
+		if not player.alive:
+			continue
+		var target := brain.choose_runtime_night_target(
+			session.players,
+			player.peer_id,
+			1,
+			decider,
+			false,
+		)
+		if player.role == PlayerState.Role.HERETIC and player.peer_id == decider:
+			assert_int(target).is_greater(0)
+		elif player.role in [
+			PlayerState.Role.HERETIC,
+			PlayerState.Role.HEALER,
+			PlayerState.Role.INQUISITOR,
+		]:
+			assert_int(target).is_equal(0)
+
 func test_timeout_bot_submits_no_actions() -> void:
 	var session := MatchSession.new(77)
 	for peer_id in range(1, QuickMatchRules.TARGET_PLAYERS + 1):

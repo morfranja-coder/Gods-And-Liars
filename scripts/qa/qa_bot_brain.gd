@@ -28,6 +28,37 @@ func choose_night_target(players: Array[PlayerState], actor_peer_id: int) -> int
 		return actor_peer_id
 	return candidate_ids[0]
 
+func choose_runtime_night_target(
+	players: Array[PlayerState],
+	actor_peer_id: int,
+	round_number: int,
+	heretic_decider_peer_id: int,
+	healer_self_save_used: bool,
+) -> int:
+	if profile == Profile.TIMEOUT:
+		return 0
+	var actor := _find_player(players, actor_peer_id)
+	if actor == null or not actor.alive:
+		return 0
+	var candidate_ids: Array[int] = []
+	for target in players:
+		if NightRoundRules.can_submit_action(
+			players,
+			actor_peer_id,
+			target.peer_id,
+			actor.role,
+			round_number,
+			heretic_decider_peer_id,
+			healer_self_save_used,
+		):
+			candidate_ids.append(target.peer_id)
+	candidate_ids.sort()
+	if candidate_ids.is_empty():
+		return 0
+	if actor.role == PlayerState.Role.HEALER and actor_peer_id in candidate_ids:
+		return actor_peer_id
+	return candidate_ids[0]
+
 func choose_vote_target(players: Array[PlayerState], voter_peer_id: int) -> int:
 	if profile == Profile.TIMEOUT:
 		return 0

@@ -39,13 +39,13 @@ func test_eight_ready_players_can_start_and_ninth_is_rejected() -> void:
 	assert_bool(session.can_start()).is_true()
 	assert_bool(session.add_player(9, 5009, "P9")).is_false()
 
-func test_vote_tie_returns_no_sacrifice() -> void:
+func test_vote_tie_uses_session_rng_for_sacrifice() -> void:
 	var session := MatchSession.new(7)
 	for peer_id in range(1, 5):
 		assert_bool(session.add_player(peer_id, 2000 + peer_id, "Player %d" % peer_id)).is_true()
 
 	var votes := {1: 3, 2: 4}
-	assert_int(session.resolve_vote(votes)).is_equal(0)
+	assert_bool(session.resolve_vote(votes) in [3, 4]).is_true()
 
 func test_healer_prevents_night_kill() -> void:
 	var session := MatchSession.new(11)

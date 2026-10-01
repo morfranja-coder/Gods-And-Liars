@@ -7,7 +7,7 @@ func _initialize() -> void:
 	if not ClassDB.class_exists("SteamMultiplayerPeer"):
 		missing.append("SteamMultiplayerPeer")
 	else:
-		var peer := ClassDB.instantiate("SteamMultiplayerPeer")
+		var peer: Object = ClassDB.instantiate("SteamMultiplayerPeer")
 		if peer == null or not peer.has_method("get_steam64_from_peer_id"):
 			missing.append("SteamMultiplayerPeer.get_steam64_from_peer_id")
 	if not missing.is_empty():

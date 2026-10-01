@@ -54,11 +54,10 @@ func _request_host_leave() -> bool:
 	_host_leave_pending = true
 	last_leave_error = ""
 	leave_started.emit()
-	host_leave_requires_migration.emit()
-	if HostMigrationManager.request_voluntary_host_exit():
-		return true
-	_cancel_host_leave(MatchLeaveRules.DEFAULT_HOST_TRANSFER_ERROR)
-	return false
+	# Host migration is out of the MVP. The host leaves cleanly and the
+	# existing NetworkManager server-disconnect path returns clients to lobby.
+	call_deferred("_complete_local_leave", true)
+	return true
 
 func consume_last_leave_message() -> String:
 	var message := last_leave_message

@@ -1,5 +1,10 @@
 # Gods & Liars — Host Migration
 
+> **MVP status:** Host migration is intentionally disabled for the MVP. A host
+> leaves cleanly and a host disconnect returns the match to the lobby through
+> the normal NetworkManager path. The migration implementation remains in the
+> repository for a later post-MVP phase.
+
 ## Goal
 
 A match should survive the departure or crash of the current game host whenever a valid successor can take authority.

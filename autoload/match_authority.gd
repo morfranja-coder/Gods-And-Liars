@@ -412,10 +412,11 @@ func _heretic_decider_recipients() -> Array[int]:
 
 func _broadcast_heretic_decider(decider_peer_id: int) -> void:
 	# Clear the previous value on every client without revealing the new one.
-	if multiplayer.multiplayer_peer != null:
-		_clear_heretic_decider.rpc()
-	else:
-		_clear_heretic_decider()
+	if multiplayer.multiplayer_peer == null:
+		current_heretic_decider_peer_id = decider_peer_id
+		heretic_decider_changed.emit(decider_peer_id)
+		return
+	_clear_heretic_decider.rpc()
 	current_heretic_decider_peer_id = decider_peer_id
 	for peer_id in _heretic_decider_recipients():
 		if peer_id == multiplayer.get_unique_id():
@@ -862,16 +863,26 @@ func _apply_peer_disconnect(peer_id: int) -> bool:
 			_votes.erase(raw_voter_id)
 	return true
 
-func _resume_after_disconnect() -> void:
+func _resume_after_disconnect(disconnected_peer_id: int) -> void:
 	if _session == null or GameManager.phase == GameManager.MatchPhase.MATCH_END:
 		return
 	var winner := _session.winner()
 	if not winner.is_empty():
 		_end_match(winner)
 		return
+	if GameManager.phase == GameManager.MatchPhase.HERETIC_ACTION:
+		_reassign_heretic_decider_after_disconnect(disconnected_peer_id)
+		return
 	if GameManager.phase == GameManager.MatchPhase.ROLE_REVEAL:
 		if _role_acknowledged.size() >= _living_player_count():
 			_start_god_intro()
+
+func _reassign_heretic_decider_after_disconnect(disconnected_peer_id: int) -> void:
+	if disconnected_peer_id != current_heretic_decider_peer_id:
+		return
+	_heretic_targets.clear()
+	var next_decider := _choose_heretic_decider()
+	_broadcast_heretic_decider(next_decider)
 
 func _is_offline_synthetic_peer(peer_id: int) -> bool:
 	return multiplayer.multiplayer_peer is OfflineMultiplayerPeer and peer_id != multiplayer.get_unique_id()
@@ -1032,7 +1043,7 @@ func _on_peer_left(peer_id: int) -> void:
 	if not multiplayer.is_server():
 		return
 	if _apply_peer_disconnect(peer_id):
-		_resume_after_disconnect()
+		_resume_after_disconnect(peer_id)
 
 func _on_lobby_state_changed(state: StringName) -> void:
 	if state in [&"steam_ready", &"offline", &"host_disconnected", &"connection_failed"]:

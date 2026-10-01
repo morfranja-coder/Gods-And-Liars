@@ -89,6 +89,46 @@ func test_phase_sync_updates_round_number() -> void:
 	assert_int(int(GameManager.phase)).is_equal(int(GameManager.MatchPhase.DAY_DISCUSSION))
 	assert_int(GameManager.round_number).is_equal(3)
 
+func test_disconnected_heretic_decider_is_reassigned_without_restarting_phase() -> void:
+	var session: MatchSession = MatchAuthority.call("_build_session", _eight_player_roster())
+	assert_bool(session != null).is_true()
+	for player in session.players:
+		player.role = PlayerState.Role.FAITHFUL
+	session.get_player(1).role = PlayerState.Role.HERETIC
+	session.get_player(2).role = PlayerState.Role.HERETIC
+	MatchAuthority.set("_session", session)
+	MatchAuthority.current_heretic_decider_peer_id = 1
+	MatchAuthority.set("_heretic_targets", {1: 5})
+	GameManager.round_number = 1
+	GameManager.set_phase(GameManager.MatchPhase.HERETIC_ACTION)
+
+	assert_bool(MatchAuthority.call("_apply_peer_disconnect", 1)).is_true()
+	MatchAuthority.call("_resume_after_disconnect", 1)
+
+	assert_int(MatchAuthority.current_heretic_decider_peer_id).is_equal(2)
+	assert_bool(MatchAuthority.get("_heretic_targets").is_empty()).is_true()
+	assert_int(int(GameManager.phase)).is_equal(int(GameManager.MatchPhase.HERETIC_ACTION))
+
+
+func test_non_decider_heretic_disconnect_keeps_current_decider() -> void:
+	var session: MatchSession = MatchAuthority.call("_build_session", _eight_player_roster())
+	assert_bool(session != null).is_true()
+	for player in session.players:
+		player.role = PlayerState.Role.FAITHFUL
+	session.get_player(1).role = PlayerState.Role.HERETIC
+	session.get_player(2).role = PlayerState.Role.HERETIC
+	MatchAuthority.set("_session", session)
+	MatchAuthority.current_heretic_decider_peer_id = 1
+	GameManager.round_number = 1
+	GameManager.set_phase(GameManager.MatchPhase.HERETIC_ACTION)
+
+	assert_bool(MatchAuthority.call("_apply_peer_disconnect", 2)).is_true()
+	MatchAuthority.call("_resume_after_disconnect", 2)
+
+	assert_int(MatchAuthority.current_heretic_decider_peer_id).is_equal(1)
+	assert_int(int(GameManager.phase)).is_equal(int(GameManager.MatchPhase.HERETIC_ACTION))
+
+
 func test_disconnect_marks_session_player_dead_and_clears_pending_actions() -> void:
 	var session: MatchSession = MatchAuthority.call("_build_session", _eight_player_roster())
 	MatchAuthority.set("_session", session)

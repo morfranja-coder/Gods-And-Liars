@@ -6,7 +6,7 @@ class FakeSteamPeer:
 
 	var steam_ids: Dictionary = {}
 
-	func get_steam64_from_peer_id(peer_id: int) -> int:
+	func get_steam_id_for_peer_id(peer_id: int) -> int:
 		return int(steam_ids.get(peer_id, -1))
 
 func test_authenticated_steam_id_is_read_from_transport_mapping() -> void:

@@ -8,8 +8,8 @@ func _initialize() -> void:
 		missing.append("SteamMultiplayerPeer")
 	else:
 		var peer: Object = ClassDB.instantiate("SteamMultiplayerPeer")
-		if peer == null or not peer.has_method("get_steam64_from_peer_id"):
-			missing.append("SteamMultiplayerPeer.get_steam64_from_peer_id")
+		if peer == null or not peer.has_method("get_steam_id_for_peer_id"):
+			missing.append("SteamMultiplayerPeer.get_steam_id_for_peer_id")
 	if not missing.is_empty():
 		printerr("RED: Steam runtime is incomplete: %s" % ", ".join(missing))
 		quit(1)

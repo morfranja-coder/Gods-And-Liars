@@ -19,30 +19,38 @@ func test_cannot_vote_dead_target() -> void:
 	players[1].alive = false
 	assert_bool(VoteRules.can_vote(players, 1, 2)).is_false()
 
-func test_resolve_requires_all_living_votes() -> void:
+func test_resolution_uses_only_received_valid_votes() -> void:
 	var players := _players()
 	var votes := {1: 2, 2: 1, 3: 2}
-	assert_int(VoteRules.resolve(players, votes)).is_equal(0)
+	var result := VoteRules.resolve_sacrifice(players, votes, _rng(10))
+	assert_int(int(result.get("peer_id", 0))).is_equal(2)
+	assert_int(int(result.get("valid_vote_count", 0))).is_equal(3)
+	assert_bool(bool(result.get("tied", true))).is_false()
 
-func test_resolve_returns_unique_winner() -> void:
+func test_resolution_returns_unique_winner() -> void:
 	var players := _players()
 	var votes := {1: 2, 2: 1, 3: 2, 4: 2}
-	assert_int(VoteRules.resolve(players, votes)).is_equal(2)
+	assert_int(VoteRules.resolve(players, votes, _rng(11))).is_equal(2)
 
-func test_resolve_returns_zero_on_tie() -> void:
+func test_tie_is_randomized_between_only_top_targets() -> void:
 	var players := _players()
 	var votes := {1: 2, 2: 1, 3: 4, 4: 3}
-	assert_int(VoteRules.resolve(players, votes)).is_equal(0)
+	var result := VoteRules.resolve_sacrifice(players, votes, _rng(12))
+	var peer_id := int(result.get("peer_id", 0))
+	assert_bool(bool(result.get("tied", false))).is_true()
+	assert_bool(peer_id in [1, 2, 3, 4]).is_true()
 
-func test_partial_resolve_uses_only_valid_received_votes() -> void:
+func test_invalid_self_vote_is_excluded_from_resolution() -> void:
 	var players := _players()
-	var votes := {1: 2, 2: 1, 3: 2}
-	assert_int(VoteRules.resolve_partial(players, votes)).is_equal(2)
+	var votes := {1: 1, 2: 3, 3: 2, 4: 2}
+	var result := VoteRules.resolve_sacrifice(players, votes, _rng(13))
+	assert_int(int(result.get("peer_id", 0))).is_equal(2)
+	assert_int(int(result.get("valid_vote_count", 0))).is_equal(3)
 
-func test_partial_resolve_returns_zero_when_received_votes_tie() -> void:
-	var players := _players()
-	var votes := {1: 2, 2: 1}
-	assert_int(VoteRules.resolve_partial(players, votes)).is_equal(0)
+func _rng(seed_value: int) -> RandomNumberGenerator:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	return rng
 
 func _players() -> Array[PlayerState]:
 	var result: Array[PlayerState] = []

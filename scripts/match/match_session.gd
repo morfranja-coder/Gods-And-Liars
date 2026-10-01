@@ -56,28 +56,7 @@ func living_players() -> Array[PlayerState]:
 	return result
 
 func resolve_vote(votes: Dictionary) -> int:
-	var counts: Dictionary = {}
-	for voter_peer_id in votes:
-		var voter := get_player(int(voter_peer_id))
-		var target_peer_id := int(votes[voter_peer_id])
-		var target := get_player(target_peer_id)
-		if voter == null or target == null or not voter.alive or not target.alive:
-			continue
-		counts[target_peer_id] = int(counts.get(target_peer_id, 0)) + 1
-	if counts.is_empty():
-		return 0
-	var highest := 0
-	var winner_peer_id := 0
-	var tied := false
-	for target_peer_id in counts:
-		var count := int(counts[target_peer_id])
-		if count > highest:
-			highest = count
-			winner_peer_id = int(target_peer_id)
-			tied = false
-		elif count == highest:
-			tied = true
-	return 0 if tied else winner_peer_id
+	return VoteRules.resolve(players, votes, rng)
 
 func sacrifice(peer_id: int) -> bool:
 	var player := get_player(peer_id)

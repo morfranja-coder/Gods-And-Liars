@@ -177,15 +177,7 @@ static func _run_vote(
 				consumed = true
 				continue
 		votes[player.peer_id] = target
-	var expected_votes := VoteRules.living_count(session.players)
-	var sacrificed_peer_id := 0
-	if votes.size() < expected_votes:
-		if fault == Fault.INVALID_VOTE and consumed:
-			sacrificed_peer_id = VoteRules.resolve_partial(session.players, votes)
-		else:
-			return {"blocked": true, "fault_consumed": consumed}
-	else:
-		sacrificed_peer_id = VoteRules.resolve(session.players, votes)
+	var sacrificed_peer_id := session.resolve_vote(votes)
 	if sacrificed_peer_id > 0:
 		session.sacrifice(sacrificed_peer_id)
 	return {"blocked": false, "fault_consumed": consumed}

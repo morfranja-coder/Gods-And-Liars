@@ -733,24 +733,14 @@ func _auto_vote_synthetic_current() -> void:
 func _valid_vote_count() -> int:
 	if _session == null:
 		return 0
-	var count := 0
-	for raw_voter_id in _votes.keys():
-		var voter_id := int(raw_voter_id)
-		var target_peer_id := int(_votes[raw_voter_id])
-		if VoteRules.can_vote(_session.players, voter_id, target_peer_id):
-			count += 1
-	return count
+	return VoteRules.valid_vote_count(_session.players, _votes)
 
 func _resolve_vote(_use_partial_votes: bool = false) -> void:
 	if _session == null:
 		return
-	var top_targets := VoteRules.top_targets(_session.players, _votes)
-	var tied := top_targets.size() > 1
-	var sacrificed_peer_id := 0
-	if top_targets.size() == 1:
-		sacrificed_peer_id = top_targets[0]
-	elif tied:
-		sacrificed_peer_id = top_targets[_session.rng.randi_range(0, top_targets.size() - 1)]
+	var resolution := VoteRules.resolve_sacrifice(_session.players, _votes, _session.rng)
+	var sacrificed_peer_id := int(resolution.get("peer_id", 0))
+	var tied := bool(resolution.get("tied", false))
 	var was_heretic := false
 	if sacrificed_peer_id > 0:
 		var sacrificed := _session.get_player(sacrificed_peer_id)

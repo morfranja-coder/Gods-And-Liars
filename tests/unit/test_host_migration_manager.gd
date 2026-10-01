@@ -11,6 +11,9 @@ func after_test() -> void:
 	Steamworks.steam_id = _original_steam_id
 	HostMigrationManager.reset()
 
+func test_mvp_host_migration_is_disabled() -> void:
+	assert_bool(HostMigrationManager.request_voluntary_host_exit()).is_false()
+
 func test_non_intended_client_ignores_valid_backup_snapshot() -> void:
 	Steamworks.steam_id = 5002
 	var snapshot := _build_snapshot()

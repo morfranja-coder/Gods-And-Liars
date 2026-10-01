@@ -10,14 +10,14 @@ func test_only_blocking_match_phases_have_timeouts() -> void:
 	assert_int(PhaseTimeoutPolicy.timeout_ms_for_phase(GameManager.MatchPhase.INQUISITOR_ACTION)).is_equal(20000)
 	assert_int(PhaseTimeoutPolicy.timeout_ms_for_phase(GameManager.MatchPhase.DAY_ANNOUNCEMENT)).is_equal(7000)
 	assert_int(PhaseTimeoutPolicy.timeout_ms_for_phase(GameManager.MatchPhase.DAY_DISCUSSION)).is_equal(40000)
-	assert_int(PhaseTimeoutPolicy.timeout_ms_for_phase(GameManager.MatchPhase.VOTING)).is_equal(64000)
+	assert_int(PhaseTimeoutPolicy.timeout_ms_for_phase(GameManager.MatchPhase.VOTING)).is_equal(70000)
 	assert_int(PhaseTimeoutPolicy.timeout_ms_for_phase(GameManager.MatchPhase.SACRIFICE)).is_equal(6000)
 	assert_int(PhaseTimeoutPolicy.timeout_ms_for_phase(GameManager.MatchPhase.MATCH_END)).is_equal(0)
 
 func test_deadline_adds_phase_duration_to_host_clock() -> void:
 	assert_int(
 		PhaseTimeoutPolicy.deadline_ms(GameManager.MatchPhase.VOTING, 1000)
-	).is_equal(65000)
+	).is_equal(71000)
 	assert_int(
 		PhaseTimeoutPolicy.deadline_ms(GameManager.MatchPhase.MATCH_END, 1000)
 	).is_equal(0)

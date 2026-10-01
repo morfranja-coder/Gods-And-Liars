@@ -55,6 +55,18 @@ func _on_host_transport_ready(_steam_id: int) -> void:
 	_publish_transport_ready()
 	reconnect_active = true
 
+func _authenticated_steam_id_for_peer(peer_id: int) -> int:
+	if peer_id <= 0:
+		return 0
+	if peer_id == multiplayer.get_unique_id():
+		return Steamworks.steam_id
+	var transport := multiplayer.multiplayer_peer
+	if transport == null or not transport.has_method("get_steam64_from_peer_id"):
+		return 0
+	var value = transport.call("get_steam64_from_peer_id", peer_id)
+	var steam_id := int(value)
+	return steam_id if steam_id > 0 else 0
+
 func _publish_transport_ready() -> void:
 	var steam := Steamworks.get_api()
 	if steam == null or NetworkManager.lobby_id <= 0:
@@ -118,19 +130,22 @@ func _announce_migrated_identity(client_steam_id: int, display_name: String) -> 
 	if not NetworkManager.is_host or not multiplayer.is_server():
 		return
 	var sender_id := multiplayer.get_remote_sender_id()
+	var authenticated_steam_id := _authenticated_steam_id_for_peer(sender_id)
+	if authenticated_steam_id <= 0 or client_steam_id != authenticated_steam_id:
+		return
 	var snapshot := HostMigrationManager.backup_snapshot
 	var old_peer_id := HostMigrationReconnectRules.old_peer_id_for_steam_id(
 		snapshot,
-		client_steam_id,
+		authenticated_steam_id,
 	)
 	if old_peer_id <= 0 or old_peer_id == HostMigrationReconnectRules.OLD_HOST_PEER_ID:
 		return
-	var expected_data := _snapshot_player_data(snapshot, client_steam_id)
+	var expected_data := _snapshot_player_data(snapshot, authenticated_steam_id)
 	if expected_data.is_empty():
 		return
 	if IdentityPolicy.sanitize_display_name(display_name) != str(expected_data.get("display_name", "")):
 		return
-	_rekey_roster_peer(old_peer_id, sender_id, client_steam_id)
+	_rekey_roster_peer(old_peer_id, sender_id, authenticated_steam_id)
 
 func _snapshot_player_data(snapshot: MatchSnapshot, steam_id: int) -> Dictionary:
 	if snapshot == null:

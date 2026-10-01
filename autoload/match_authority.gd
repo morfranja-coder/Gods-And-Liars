@@ -746,11 +746,11 @@ func _resolve_vote(_use_partial_votes: bool = false) -> void:
 		return
 	var top_targets := VoteRules.top_targets(_session.players, _votes)
 	var tied := top_targets.size() > 1
-	var sacrificed_peer_id := 0
-	if top_targets.size() == 1:
-		sacrificed_peer_id = top_targets[0]
-	elif tied:
-		sacrificed_peer_id = top_targets[_session.rng.randi_range(0, top_targets.size() - 1)]
+	var sacrificed_peer_id := VoteRules.resolve_partial(
+		_session.players,
+		_votes,
+		_session.rng,
+	)
 	var was_heretic := false
 	if sacrificed_peer_id > 0:
 		var sacrificed := _session.get_player(sacrificed_peer_id)

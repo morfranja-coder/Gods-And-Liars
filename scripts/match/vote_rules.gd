@@ -17,14 +17,22 @@ static func living_count(players: Array[PlayerState]) -> int:
 			count += 1
 	return count
 
-static func resolve(players: Array[PlayerState], votes: Dictionary) -> int:
+static func resolve(
+	players: Array[PlayerState],
+	votes: Dictionary,
+	rng: RandomNumberGenerator = null,
+) -> int:
 	var valid_votes := _valid_votes(players, votes)
 	if valid_votes.size() < living_count(players):
 		return 0
-	return _resolve_valid_votes(valid_votes)
+	return _resolve_valid_votes(valid_votes, rng)
 
-static func resolve_partial(players: Array[PlayerState], votes: Dictionary) -> int:
-	return _resolve_valid_votes(_valid_votes(players, votes))
+static func resolve_partial(
+	players: Array[PlayerState],
+	votes: Dictionary,
+	rng: RandomNumberGenerator = null,
+) -> int:
+	return _resolve_valid_votes(_valid_votes(players, votes), rng)
 
 static func top_targets(players: Array[PlayerState], votes: Dictionary) -> Array[int]:
 	var valid_votes := _valid_votes(players, votes)
@@ -53,25 +61,29 @@ static func _valid_votes(players: Array[PlayerState], votes: Dictionary) -> Dict
 			valid_votes[voter_id] = target_id
 	return valid_votes
 
-static func _resolve_valid_votes(valid_votes: Dictionary) -> int:
+static func _resolve_valid_votes(
+	valid_votes: Dictionary,
+	rng: RandomNumberGenerator = null,
+) -> int:
 	if valid_votes.is_empty():
 		return 0
 	var counts: Dictionary = {}
-	for target_id in valid_votes.values():
-		counts[int(target_id)] = int(counts.get(int(target_id), 0)) + 1
 	var highest := 0
-	var winner_peer_id := 0
-	var tied := false
-	for raw_target_id in counts.keys():
+	for raw_target_id in valid_votes.values():
 		var target_id := int(raw_target_id)
-		var count := int(counts[raw_target_id])
-		if count > highest:
-			highest = count
-			winner_peer_id = target_id
-			tied = false
-		elif count == highest:
-			tied = true
-	return 0 if tied else winner_peer_id
+		var count := int(counts.get(target_id, 0)) + 1
+		counts[target_id] = count
+		highest = maxi(highest, count)
+	var top: Array[int] = []
+	for raw_target_id in counts.keys():
+		if int(counts[raw_target_id]) == highest:
+			top.append(int(raw_target_id))
+	top.sort()
+	if top.size() == 1:
+		return top[0]
+	if rng == null:
+		return 0
+	return top[rng.randi_range(0, top.size() - 1)]
 
 static func _find_player(players: Array[PlayerState], peer_id: int) -> PlayerState:
 	for player in players:

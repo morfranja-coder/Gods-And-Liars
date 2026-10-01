@@ -71,7 +71,7 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	_refresh_discussion_timer()
-	_refresh_vote_turn_timer()
+	_refresh_vote_timer()
 
 
 func _build_discussion_timer() -> void:
@@ -228,32 +228,16 @@ func _refresh_discussion_timer() -> void:
 	)
 
 
-func _refresh_vote_turn_timer() -> void:
-	if GameManager.phase != GameManager.MatchPhase.VOTING:
-		return
-
+func _refresh_vote_timer() -> void:
 	if _turn_label == null:
 		return
-
-	var voter_peer_id: int = (
-	MatchAuthority.current_voter_peer_id
-	)
-
-	if voter_peer_id <= 0:
-		_turn_label.text = "Cerrando votación..."
+	var is_voting := GameManager.phase == GameManager.MatchPhase.VOTING
+	_turn_label.visible = is_voting
+	if not is_voting:
+		_turn_label.text = ""
 		return
-
-	var seconds: int = (
-	MatchAuthority.vote_turn_seconds_remaining()
-	)
-
-	_turn_label.text = (
-	"TURNO DE %s • %d s"
-	% [
-	_peer_name(voter_peer_id),
-	seconds,
-	]
-	)
+	var seconds := MatchAuthority.phase_seconds_remaining()
+	_turn_label.text = "VOTACIÓN PÚBLICA • %02d:%02d" % [seconds / 60, seconds % 60]
 
 
 func _refresh() -> void:
@@ -290,13 +274,9 @@ func _refresh() -> void:
 
 	if is_voting:
 		if can_vote_now:
-			target_label.text = (
-			"WASD Elegir • ESPACIO Votar"
-			)
+			target_label.text = "Elegí a quién votar. Tu voto será público."
 		else:
-			target_label.text = (
-			"Observá la votación en vivo"
-			)
+			target_label.text = "Tu voto ya fue cantado. Observá la votación en vivo."
 
 		_refresh_live_vote_table()
 
@@ -326,10 +306,7 @@ func _local_can_vote_now() -> bool:
 	):
 		return false
 
-	return (
-	local_peer_id
-	== MatchAuthority.current_voter_peer_id
-	)
+	return not MatchAuthority.public_votes.has(local_peer_id)
 
 
 func _rebuild_target_cards() -> void:
@@ -489,10 +466,7 @@ func _select_target(peer_id: int) -> void:
 	selected_peer_id
 	)
 
-	result_label.text = (
-	"Votaste a %s."
-	% _peer_name(peer_id)
-	)
+	result_label.text = "Votaste públicamente a %s." % _peer_name(peer_id)
 
 
 func _focus_first_vote_card() -> void:

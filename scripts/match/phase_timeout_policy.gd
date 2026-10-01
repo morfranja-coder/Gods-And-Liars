@@ -12,9 +12,8 @@ const INQUISITOR_ACTION_MS := 20000
 const DAY_ANNOUNCEMENT_MS := 7000
 const DAY_DISCUSSION_MS := 40000
 
-# Limite de seguridad.
-# La votacion real funciona por turnos de 8 s; dejamos margen sobre 8 x 8 s.
-const VOTING_MS := 70000
+# Todos los jugadores vivos votan en paralelo durante una ventana publica.
+const VOTING_MS := 40000
 
 const SACRIFICE_MS := 6000
 

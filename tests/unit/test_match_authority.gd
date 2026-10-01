@@ -129,6 +129,20 @@ func test_non_decider_heretic_disconnect_keeps_current_decider() -> void:
 	assert_int(int(GameManager.phase)).is_equal(int(GameManager.MatchPhase.HERETIC_ACTION))
 
 
+func test_vote_state_is_public_and_voter_cannot_replace_vote() -> void:
+	var session: MatchSession = MatchAuthority.call("_build_session", _eight_player_roster())
+	assert_bool(session != null).is_true()
+	MatchAuthority.set("_session", session)
+	for player in session.players:
+		player.alive = true
+	GameManager.set_phase(GameManager.MatchPhase.VOTING)
+
+	MatchAuthority.call("_server_submit_vote", 1, 2)
+	assert_int(int(MatchAuthority.get("_votes").get(1, 0))).is_equal(2)
+	MatchAuthority.call("_server_submit_vote", 1, 3)
+	assert_int(int(MatchAuthority.get("_votes").get(1, 0))).is_equal(2)
+
+
 func test_disconnect_marks_session_player_dead_and_clears_pending_actions() -> void:
 	var session: MatchSession = MatchAuthority.call("_build_session", _eight_player_roster())
 	MatchAuthority.set("_session", session)

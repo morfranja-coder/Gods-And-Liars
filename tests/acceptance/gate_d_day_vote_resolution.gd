@@ -50,10 +50,8 @@ func _on_d6_phase_synced(phase_value: int) -> void:
 		else:
 			_try_send_vote_ack()
 
-func _on_vote_state_synced(_votes: Dictionary, current_voter_peer_id: int) -> void:
+func _on_vote_state_synced(_votes: Dictionary, _current_voter_peer_id: int) -> void:
 	if GameManager.phase != GameManager.MatchPhase.VOTING:
-		return
-	if current_voter_peer_id != multiplayer.get_unique_id():
 		return
 	call_deferred("_submit_day_vote")
 
@@ -61,7 +59,7 @@ func _submit_day_vote() -> void:
 	if _vote_sent or GameManager.phase != GameManager.MatchPhase.VOTING:
 		return
 	var local_peer_id := multiplayer.get_unique_id()
-	if MatchAuthority.current_voter_peer_id != local_peer_id:
+	if MatchAuthority.public_votes.has(local_peer_id):
 		return
 	if not MatchAuthority.is_peer_publicly_alive(local_peer_id):
 		return

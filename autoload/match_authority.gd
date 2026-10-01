@@ -46,14 +46,6 @@ var _healer_target_peer_id: int = 0
 var _inquisitor_target_peer_id: int = 0
 var _healer_self_save_used: bool = false
 var _votes: Dictionary = {}
-const VOTE_TURN_MS := 8000
-
-var _vote_order: Array[int] = []
-var _vote_turn_index: int = -1
-var _vote_turn_deadline_ms: int = 0
-
-var _local_vote_turn_started_ms: int = 0
-var _local_vote_turn_duration_ms: int = 0
 var _phase_deadline_ms: int = 0
 var _phase_deadline_phase: int = -1
 var _local_phase_started_ms: int = 0
@@ -67,15 +59,6 @@ func _process(_delta: float) -> void:
 	if _session == null:
 		return
 
-	if multiplayer.is_server() and NetworkManager.is_host:
-		if (
-			GameManager.phase == GameManager.MatchPhase.VOTING
-			and _vote_turn_deadline_ms > 0
-			and Time.get_ticks_msec() >= _vote_turn_deadline_ms
-		):
-			_vote_turn_deadline_ms = 0
-			_advance_vote_turn()
-			return
 
 	if _phase_deadline_ms <= 0:
 		return
@@ -113,11 +96,6 @@ func reset() -> void:
 	last_sacrifice_was_heretic = false
 	public_votes.clear()
 	current_voter_peer_id = 0
-	_vote_order.clear()
-	_vote_turn_index = -1
-	_vote_turn_deadline_ms = 0
-	_local_vote_turn_started_ms = 0
-	_local_vote_turn_duration_ms = 0
 	_session = null
 	_roles_dispatched = false
 	_role_acknowledged.clear()
@@ -177,14 +155,10 @@ func request_begin_voting() -> void:
 
 	_votes.clear()
 	public_votes.clear()
-
-	_prepare_vote_order()
-
+	current_voter_peer_id = 0
 	_broadcast_phase(GameManager.MatchPhase.VOTING)
-
-	_vote_turn_index = 0
-
-	call_deferred("_start_current_vote_turn")
+	_sync_vote_state.rpc(_votes, 0, PhaseTimeoutPolicy.VOTING_MS)
+	call_deferred("_auto_vote_synthetic_living_players")
 
 
 func submit_local_vote(target_peer_id: int) -> void:
@@ -199,7 +173,7 @@ func submit_local_vote(target_peer_id: int) -> void:
 	if not is_peer_publicly_alive(local_peer_id):
 		return
 
-	if local_peer_id != current_voter_peer_id:
+	if _votes.has(local_peer_id):
 		return
 
 	if multiplayer.is_server():
@@ -244,23 +218,7 @@ func phase_seconds_remaining() -> int:
 	return int(ceil(float(remaining) / 1000.0))
 
 func vote_turn_seconds_remaining() -> int:
-	if _local_vote_turn_duration_ms <= 0:
-		return 0
-
-	var elapsed: int = (
-		Time.get_ticks_msec()
-		- _local_vote_turn_started_ms
-	)
-
-	var remaining: int = maxi(
-		0,
-		_local_vote_turn_duration_ms - elapsed
-	)
-
-	return int(
-		ceil(float(remaining) / 1000.0)
-	)
-
+	return phase_seconds_remaining()
 
 
 func role_title(role: PlayerState.Role = local_role) -> String:
@@ -561,13 +519,10 @@ func _server_submit_vote(
 ) -> void:
 	if not multiplayer.is_server() or _session == null:
 		return
-
 	if GameManager.phase != GameManager.MatchPhase.VOTING:
 		return
-
-	if voter_peer_id != current_voter_peer_id:
+	if _votes.has(voter_peer_id):
 		return
-
 	if not VoteRules.can_vote(
 		_session.players,
 		voter_peer_id,
@@ -576,138 +531,36 @@ func _server_submit_vote(
 		return
 
 	_votes[voter_peer_id] = target_peer_id
-
-	vote_accepted.emit(
-		voter_peer_id,
-		target_peer_id
-	)
-
+	vote_accepted.emit(voter_peer_id, target_peer_id)
 	_sync_vote_state.rpc(
 		_votes,
-		current_voter_peer_id,
-		VOTE_TURN_MS
-	)
-
-	_vote_turn_deadline_ms = 0
-
-	_advance_vote_turn()
-
-
-func _prepare_vote_order() -> void:
-	_vote_order.clear()
-
-	if _session == null:
-		return
-
-	for player in _session.players:
-		if player.alive:
-			_vote_order.append(player.peer_id)
-
-	_vote_order.sort_custom(
-		func(a: int, b: int) -> bool:
-			var player_a: PlayerState = _session.get_player(a)
-			var player_b: PlayerState = _session.get_player(b)
-
-			if player_a == null or player_b == null:
-				return a < b
-
-			return player_a.seat_id < player_b.seat_id
-	)
-
-
-func _start_current_vote_turn() -> void:
-	if _session == null:
-		return
-
-	while _vote_turn_index < _vote_order.size():
-		var candidate_peer_id: int = _vote_order[_vote_turn_index]
-
-		if is_peer_publicly_alive(candidate_peer_id):
-			break
-
-		_vote_turn_index += 1
-
-	if _vote_turn_index >= _vote_order.size():
-		current_voter_peer_id = 0
-		_vote_turn_deadline_ms = 0
-
-		_sync_vote_state.rpc(
-			_votes,
-			0,
-			0
-		)
-
-		_resolve_vote(true)
-		return
-
-	current_voter_peer_id = _vote_order[_vote_turn_index]
-
-	_vote_turn_deadline_ms = (
-		Time.get_ticks_msec()
-		+ VOTE_TURN_MS
-	)
-
-	_sync_vote_state.rpc(
-		_votes,
-		current_voter_peer_id,
-		VOTE_TURN_MS
-	)
-
-	if _is_offline_synthetic_peer(current_voter_peer_id):
-		call_deferred("_auto_vote_synthetic_current")
-
-
-func _advance_vote_turn() -> void:
-	if GameManager.phase != GameManager.MatchPhase.VOTING:
-		return
-
-	_vote_turn_deadline_ms = 0
-	_vote_turn_index += 1
-
-	_start_current_vote_turn()
-
-
-func _auto_vote_synthetic_current() -> void:
-	var voter_peer_id: int = current_voter_peer_id
-
-	if voter_peer_id <= 0:
-		return
-
-	await get_tree().create_timer(0.8).timeout
-
-	if GameManager.phase != GameManager.MatchPhase.VOTING:
-		return
-
-	if current_voter_peer_id != voter_peer_id:
-		return
-
-	if _session == null:
-		return
-
-	var candidates: Array[int] = []
-
-	for player in _session.players:
-		if VoteRules.can_vote(
-			_session.players,
-			voter_peer_id,
-			player.peer_id
-		):
-			candidates.append(player.peer_id)
-
-	if candidates.is_empty():
-		_advance_vote_turn()
-		return
-
-	var index: int = _session.rng.randi_range(
 		0,
-		candidates.size() - 1
+		phase_seconds_remaining() * 1000
 	)
 
-	_server_submit_vote(
-		voter_peer_id,
-		candidates[index]
-	)
+	if _valid_vote_count() >= _living_player_count():
+		_clear_phase_timeout()
+		_resolve_vote(true)
 
+
+func _auto_vote_synthetic_living_players() -> void:
+	if _session == null or GameManager.phase != GameManager.MatchPhase.VOTING:
+		return
+	for player in _session.players:
+		if not player.alive or not _is_offline_synthetic_peer(player.peer_id):
+			continue
+		var candidates: Array[int] = []
+		for target in _session.players:
+			if VoteRules.can_vote(
+				_session.players,
+				player.peer_id,
+				target.peer_id
+			):
+				candidates.append(target.peer_id)
+		if candidates.is_empty():
+			continue
+		var index := _session.rng.randi_range(0, candidates.size() - 1)
+		_server_submit_vote(player.peer_id, candidates[index])
 
 
 func _valid_vote_count() -> int:
@@ -999,9 +852,6 @@ func _sync_vote_state(
 		)
 
 	current_voter_peer_id = voter_peer_id
-
-	_local_vote_turn_started_ms = Time.get_ticks_msec()
-	_local_vote_turn_duration_ms = turn_duration_ms
 
 	vote_state_synced.emit(
 		public_votes.duplicate(),

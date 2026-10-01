@@ -406,6 +406,18 @@ func _on_connected_to_server() -> void:
 	_announce_identity.rpc_id(1, Steamworks.steam_id, Steamworks.persona_name)
 	lobby_state_changed.emit(&"connected")
 
+func _authenticated_steam_id_for_peer(peer_id: int, transport: Object = null) -> int:
+	if peer_id <= 0:
+		return 0
+	if peer_id == multiplayer.get_unique_id():
+		return Steamworks.steam_id
+	var resolved_transport := transport if transport != null else multiplayer.multiplayer_peer
+	if resolved_transport == null or not resolved_transport.has_method("get_steam64_from_peer_id"):
+		return 0
+	var value = resolved_transport.call("get_steam64_from_peer_id", peer_id)
+	var steam_id := int(value)
+	return steam_id if steam_id > 0 else 0
+
 func _on_connection_failed() -> void:
 	party_reservation_result.emit(false)
 	lobby_error.emit("Could not establish the Steam multiplayer connection.")
@@ -515,7 +527,12 @@ func _announce_identity(client_steam_id: int, display_name: String) -> void:
 	if lobby_started or not multiplayer.is_server():
 		return
 	var sender_id := multiplayer.get_remote_sender_id()
-	if not IdentityPolicy.valid_identity(client_steam_id, display_name):
+	var authenticated_steam_id := _authenticated_steam_id_for_peer(sender_id)
+	if authenticated_steam_id <= 0 or client_steam_id != authenticated_steam_id:
+		_match_reservation_result.rpc_id(sender_id, false)
+		_reject_remote_peer(sender_id)
+		return
+	if not IdentityPolicy.valid_identity(authenticated_steam_id, display_name):
 		_match_reservation_result.rpc_id(sender_id, false)
 		_reject_remote_peer(sender_id)
 		return
@@ -523,11 +540,11 @@ func _announce_identity(client_steam_id: int, display_name: String) -> void:
 		_match_reservation_result.rpc_id(sender_id, false)
 		_reject_remote_peer(sender_id)
 		return
-	if IdentityPolicy.steam_id_in_use(peers, client_steam_id, sender_id):
+	if IdentityPolicy.steam_id_in_use(peers, authenticated_steam_id, sender_id):
 		_match_reservation_result.rpc_id(sender_id, false)
 		_reject_remote_peer(sender_id)
 		return
-	if not _try_reserve_party(sender_id, client_steam_id):
+	if not _try_reserve_party(sender_id, authenticated_steam_id):
 		_match_reservation_result.rpc_id(sender_id, false)
 		_reject_remote_peer(sender_id)
 		return
@@ -547,7 +564,7 @@ func _announce_identity(client_steam_id: int, display_name: String) -> void:
 			bool(data.get("ready", false)),
 			int(data.get("seat_id", -1)),
 		)
-	_sync_peer.rpc(sender_id, client_steam_id, clean_name, false, assigned_seat)
+	_sync_peer.rpc(sender_id, authenticated_steam_id, clean_name, false, assigned_seat)
 	_match_reservation_result.rpc_id(sender_id, true)
 
 @rpc("authority", "reliable")

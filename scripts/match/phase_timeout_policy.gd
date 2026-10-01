@@ -13,8 +13,8 @@ const DAY_ANNOUNCEMENT_MS := 7000
 const DAY_DISCUSSION_MS := 40000
 
 # Limite de seguridad.
-# La votacion real ahora funciona por turnos de 8 s.
-const VOTING_MS := 64000
+# La votacion real funciona por turnos de 8 s; dejamos margen sobre 8 x 8 s.
+const VOTING_MS := 70000
 
 const SACRIFICE_MS := 6000
 

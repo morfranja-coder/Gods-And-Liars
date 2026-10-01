@@ -46,7 +46,7 @@ var _healer_target_peer_id: int = 0
 var _inquisitor_target_peer_id: int = 0
 var _healer_self_save_used: bool = false
 var _votes: Dictionary = {}
-const VOTE_TURN_MS := 8000
+const VOTE_TURN_MS := VoteRules.TURN_MS
 
 var _vote_order: Array[int] = []
 var _vote_turn_index: int = -1

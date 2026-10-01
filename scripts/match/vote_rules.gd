@@ -1,6 +1,9 @@
 class_name VoteRules
 extends RefCounted
 
+const TURN_MS := 8000
+const PHASE_SAFETY_MARGIN_MS := 5000
+
 static func can_vote(players: Array[PlayerState], voter_peer_id: int, target_peer_id: int) -> bool:
 	var voter := _find_player(players, voter_peer_id)
 	var target := _find_player(players, target_peer_id)

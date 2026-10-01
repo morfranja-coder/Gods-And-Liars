@@ -12,9 +12,12 @@ const INQUISITOR_ACTION_MS := 20000
 const DAY_ANNOUNCEMENT_MS := 7000
 const DAY_DISCUSSION_MS := 40000
 
-# Limite de seguridad.
-# La votacion real ahora funciona por turnos de 8 s.
-const VOTING_MS := 64000
+# Safety deadline only. Every living voter still owns a full turn.
+# The extra margin prevents the phase deadline from racing the final turn.
+const VOTING_MS := (
+	QuickMatchRules.TARGET_PLAYERS * VoteRules.TURN_MS
+	+ VoteRules.PHASE_SAFETY_MARGIN_MS
+)
 
 const SACRIFICE_MS := 6000
 

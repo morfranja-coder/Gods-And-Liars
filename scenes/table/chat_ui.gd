@@ -89,7 +89,10 @@ func _send_general_message(text: String) -> void:
 	if MatchAuthority.is_local_ghost() or multiplayer.multiplayer_peer == null:
 		return
 	var local_peer_id := multiplayer.get_unique_id()
-	if not MatchAuthority.is_peer_publicly_alive(local_peer_id):
+	if not TextChatPolicy.can_general_chat(
+		GameManager.phase,
+		MatchAuthority.is_peer_publicly_alive(local_peer_id),
+	):
 		return
 	var clean_text := text.strip_edges().left(MAX_MESSAGE_LENGTH)
 	if clean_text.is_empty():
@@ -104,7 +107,10 @@ func _server_route_general_chat(sender_peer_id: int, text: String) -> void:
 		return
 	if not NetworkManager.peers.has(sender_peer_id):
 		return
-	if not MatchAuthority.is_peer_publicly_alive(sender_peer_id):
+	if not TextChatPolicy.can_general_chat(
+		GameManager.phase,
+		MatchAuthority.is_peer_publicly_alive(sender_peer_id),
+	):
 		return
 	var clean_text := text.strip_edges().left(MAX_MESSAGE_LENGTH)
 	if clean_text.is_empty():

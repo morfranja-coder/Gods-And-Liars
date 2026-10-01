@@ -386,9 +386,25 @@ func _can_private_chat(sender_peer_id: int, target_peer_id: int) -> bool:
 		return false
 	if not NetworkManager.peers.has(sender_peer_id) or not NetworkManager.peers.has(target_peer_id):
 		return false
-	return (
-		MatchAuthority.is_peer_publicly_alive(sender_peer_id)
-		and MatchAuthority.is_peer_publicly_alive(target_peer_id)
+	var sender_alive := MatchAuthority.is_peer_publicly_alive(sender_peer_id)
+	var target_alive := MatchAuthority.is_peer_publicly_alive(target_peer_id)
+	var sender_role := PlayerState.Role.UNASSIGNED
+	var target_role := PlayerState.Role.UNASSIGNED
+	if multiplayer.is_server():
+		sender_role = MatchAuthority.server_role_for_peer(sender_peer_id)
+		target_role = MatchAuthority.server_role_for_peer(target_peer_id)
+	else:
+		var local_peer_id := multiplayer.get_unique_id()
+		if sender_peer_id == local_peer_id:
+			sender_role = MatchAuthority.local_role
+			if target_peer_id == MatchAuthority.local_heretic_teammate_peer_id:
+				target_role = PlayerState.Role.HERETIC
+	return TextChatPolicy.can_private_chat(
+		GameManager.phase,
+		sender_alive,
+		target_alive,
+		sender_role,
+		target_role,
 	)
 
 func _close_social_overlays() -> void:

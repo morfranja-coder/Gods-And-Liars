@@ -528,11 +528,11 @@ func _announce_identity(client_steam_id: int, display_name: String) -> void:
 		return
 	var sender_id := multiplayer.get_remote_sender_id()
 	var authenticated_steam_id := _authenticated_steam_id_for_peer(sender_id)
-	if authenticated_steam_id <= 0 or client_steam_id != authenticated_steam_id:
-		_match_reservation_result.rpc_id(sender_id, false)
-		_reject_remote_peer(sender_id)
-		return
-	if not IdentityPolicy.valid_identity(authenticated_steam_id, display_name):
+	if (
+		authenticated_steam_id <= 0
+		or client_steam_id != authenticated_steam_id
+		or not IdentityPolicy.valid_identity(authenticated_steam_id, display_name)
+	):
 		_match_reservation_result.rpc_id(sender_id, false)
 		_reject_remote_peer(sender_id)
 		return

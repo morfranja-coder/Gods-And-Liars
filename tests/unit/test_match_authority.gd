@@ -37,6 +37,33 @@ func test_non_heretic_ignores_private_teammate_identity() -> void:
 	assert_int(MatchAuthority.local_heretic_teammate_peer_id).is_equal(0)
 	assert_str(MatchAuthority.local_heretic_teammate_name).is_empty()
 
+func test_heretic_decider_recipient_list_excludes_non_heretics_and_dead_players() -> void:
+	var session: MatchSession = MatchAuthority.call("_build_session", _eight_player_roster())
+	assert_bool(session != null).is_true()
+	session.get_player(1).role = PlayerState.Role.HERETIC
+	session.get_player(2).role = PlayerState.Role.HERETIC
+	session.get_player(3).role = PlayerState.Role.HEALER
+	session.get_player(4).role = PlayerState.Role.HERETIC
+	session.get_player(4).alive = false
+	MatchAuthority.set("_session", session)
+
+	var recipients: Array[int] = MatchAuthority.call("_heretic_decider_recipients")
+	assert_int(recipients.size()).is_equal(2)
+	assert_bool(recipients.has(1)).is_true()
+	assert_bool(recipients.has(2)).is_true()
+	assert_bool(recipients.has(3)).is_false()
+	assert_bool(recipients.has(4)).is_false()
+
+func test_non_heretic_rejects_private_heretic_decider() -> void:
+	MatchAuthority._receive_private_role(int(PlayerState.Role.FAITHFUL))
+	MatchAuthority._receive_private_heretic_decider(2)
+	assert_int(MatchAuthority.current_heretic_decider_peer_id).is_equal(0)
+
+func test_heretic_accepts_private_heretic_decider() -> void:
+	MatchAuthority._receive_private_role(int(PlayerState.Role.HERETIC))
+	MatchAuthority._receive_private_heretic_decider(2)
+	assert_int(MatchAuthority.current_heretic_decider_peer_id).is_equal(2)
+
 func test_host_resolves_only_the_other_heretic_as_teammate() -> void:
 	var session: MatchSession = MatchAuthority.call("_build_session", _eight_player_roster())
 	assert_bool(session != null).is_true()

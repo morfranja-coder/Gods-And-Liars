@@ -379,7 +379,7 @@ func _advance_night_phase() -> void:
 	match next_phase:
 		GameManager.MatchPhase.HERETIC_ACTION:
 			var decider := _choose_heretic_decider()
-			_sync_heretic_decider.rpc(decider)
+			_broadcast_heretic_decider(decider)
 			_broadcast_phase(next_phase)
 		GameManager.MatchPhase.HEALER_ACTION:
 			_prepare_first_night_priest_warning()
@@ -404,6 +404,29 @@ func _choose_heretic_decider() -> int:
 		return 0
 	var index := (maxi(1, GameManager.round_number) - 1) % living_heretics.size()
 	return living_heretics[index]
+
+func _heretic_decider_recipients() -> Array[int]:
+	var recipients: Array[int] = []
+	if _session == null:
+		return recipients
+	for player in _session.players:
+		if player.alive and player.role == PlayerState.Role.HERETIC:
+			recipients.append(player.peer_id)
+	recipients.sort()
+	return recipients
+
+func _broadcast_heretic_decider(decider_peer_id: int) -> void:
+	# Clear the previous value on every client without revealing the new one.
+	if multiplayer.multiplayer_peer != null:
+		_clear_heretic_decider.rpc()
+	else:
+		_clear_heretic_decider()
+	current_heretic_decider_peer_id = decider_peer_id
+	for peer_id in _heretic_decider_recipients():
+		if peer_id == multiplayer.get_unique_id():
+			_receive_private_heretic_decider(decider_peer_id)
+		elif not _is_offline_synthetic_peer(peer_id):
+			_receive_private_heretic_decider.rpc_id(peer_id, decider_peer_id)
 
 func _prepare_first_night_priest_warning() -> void:
 	if GameManager.round_number != 1 or _session == null:
@@ -934,7 +957,14 @@ func _sync_phase(phase_value: int, round_value: int = -1) -> void:
 	phase_timing_synced.emit(phase_value, _local_phase_duration_ms)
 
 @rpc("authority", "call_local", "reliable")
-func _sync_heretic_decider(peer_id: int) -> void:
+func _clear_heretic_decider() -> void:
+	current_heretic_decider_peer_id = 0
+	heretic_decider_changed.emit(0)
+
+@rpc("authority", "call_remote", "reliable")
+func _receive_private_heretic_decider(peer_id: int) -> void:
+	if local_role != PlayerState.Role.HERETIC:
+		return
 	current_heretic_decider_peer_id = peer_id
 	heretic_decider_changed.emit(peer_id)
 

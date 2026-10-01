@@ -69,7 +69,7 @@ static func _run_vote(session: MatchSession, brains: Dictionary) -> void:
 		var target := brain.choose_vote_target(session.players, player.peer_id)
 		if target != 0:
 			votes[player.peer_id] = target
-	var sacrificed_peer_id := VoteRules.resolve(session.players, votes)
+	var sacrificed_peer_id := VoteRules.resolve(session.players, votes, session.rng)
 	if sacrificed_peer_id > 0:
 		session.sacrifice(sacrificed_peer_id)
 

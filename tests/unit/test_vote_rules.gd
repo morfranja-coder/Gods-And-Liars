@@ -29,20 +29,26 @@ func test_resolve_returns_unique_winner() -> void:
 	var votes := {1: 2, 2: 1, 3: 2, 4: 2}
 	assert_int(VoteRules.resolve(players, votes)).is_equal(2)
 
-func test_resolve_returns_zero_on_tie() -> void:
+func test_resolve_randomizes_tie_when_rng_is_provided() -> void:
 	var players := _players()
 	var votes := {1: 2, 2: 1, 3: 4, 4: 3}
-	assert_int(VoteRules.resolve(players, votes)).is_equal(0)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 77
+	var result := VoteRules.resolve(players, votes, rng)
+	assert_bool(result in [1, 2, 3, 4]).is_true()
 
 func test_partial_resolve_uses_only_valid_received_votes() -> void:
 	var players := _players()
 	var votes := {1: 2, 2: 1, 3: 2}
 	assert_int(VoteRules.resolve_partial(players, votes)).is_equal(2)
 
-func test_partial_resolve_returns_zero_when_received_votes_tie() -> void:
+func test_partial_resolve_randomizes_received_vote_tie_with_rng() -> void:
 	var players := _players()
 	var votes := {1: 2, 2: 1}
-	assert_int(VoteRules.resolve_partial(players, votes)).is_equal(0)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 12
+	var result := VoteRules.resolve_partial(players, votes, rng)
+	assert_bool(result in [1, 2]).is_true()
 
 func _players() -> Array[PlayerState]:
 	var result: Array[PlayerState] = []

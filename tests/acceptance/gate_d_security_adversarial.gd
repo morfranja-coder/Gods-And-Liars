@@ -4,8 +4,13 @@ const D8_TIMEOUT_SECONDS := 25.0
 
 var _security_started := false
 var _privacy_reports: Dictionary = {}
+var _privacy_validated := false
 var _attack_results: Dictionary = {}
 var _expected_attacks: Dictionary = {}
+var _attack_plan: Array[Dictionary] = []
+var _attack_plan_index := 0
+var _current_attack_label := ""
+var _security_decider_peer_id := 0
 var _valid_decider_action_seen := false
 var _d8_completed := false
 
@@ -25,11 +30,15 @@ func _process(delta: float) -> void:
 	if _elapsed >= D8_TIMEOUT_SECONDS:
 		if _role == "server":
 			_fail(
-				"server timed out (roster=%d registered=%d role_acks=%d)"
+				"server timed out (roster=%d registered=%d role_acks=%d privacy=%d attack_index=%d/%d attack_results=%d)"
 				% [
 					NetworkManager.peers.size(),
 					_registered_client_indices.size(),
 					_validated_clients.size(),
+					_privacy_reports.size(),
+					_attack_plan_index,
+					_attack_plan.size(),
+					_attack_results.size(),
 				]
 			)
 		else:
@@ -60,16 +69,13 @@ func _begin_security_checks() -> void:
 	if GameManager.phase != GameManager.MatchPhase.HERETIC_ACTION:
 		_fail("security checks did not start during heretic action")
 		return
-	var decider := MatchAuthority.current_heretic_decider_peer_id
-	if decider <= 0:
+	_security_decider_peer_id = MatchAuthority.current_heretic_decider_peer_id
+	if _security_decider_peer_id <= 0:
 		_fail("server has no authoritative heretic decider")
 		return
 	_privacy_reports.clear()
+	_privacy_validated = false
 	_request_privacy_report.rpc()
-	await get_tree().create_timer(0.35).timeout
-	if not _validate_privacy_reports(decider):
-		return
-	_run_invalid_and_valid_night_attempts(decider)
 
 @rpc("authority", "call_remote", "reliable")
 func _request_privacy_report() -> void:
@@ -90,6 +96,7 @@ func _submit_privacy_report(role_value: int, decider_peer_id: int) -> void:
 		"role": role_value,
 		"decider": decider_peer_id,
 	}
+	_try_begin_attack_checks()
 
 func _validate_privacy_reports(decider_peer_id: int) -> bool:
 	if _privacy_reports.size() != EXPECTED_CLIENTS:
@@ -115,7 +122,19 @@ func _validate_privacy_reports(decider_peer_id: int) -> bool:
 			return false
 	return true
 
-func _run_invalid_and_valid_night_attempts(decider_peer_id: int) -> void:
+func _try_begin_attack_checks() -> void:
+	if _role != "server" or _privacy_validated:
+		return
+	if _privacy_reports.size() != EXPECTED_CLIENTS:
+		return
+	if not _validate_privacy_reports(_security_decider_peer_id):
+		return
+	_privacy_validated = true
+	_build_attack_plan(_security_decider_peer_id)
+	call_deferred("_dispatch_next_attack")
+
+
+func _build_attack_plan(decider_peer_id: int) -> void:
 	var faithful_peer := _first_remote_peer_with_role(PlayerState.Role.FAITHFUL)
 	var non_decider := _other_heretic_peer(decider_peer_id)
 	var faithful_target := _first_peer_not_role(PlayerState.Role.HERETIC, faithful_peer)
@@ -123,17 +142,39 @@ func _run_invalid_and_valid_night_attempts(decider_peer_id: int) -> void:
 		_fail("could not build D8 adversarial actors")
 		return
 
-	_expected_attacks["faithful"] = false
-	_command_night_attempt(faithful_peer, faithful_target, "faithful")
+	_expected_attacks = {
+		"faithful": false,
+		"non_decider": false,
+		"heretic_target": false,
+		"valid_decider": true,
+	}
+	_attack_plan = [
+		{"actor": faithful_peer, "target": faithful_target, "label": "faithful"},
+		{"actor": non_decider, "target": faithful_target, "label": "non_decider"},
+		{"actor": decider_peer_id, "target": non_decider, "label": "heretic_target"},
+		{"actor": decider_peer_id, "target": faithful_target, "label": "valid_decider"},
+	]
+	_attack_plan_index = 0
+	_attack_results.clear()
+	_current_attack_label = ""
 
-	_expected_attacks["non_decider"] = false
-	_command_night_attempt(non_decider, faithful_target, "non_decider")
 
-	_expected_attacks["heretic_target"] = false
-	_command_night_attempt(decider_peer_id, non_decider, "heretic_target")
-
-	_expected_attacks["valid_decider"] = true
-	_command_night_attempt(decider_peer_id, faithful_target, "valid_decider")
+func _dispatch_next_attack() -> void:
+	if _role != "server" or _d8_completed:
+		return
+	if _attack_plan_index >= _attack_plan.size():
+		_try_finish_d8()
+		return
+	var attempt: Dictionary = _attack_plan[_attack_plan_index]
+	_current_attack_label = str(attempt.get("label", ""))
+	if _current_attack_label.is_empty():
+		_fail("D8 attack plan contained an empty label")
+		return
+	_command_night_attempt(
+		int(attempt.get("actor", 0)),
+		int(attempt.get("target", 0)),
+		_current_attack_label,
+	)
 
 func _command_night_attempt(actor_peer_id: int, target_peer_id: int, label: String) -> void:
 	if actor_peer_id == multiplayer.get_unique_id():
@@ -171,10 +212,22 @@ func _record_attack_result(label: String, accepted: bool) -> void:
 	if not _expected_attacks.has(label):
 		_fail("received unexpected D8 attack result")
 		return
+	if label != _current_attack_label:
+		_fail(
+			"D8 attack result arrived out of sequence: expected %s, got %s"
+			% [_current_attack_label, label]
+		)
+		return
+	var expected := bool(_expected_attacks[label])
+	if accepted != expected:
+		_fail("D8 attack result mismatch for %s" % label)
+		return
 	_attack_results[label] = accepted
 	if label == "valid_decider" and accepted:
 		_valid_decider_action_seen = true
-	_try_finish_d8()
+	_current_attack_label = ""
+	_attack_plan_index += 1
+	call_deferred("_dispatch_next_attack")
 
 func _on_night_action_accepted(actor_peer_id: int, _target_peer_id: int) -> void:
 	if _role != "server":

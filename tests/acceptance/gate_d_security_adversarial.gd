@@ -23,7 +23,24 @@ func _process(delta: float) -> void:
 
 	_elapsed += delta
 	if _elapsed >= D8_TIMEOUT_SECONDS:
-		_fail("%s timed out" % _role)
+		if _role == "server":
+			_fail(
+				"server timed out (roster=%d registered=%d role_acks=%d)"
+				% [
+					NetworkManager.peers.size(),
+					_registered_client_indices.size(),
+					_validated_clients.size(),
+				]
+			)
+		else:
+			_fail(
+				"client timed out (registration_ack=%s role_received=%s roster=%d)"
+				% [
+					_registration_acknowledged,
+					_role_received,
+					NetworkManager.peers.size(),
+				]
+			)
 		return
 	if _role == "server" and not _match_started:
 		_process_server_roster(delta)

@@ -7,6 +7,8 @@ const CLIENT_STEAM_ID_BASE := 930000
 const EXPECTED_PLAYERS := 8
 const EXPECTED_CLIENTS := 7
 const EXPECTED_ROUND := 1
+const REGISTRATION_RETRY_SECONDS := 0.25
+const REGISTRATION_MAX_ATTEMPTS := 24
 
 var _role := ""
 var _client_index := 0
@@ -20,6 +22,7 @@ var _completed := false
 var _server_quit_delay := -1.0
 var _validated_clients: Dictionary = {}
 var _registered_client_indices: Dictionary = {}
+var _registration_acknowledged := false
 
 func _ready() -> void:
 	_parse_args()
@@ -92,7 +95,25 @@ func _disconnect_steam_identity_handshake() -> void:
 		multiplayer.connected_to_server.disconnect(handler)
 
 func _on_connected_to_server() -> void:
+	_registration_acknowledged = false
+	_send_qa_registration()
+	call_deferred("_retry_qa_registration_until_ack")
+
+func _send_qa_registration() -> void:
+	if _role != "client" or multiplayer.multiplayer_peer == null:
+		return
 	_register_qa_client.rpc_id(1, _client_index)
+
+func _retry_qa_registration_until_ack() -> void:
+	for _attempt in range(REGISTRATION_MAX_ATTEMPTS):
+		await get_tree().create_timer(REGISTRATION_RETRY_SECONDS).timeout
+		if _role != "client" or _registration_acknowledged:
+			return
+		if multiplayer.multiplayer_peer == null:
+			return
+		_send_qa_registration()
+	if not _registration_acknowledged:
+		_fail("client registration was not acknowledged")
 
 @rpc("any_peer", "call_remote", "reliable")
 func _register_qa_client(client_index: int) -> void:
@@ -101,10 +122,15 @@ func _register_qa_client(client_index: int) -> void:
 	if client_index < 1 or client_index > EXPECTED_CLIENTS:
 		_fail("server received invalid client index")
 		return
-	if _registered_client_indices.has(client_index):
-		_fail("server received duplicate client index")
-		return
 	var sender_id := multiplayer.get_remote_sender_id()
+	if _registered_client_indices.has(client_index):
+		var registered_sender := int(_registered_client_indices[client_index])
+		if registered_sender != sender_id:
+			_fail("server received conflicting client index registration")
+			return
+		_sync_existing_roster_to(sender_id)
+		_ack_qa_registration.rpc_id(sender_id)
+		return
 	_registered_client_indices[client_index] = sender_id
 	_sync_existing_roster_to(sender_id)
 	NetworkManager._sync_peer.rpc(
@@ -114,6 +140,13 @@ func _register_qa_client(client_index: int) -> void:
 		false,
 		client_index,
 	)
+	_ack_qa_registration.rpc_id(sender_id)
+
+@rpc("authority", "call_remote", "reliable")
+func _ack_qa_registration() -> void:
+	if _role != "client":
+		return
+	_registration_acknowledged = true
 
 func _sync_existing_roster_to(peer_id: int) -> void:
 	for raw_peer_id in NetworkManager.peers.keys():

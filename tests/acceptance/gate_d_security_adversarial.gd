@@ -54,18 +54,12 @@ func _begin_security_checks() -> void:
 	if decider <= 0:
 		_fail("server has no authoritative heretic decider")
 		return
-	_collect_host_privacy_report()
+	_privacy_reports.clear()
 	_request_privacy_report.rpc()
 	await get_tree().create_timer(0.35).timeout
 	if not _validate_privacy_reports(decider):
 		return
 	_run_invalid_and_valid_night_attempts(decider)
-
-func _collect_host_privacy_report() -> void:
-	_privacy_reports[1] = {
-		"role": int(MatchAuthority.local_role),
-		"decider": MatchAuthority.current_heretic_decider_peer_id,
-	}
 
 @rpc("authority", "call_remote", "reliable")
 func _request_privacy_report() -> void:
@@ -88,11 +82,14 @@ func _submit_privacy_report(role_value: int, decider_peer_id: int) -> void:
 	}
 
 func _validate_privacy_reports(decider_peer_id: int) -> bool:
-	if _privacy_reports.size() != EXPECTED_PLAYERS:
-		_fail("server did not receive eight decider privacy reports")
+	if _privacy_reports.size() != EXPECTED_CLIENTS:
+		_fail("server did not receive seven remote decider privacy reports")
 		return false
 	for raw_peer_id in _privacy_reports.keys():
 		var peer_id := int(raw_peer_id)
+		if peer_id == multiplayer.get_unique_id():
+			_fail("server process must not be evaluated as a remote privacy client")
+			return false
 		var report: Dictionary = _privacy_reports[raw_peer_id]
 		var authoritative_role := MatchAuthority.server_role_for_peer(peer_id)
 		if int(report.get("role", -1)) != int(authoritative_role):

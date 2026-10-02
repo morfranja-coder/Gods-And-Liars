@@ -31,6 +31,8 @@ const OPEN_SLOTS_KEY: String = "open_slots"
 const ANCHOR_PARTY_SIZE_KEY: String = "anchor_party_size"
 const MEMBER_PARTY_SIZE_KEY: String = "party_size"
 const MEMBER_PARTY_TOKEN_KEY: String = "party_token"
+const PROTOCOL_VERSION_KEY: String = MatchProtocolRules.PROTOCOL_VERSION_KEY
+const BUILD_VERSION_KEY: String = MatchProtocolRules.BUILD_VERSION_KEY
 
 const STEAM_LOBBY_TYPE_PUBLIC := 2
 const STEAM_LOBBY_TYPE_INVISIBLE := 3
@@ -114,9 +116,21 @@ func join_lobby(target_lobby_id: int) -> void:
 		return
 	if lobby_id == target_lobby_id:
 		return
+	if not _lobby_protocol_is_compatible(target_lobby_id):
+		lobby_error.emit("La partida usa una versión de red incompatible.")
+		party_reservation_result.emit(false)
+		return
 	_pending_join_match_id = target_lobby_id
 	lobby_state_changed.emit(&"joining")
 	_steam.call("joinLobby", target_lobby_id)
+
+func _lobby_protocol_is_compatible(target_lobby_id: int) -> bool:
+	if _steam == null or target_lobby_id <= 0:
+		return false
+	var raw_protocol := str(
+		_steam.call("getLobbyData", target_lobby_id, PROTOCOL_VERSION_KEY)
+	)
+	return MatchProtocolRules.compatible_protocol(raw_protocol)
 
 func refresh_lobbies() -> void:
 	if not _require_steam() or _pending_match_search:
@@ -132,6 +146,12 @@ func refresh_lobbies() -> void:
 		"addRequestLobbyListStringFilter",
 		LOBBY_KIND_KEY,
 		LOBBY_KIND_MATCH,
+		STEAM_LOBBY_COMPARISON_EQUAL,
+	)
+	_steam.call(
+		"addRequestLobbyListStringFilter",
+		PROTOCOL_VERSION_KEY,
+		MatchProtocolRules.protocol_value(),
 		STEAM_LOBBY_COMPARISON_EQUAL,
 	)
 	_steam.call("addRequestLobbyListDistanceFilter", STEAM_LOBBY_DISTANCE_WORLDWIDE)
@@ -345,6 +365,18 @@ func _on_lobby_created(result: int, new_lobby_id: int) -> void:
 	)
 	_steam.call("setLobbyData", new_lobby_id, GAME_TAG_KEY, GAME_TAG_VALUE)
 	_steam.call("setLobbyData", new_lobby_id, LOBBY_KIND_KEY, LOBBY_KIND_MATCH)
+	_steam.call(
+		"setLobbyData",
+		new_lobby_id,
+		PROTOCOL_VERSION_KEY,
+		MatchProtocolRules.protocol_value(),
+	)
+	_steam.call(
+		"setLobbyData",
+		new_lobby_id,
+		BUILD_VERSION_KEY,
+		MatchProtocolRules.current_build_version(),
+	)
 	_steam.call("setLobbyData", new_lobby_id, MATCH_STATE_KEY, MATCH_STATE_OPEN)
 	_steam.call("setLobbyData", new_lobby_id, ANCHOR_PARTY_SIZE_KEY, str(PartyManager.size()))
 	_publish_local_match_party_data(new_lobby_id)

@@ -24,6 +24,7 @@ const MATCH_STATE_KEY := "match_state"
 const MATCH_STATE_OPEN := "open"
 const OPEN_SLOTS_KEY := "open_slots"
 const ANCHOR_PARTY_SIZE_KEY := "anchor_party_size"
+const PROTOCOL_VERSION_KEY := MatchProtocolRules.PROTOCOL_VERSION_KEY
 const STEAM_LOBBY_COMPARISON_EQUAL := 0
 
 var state: StringName = STATE_IDLE
@@ -193,6 +194,12 @@ func _request_match_lobbies(force: bool = false) -> void:
 		"addRequestLobbyListStringFilter",
 		MATCH_STATE_KEY,
 		MATCH_STATE_OPEN,
+		STEAM_LOBBY_COMPARISON_EQUAL,
+	)
+	_steam.call(
+		"addRequestLobbyListStringFilter",
+		PROTOCOL_VERSION_KEY,
+		MatchProtocolRules.protocol_value(),
 		STEAM_LOBBY_COMPARISON_EQUAL,
 	)
 	_steam.call("addRequestLobbyListDistanceFilter", current_distance_tier)

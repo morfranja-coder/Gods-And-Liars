@@ -559,7 +559,8 @@ func _spawn_or_update_avatar(peer_id: int, seat_id: int) -> void:
 	)
 	if avatar is AvatarSlots:
 		(avatar as AvatarSlots).set_player_color(PlayerColors.for_seat(seat_id))
-	if peer_id == multiplayer.get_unique_id():
+	var local_peer_id := _local_peer_id_or_zero()
+	if peer_id == local_peer_id and local_peer_id > 0:
 		_setup_local_player_view(avatar)
 	var peer: Dictionary = NetworkManager.peers.get(peer_id, {})
 	var label := avatar.get_node_or_null("NameLabel") as Label3D
@@ -568,7 +569,7 @@ func _spawn_or_update_avatar(peer_id: int, seat_id: int) -> void:
 		if display_name.is_empty():
 			display_name = "Acólito %s" % peer_id
 		label.text = display_name
-		label.visible = MatchAuthority.is_peer_publicly_alive(peer_id) and peer_id != multiplayer.get_unique_id()
+		label.visible = MatchAuthority.is_peer_publicly_alive(peer_id) and peer_id != local_peer_id
 
 func _ensure_vote_turn_effect_anchor(
 	avatar: Node3D,
@@ -806,8 +807,14 @@ func _on_vote_resolution_received(_sacrificed_peer_id: int, _tied: bool) -> void
 	_begin_local_ghost_transition()
 	_refresh_remote_ghost_visuals()
 
+func _local_peer_id_or_zero() -> int:
+	if multiplayer.multiplayer_peer == null:
+		return 0
+	return multiplayer.get_unique_id()
+
+
 func _refresh_god_state() -> void:
-	var local_peer_id := multiplayer.get_unique_id()
+	var local_peer_id := _local_peer_id_or_zero()
 	var local_is_dead := (
 		NetworkManager.peers.has(local_peer_id)
 		and not MatchAuthority.is_peer_publicly_alive(local_peer_id)
@@ -819,7 +826,9 @@ func _begin_local_ghost_transition() -> void:
 	if _ghost_transition_started or not MatchAuthority.is_local_ghost():
 		return
 	_ghost_transition_started = true
-	var local_peer_id := multiplayer.get_unique_id()
+	var local_peer_id := _local_peer_id_or_zero()
+	if local_peer_id <= 0:
+		return
 	var avatar := _avatars.get(local_peer_id) as AvatarSlots
 	var spawn_transform := Transform3D.IDENTITY
 	if avatar != null:

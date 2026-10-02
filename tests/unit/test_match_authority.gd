@@ -133,14 +133,18 @@ func test_vote_state_is_public_and_voter_cannot_replace_vote() -> void:
 	var session: MatchSession = MatchAuthority.call("_build_session", _eight_player_roster())
 	assert_bool(session != null).is_true()
 	MatchAuthority.set("_session", session)
+	MatchAuthority.multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	for player in session.players:
 		player.alive = true
 	GameManager.set_phase(GameManager.MatchPhase.VOTING)
 
 	MatchAuthority.call("_server_submit_vote", 1, 2)
 	assert_int(int(MatchAuthority.get("_votes").get(1, 0))).is_equal(2)
+	assert_int(int(MatchAuthority.public_votes.get(1, 0))).is_equal(2)
 	MatchAuthority.call("_server_submit_vote", 1, 3)
 	assert_int(int(MatchAuthority.get("_votes").get(1, 0))).is_equal(2)
+	assert_int(int(MatchAuthority.public_votes.get(1, 0))).is_equal(2)
+	MatchAuthority.multiplayer.multiplayer_peer = null
 
 
 func test_disconnect_marks_session_player_dead_and_clears_pending_actions() -> void:

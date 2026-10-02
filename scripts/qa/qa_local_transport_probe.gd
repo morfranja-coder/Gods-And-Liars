@@ -20,6 +20,7 @@ func start_server(port: int) -> Error:
 	return OK
 
 func start_client(host: String, port: int) -> Error:
+	_disconnect_production_steam_identity_handshake()
 	var peer := ENetMultiplayerPeer.new()
 	var error := peer.create_client(host, port)
 	if error != OK:
@@ -28,6 +29,12 @@ func start_client(host: String, port: int) -> Error:
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
 	multiplayer.connection_failed.connect(_on_connection_failed)
 	return OK
+
+func _disconnect_production_steam_identity_handshake() -> void:
+	var handler := Callable(NetworkManager, "_on_connected_to_server")
+	if multiplayer.connected_to_server.is_connected(handler):
+		multiplayer.connected_to_server.disconnect(handler)
+
 
 func _on_peer_connected(peer_id: int) -> void:
 	if not _is_server:

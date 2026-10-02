@@ -8,8 +8,6 @@ var _attack_results: Dictionary = {}
 var _expected_attacks: Dictionary = {}
 var _valid_decider_action_seen := false
 var _d8_completed := false
-var _completion_acks: Dictionary = {}
-var _client_quit_delay := -1.0
 
 func _ready() -> void:
 	super()
@@ -20,11 +18,6 @@ func _process(delta: float) -> void:
 	if _server_quit_delay >= 0.0:
 		_server_quit_delay -= delta
 		if _server_quit_delay <= 0.0:
-			get_tree().quit(0)
-			return
-	if _client_quit_delay >= 0.0:
-		_client_quit_delay -= delta
-		if _client_quit_delay <= 0.0:
 			get_tree().quit(0)
 			return
 
@@ -184,8 +177,14 @@ func _try_finish_d8() -> void:
 		_fail("valid decider path was never accepted")
 		return
 	_d8_completed = true
-	_elapsed = 0.0
+	MatchAuthority._clear_phase_timeout()
+	MatchAuthority._sync_phase.rpc(
+		int(GameManager.MatchPhase.MATCH_END),
+		GameManager.round_number,
+	)
 	_confirm_d8.rpc()
+	print("GREEN: Gate D8 server - exact-8 decider privacy and night authorization held")
+	_server_quit_delay = 0.50
 
 func _first_remote_peer_with_role(role_value: PlayerState.Role) -> int:
 	for raw_peer_id in NetworkManager.peers.keys():
@@ -220,20 +219,7 @@ func _confirm_d8() -> void:
 	if _role != "client":
 		return
 	print("GREEN: Gate D8 client %d - adversarial night checks matched" % _client_index)
-	_ack_d8_complete.rpc_id(1)
-	_client_quit_delay = 0.75
-
-
-@rpc("any_peer", "call_remote", "reliable")
-func _ack_d8_complete() -> void:
-	if _role != "server" or not _d8_completed:
-		return
-	var sender_id := multiplayer.get_remote_sender_id()
-	_completion_acks[sender_id] = true
-	if _completion_acks.size() != EXPECTED_CLIENTS:
-		return
-	print("GREEN: Gate D8 server - exact-8 decider privacy and night authorization held")
-	_server_quit_delay = 0.20
+	get_tree().quit(0)
 
 
 func _fail(message: String) -> void:

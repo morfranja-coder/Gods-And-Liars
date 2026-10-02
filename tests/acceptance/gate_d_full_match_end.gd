@@ -103,12 +103,10 @@ func _on_phase_synced(phase_value: int) -> void:
 	elif phase_value == int(GameManager.MatchPhase.SACRIFICE):
 		_schedule_server_phase_advance()
 
-func _on_d7_vote_state_synced(_votes: Dictionary, voter_peer_id: int) -> void:
+func _on_d7_vote_state_synced(_votes: Dictionary, _voter_peer_id: int) -> void:
 	if GameManager.phase != GameManager.MatchPhase.VOTING:
 		return
 	if multiplayer.multiplayer_peer == null:
-		return
-	if voter_peer_id != multiplayer.get_unique_id():
 		return
 	call_deferred("_try_submit_planned_vote")
 
@@ -285,7 +283,7 @@ func _try_submit_planned_vote() -> void:
 	var local_peer_id := multiplayer.get_unique_id()
 	if not MatchAuthority.is_peer_publicly_alive(local_peer_id):
 		return
-	if MatchAuthority.current_voter_peer_id != local_peer_id:
+	if MatchAuthority.public_votes.has(local_peer_id):
 		return
 	var target_peer_id := _plan_vote_target
 	if local_peer_id == target_peer_id:

@@ -31,7 +31,10 @@ func start_client(host: String, port: int) -> Error:
 	return OK
 
 func _disconnect_production_steam_identity_handshake() -> void:
-	var handler := Callable(NetworkManager, "_on_connected_to_server")
+	var network_manager := get_node_or_null("/root/NetworkManager")
+	if network_manager == null:
+		return
+	var handler := Callable(network_manager, "_on_connected_to_server")
 	if multiplayer.connected_to_server.is_connected(handler):
 		multiplayer.connected_to_server.disconnect(handler)
 

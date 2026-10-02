@@ -57,7 +57,6 @@ func _receive_authoritative_snapshot(phase_value: int, round_value: int, roster_
 		completed.emit(false, "roster size mismatch")
 		return
 	_ack_snapshot.rpc_id(1, phase_value, round_value, roster_size)
-	completed.emit(true, "client received authoritative snapshot")
 
 @rpc("any_peer", "call_remote", "reliable")
 func _ack_snapshot(phase_value: int, round_value: int, roster_size: int) -> void:
@@ -69,4 +68,13 @@ func _ack_snapshot(phase_value: int, round_value: int, roster_size: int) -> void
 	if roster_size != EXPECTED_ROSTER_SIZE:
 		completed.emit(false, "server received invalid roster acknowledgement")
 		return
+	var sender_id := multiplayer.get_remote_sender_id()
+	_confirm_snapshot_ack.rpc_id(sender_id)
 	completed.emit(true, "server received matching acknowledgement")
+
+
+@rpc("authority", "call_remote", "reliable")
+func _confirm_snapshot_ack() -> void:
+	if _is_server:
+		return
+	completed.emit(true, "client received authoritative snapshot confirmation")

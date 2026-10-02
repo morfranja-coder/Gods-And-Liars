@@ -3,7 +3,7 @@ extends SceneTree
 const PROBE_SCRIPT := preload("res://scripts/qa/qa_local_transport_probe.gd")
 const DEFAULT_PORT := 24681
 const TIMEOUT_SECONDS := 10.0
-const SUCCESS_QUIT_DELAY_SECONDS := 0.25
+const SUCCESS_QUIT_DELAY_SECONDS := 0.75
 
 var _probe: QALocalTransportProbe
 var _elapsed := 0.0

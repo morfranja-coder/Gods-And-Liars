@@ -153,37 +153,46 @@ func _try_submit_planned_action() -> void:
 	if required_role != MatchAuthority.local_role:
 		return
 
-	if required_role == PlayerState.Role.HERETIC:
-		if local_peer_id != MatchAuthority.current_heretic_decider_peer_id:
-			return
-		_submit_expected_action(
-			_action_key(round_value, "heretic"),
-			_plan_heretic_target,
-		)
-		return
+	match required_role:
+		PlayerState.Role.HERETIC:
+			_try_submit_d9_heretic_action(round_value, local_peer_id)
+		PlayerState.Role.HEALER:
+			_try_submit_d9_healer_action(round_value, local_peer_id)
+		PlayerState.Role.INQUISITOR:
+			_try_submit_d9_inquisitor_action(round_value)
 
-	if required_role == PlayerState.Role.HEALER:
-		if round_value == 1:
-			return
-		if round_value == 3 and not _round3_healer_self_attempted:
-			_round3_healer_self_attempted = true
-			_submit_expected_action("3:healer_self_retry", local_peer_id)
-			return
-		if round_value == 3 and not _round3_healer_self_rejected:
-			return
-		_submit_expected_action(
-			_action_key(round_value, "healer"),
-			_plan_healer_target,
-		)
-		return
 
-	if required_role == PlayerState.Role.INQUISITOR:
-		if round_value == 1:
-			return
-		_submit_expected_action(
-			_action_key(round_value, "inquisitor"),
-			_plan_inquisitor_target,
-		)
+func _try_submit_d9_heretic_action(round_value: int, local_peer_id: int) -> void:
+	if local_peer_id != MatchAuthority.current_heretic_decider_peer_id:
+		return
+	_submit_expected_action(
+		_action_key(round_value, "heretic"),
+		_plan_heretic_target,
+	)
+
+
+func _try_submit_d9_healer_action(round_value: int, local_peer_id: int) -> void:
+	if round_value == 1:
+		return
+	if round_value == 3 and not _round3_healer_self_attempted:
+		_round3_healer_self_attempted = true
+		_submit_expected_action("3:healer_self_retry", local_peer_id)
+		return
+	if round_value == 3 and not _round3_healer_self_rejected:
+		return
+	_submit_expected_action(
+		_action_key(round_value, "healer"),
+		_plan_healer_target,
+	)
+
+
+func _try_submit_d9_inquisitor_action(round_value: int) -> void:
+	if round_value == 1:
+		return
+	_submit_expected_action(
+		_action_key(round_value, "inquisitor"),
+		_plan_inquisitor_target,
+	)
 
 func _submit_expected_action(key: String, target_peer_id: int) -> void:
 	if _submitted_action_keys.has(key) or not _pending_action_key.is_empty():
@@ -303,77 +312,126 @@ func _handle_day_announcement() -> void:
 		_send_d9_final_ack()
 
 func _local_round_validation_error(round_value: int) -> String:
+	var error := ""
 	if not _night_kills_by_round.has(round_value):
-		return "client missed night resolution for round %d" % round_value
-	var killed: Array = _night_kills_by_round[round_value]
-	if round_value == 1:
-		if not killed.is_empty():
-			return "first night killed a player"
-		if not MatchAuthority.last_night_was_first:
-			return "first night public report was not marked first"
-		if not MatchAuthority.last_night_priest_saved:
-			return "first night did not report priest rescue"
-		if MatchAuthority.local_role == PlayerState.Role.HEALER:
-			if _priest_warning_round1 != _plan_heretic_target:
-				return "priest warning did not match first-night target"
-		if MatchAuthority.local_role == PlayerState.Role.INQUISITOR:
-			if _investigation_by_round.has(1):
-				return "inquisitor received a first-night investigation"
-	elif round_value == 2:
-		if killed.size() != 1 or int(killed[0]) != _plan_heretic_target:
-			return "round-two kill did not match unprotected heretic target"
-		if MatchAuthority.last_night_was_first:
-			return "round two was incorrectly marked first night"
-		if MatchAuthority.local_role == PlayerState.Role.HEALER:
-			var key := _action_key(2, "healer")
-			if not _accepted_action_keys.has(key):
-				return "healer self-save was not accepted on round two"
-			if int(_accepted_action_targets.get(key, 0)) != multiplayer.get_unique_id():
-				return "round-two healer action was not a self-save"
-		if MatchAuthority.local_role == PlayerState.Role.INQUISITOR:
-			if not _valid_investigation(2):
-				return "round-two inquisitor result was missing or incorrect"
-	elif round_value == 3:
-		if not killed.is_empty():
-			return "round-three protected target was killed"
-		if MatchAuthority.local_role == PlayerState.Role.HEALER:
-			if not _round3_healer_self_rejected:
-				return "healer did not observe second self-save rejection"
-			var key := _action_key(3, "healer")
-			if not _accepted_action_keys.has(key):
-				return "healer fallback action was not accepted on round three"
-			if int(_accepted_action_targets.get(key, 0)) != _plan_healer_target:
-				return "round-three healer fallback target diverged"
-		if MatchAuthority.local_role == PlayerState.Role.INQUISITOR:
-			if not _valid_investigation(3):
-				return "round-three inquisitor result was missing or incorrect"
-	return ""
+		error = "client missed night resolution for round %d" % round_value
+	else:
+		var killed: Array = _night_kills_by_round[round_value]
+		match round_value:
+			1:
+				error = _local_round_one_error(killed)
+			2:
+				error = _local_round_two_error(killed)
+			3:
+				error = _local_round_three_error(killed)
+	return error
+
+
+func _local_round_one_error(killed: Array) -> String:
+	var error := ""
+	if not killed.is_empty():
+		error = "first night killed a player"
+	elif not MatchAuthority.last_night_was_first:
+		error = "first night public report was not marked first"
+	elif not MatchAuthority.last_night_priest_saved:
+		error = "first night did not report priest rescue"
+	elif (
+		MatchAuthority.local_role == PlayerState.Role.HEALER
+		and _priest_warning_round1 != _plan_heretic_target
+	):
+		error = "priest warning did not match first-night target"
+	elif (
+		MatchAuthority.local_role == PlayerState.Role.INQUISITOR
+		and _investigation_by_round.has(1)
+	):
+		error = "inquisitor received a first-night investigation"
+	return error
+
+
+func _local_round_two_error(killed: Array) -> String:
+	var error := ""
+	if killed.size() != 1 or int(killed[0]) != _plan_heretic_target:
+		error = "round-two kill did not match unprotected heretic target"
+	elif MatchAuthority.last_night_was_first:
+		error = "round two was incorrectly marked first night"
+	elif MatchAuthority.local_role == PlayerState.Role.HEALER:
+		error = _round_two_healer_error()
+	elif (
+		MatchAuthority.local_role == PlayerState.Role.INQUISITOR
+		and not _valid_investigation(2)
+	):
+		error = "round-two inquisitor result was missing or incorrect"
+	return error
+
+
+func _round_two_healer_error() -> String:
+	var key := _action_key(2, "healer")
+	var error := ""
+	if not _accepted_action_keys.has(key):
+		error = "healer self-save was not accepted on round two"
+	elif int(_accepted_action_targets.get(key, 0)) != multiplayer.get_unique_id():
+		error = "round-two healer action was not a self-save"
+	return error
+
+
+func _local_round_three_error(killed: Array) -> String:
+	var error := ""
+	if not killed.is_empty():
+		error = "round-three protected target was killed"
+	elif MatchAuthority.local_role == PlayerState.Role.HEALER:
+		error = _round_three_healer_error()
+	elif (
+		MatchAuthority.local_role == PlayerState.Role.INQUISITOR
+		and not _valid_investigation(3)
+	):
+		error = "round-three inquisitor result was missing or incorrect"
+	return error
+
+
+func _round_three_healer_error() -> String:
+	var key := _action_key(3, "healer")
+	var error := ""
+	if not _round3_healer_self_rejected:
+		error = "healer did not observe second self-save rejection"
+	elif not _accepted_action_keys.has(key):
+		error = "healer fallback action was not accepted on round three"
+	elif int(_accepted_action_targets.get(key, 0)) != _plan_healer_target:
+		error = "round-three healer fallback target diverged"
+	return error
 
 func _server_round_validation_error(round_value: int) -> String:
 	var accepted: Dictionary = _server_accepted_actions.get(round_value, {})
 	var expected_count := 1 if round_value == 1 else 3
+	var killed: Array = _night_kills_by_round.get(round_value, [])
+	var error := ""
 	if accepted.size() != expected_count:
-		return "server accepted %d actions on round %d; expected %d" % [
+		error = "server accepted %d actions on round %d; expected %d" % [
 			accepted.size(),
 			round_value,
 			expected_count,
 		]
-	var killed: Array = _night_kills_by_round.get(round_value, [])
-	if round_value == 1 and not killed.is_empty():
-		return "server observed a first-night kill"
-	if round_value == 2 and killed.size() != 1:
-		return "server did not observe exactly one round-two kill"
-	if round_value == 3:
-		if not killed.is_empty():
-			return "server observed a round-three kill despite priest protection"
-		if not bool(MatchAuthority.get("_healer_self_save_used")):
-			return "server lost healer self-save consumption state"
+	elif round_value == 1 and not killed.is_empty():
+		error = "server observed a first-night kill"
+	elif round_value == 2 and killed.size() != 1:
+		error = "server did not observe exactly one round-two kill"
+	elif round_value == 3:
+		error = _server_round_three_error(killed)
+	if error.is_empty() and not _public_alive_matches_session():
+		error = "server public alive state diverged from session on round %d" % round_value
+	return error
+
+
+func _server_round_three_error(killed: Array) -> String:
+	var error := ""
+	if not killed.is_empty():
+		error = "server observed a round-three kill despite priest protection"
+	elif not bool(MatchAuthority.get("_healer_self_save_used")):
+		error = "server lost healer self-save consumption state"
+	else:
 		var healer := _alive_role_peers(PlayerState.Role.HEALER)
 		if healer.size() != 1 or _server_round3_self_rejection_peer != healer[0]:
-			return "server did not receive healer round-three self-save rejection proof"
-	if not _public_alive_matches_session():
-		return "server public alive state diverged from session on round %d" % round_value
-	return ""
+			error = "server did not receive healer round-three self-save rejection proof"
+	return error
 
 func _valid_investigation(round_value: int) -> bool:
 	if not _investigation_by_round.has(round_value):
@@ -452,21 +510,51 @@ func _ack_d9_final(
 	if _role != "server":
 		return
 	var sender_id := multiplayer.get_remote_sender_id()
+	var error := _d9_final_ack_error(
+		sender_id,
+		role_value,
+		day_round_count,
+		night_resolution_count,
+		investigation_count,
+		priest_warning_seen,
+		healer_second_self_save_rejected,
+		decider_round1,
+		decider_round2,
+		decider_round3,
+	)
+	if not error.is_empty():
+		_fail(error)
+		return
+	if _final_validated_clients.has(sender_id):
+		_fail("server received duplicate D9 final acknowledgement")
+		return
+	_final_validated_clients[sender_id] = true
+	_try_complete_d9_server()
+
+
+func _d9_final_ack_error(
+	sender_id: int,
+	role_value: int,
+	day_round_count: int,
+	night_resolution_count: int,
+	investigation_count: int,
+	priest_warning_seen: bool,
+	healer_second_self_save_rejected: bool,
+	decider_round1: int,
+	decider_round2: int,
+	decider_round3: int,
+) -> String:
 	var expected_role := MatchAuthority.server_role_for_peer(sender_id)
+	var error := ""
 	if role_value != int(expected_role):
-		_fail("D9 client role diverged from authoritative role")
-		return
-	if day_round_count != FINAL_ROUND or night_resolution_count != FINAL_ROUND:
-		_fail("D9 client missed one of three nights")
-		return
-	if expected_role == PlayerState.Role.HEALER:
+		error = "D9 client role diverged from authoritative role"
+	elif day_round_count != FINAL_ROUND or night_resolution_count != FINAL_ROUND:
+		error = "D9 client missed one of three nights"
+	elif expected_role == PlayerState.Role.HEALER:
 		if not priest_warning_seen or not healer_second_self_save_rejected:
-			_fail("D9 healer client missed warning or second self-save rejection")
-			return
-	elif expected_role == PlayerState.Role.INQUISITOR:
-		if investigation_count != 2:
-			_fail("D9 inquisitor did not receive exactly two investigations")
-			return
+			error = "D9 healer client missed warning or second self-save rejection"
+	elif expected_role == PlayerState.Role.INQUISITOR and investigation_count != 2:
+		error = "D9 inquisitor did not receive exactly two investigations"
 	elif expected_role == PlayerState.Role.HERETIC:
 		if (
 			decider_round1 <= 0
@@ -475,13 +563,8 @@ func _ack_d9_final(
 			or decider_round1 == decider_round2
 			or decider_round1 != decider_round3
 		):
-			_fail("D9 heretic client did not observe 1-2-1 decider rotation")
-			return
-	if _final_validated_clients.has(sender_id):
-		_fail("server received duplicate D9 final acknowledgement")
-		return
-	_final_validated_clients[sender_id] = true
-	_try_complete_d9_server()
+			error = "D9 heretic client did not observe 1-2-1 decider rotation"
+	return error
 
 func _try_complete_d9_server() -> void:
 	if _d9_completed or not _server_final_ready:

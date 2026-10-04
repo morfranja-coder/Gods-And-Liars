@@ -91,6 +91,10 @@ func _submit_planned_tie_vote() -> void:
 	if peers.size() != EXPECTED_PLAYERS:
 		_fail("D11 local roster diverged before vote")
 		return
+	_expected_tied_targets = _expected_targets_for_scenario(peers)
+	if _expected_tied_targets.is_empty():
+		_fail("D11 local process could not build expected tie targets")
+		return
 	var local_peer_id := multiplayer.get_unique_id()
 	var target_peer_id := _planned_target_for(local_peer_id, peers)
 	if target_peer_id <= 0 or target_peer_id == local_peer_id:

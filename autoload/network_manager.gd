@@ -51,6 +51,7 @@ var _last_ready_request_ms: Dictionary = {}
 var _pending_create_match: bool = false
 var _pending_create_lobby_type: int = STEAM_LOBBY_TYPE_PUBLIC
 var _pending_join_match_id: int = 0
+var _pending_protocol_lobby_id: int = 0
 var _pending_match_search: bool = false
 var _reserved_party_steam_ids: Array[int] = []
 var _party_reservations: Dictionary = {}
@@ -86,6 +87,7 @@ func _bind_steam_callbacks() -> void:
 	_connect_steam_signal("lobby_created", _on_lobby_created)
 	_connect_steam_signal("lobby_joined", _on_lobby_joined)
 	_connect_steam_signal("lobby_match_list", _on_lobby_match_list)
+	_connect_steam_signal("lobby_data_update", _on_lobby_data_update)
 	lobby_state_changed.emit(&"steam_ready")
 
 func _connect_steam_signal(signal_name: StringName, method: Callable) -> void:
@@ -116,21 +118,59 @@ func join_lobby(target_lobby_id: int) -> void:
 		return
 	if lobby_id == target_lobby_id:
 		return
-	if not _lobby_protocol_is_compatible(target_lobby_id):
-		lobby_error.emit("La partida usa una versión de red incompatible.")
-		party_reservation_result.emit(false)
+	if _pending_join_match_id != 0 or _pending_protocol_lobby_id != 0:
 		return
+	_begin_join_protocol_validation(target_lobby_id)
+
+
+func _begin_join_protocol_validation(target_lobby_id: int) -> void:
+	if _steam == null or target_lobby_id <= 0:
+		_reject_protocol_join("No se pudo verificar la versión de red de la partida.")
+		return
+	var raw_protocol := _lobby_protocol_value(target_lobby_id)
+	if not raw_protocol.is_empty():
+		if MatchProtocolRules.compatible_protocol(raw_protocol):
+			_begin_verified_join(target_lobby_id)
+		else:
+			_reject_protocol_join("La partida usa una versión de red incompatible.")
+		return
+
+	_pending_protocol_lobby_id = target_lobby_id
+	lobby_state_changed.emit(&"validating")
+	var requested := bool(_steam.call("requestLobbyData", target_lobby_id))
+	if not requested:
+		_reject_protocol_join("No se pudo verificar la versión de red de la partida.")
+
+
+func _begin_verified_join(target_lobby_id: int) -> void:
+	if _steam == null or target_lobby_id <= 0:
+		_reject_protocol_join("No se pudo iniciar la conexión con la partida.")
+		return
+	_pending_protocol_lobby_id = 0
 	_pending_join_match_id = target_lobby_id
 	lobby_state_changed.emit(&"joining")
 	_steam.call("joinLobby", target_lobby_id)
 
-func _lobby_protocol_is_compatible(target_lobby_id: int) -> bool:
+
+func _reject_protocol_join(message: String) -> void:
+	_pending_protocol_lobby_id = 0
+	_pending_join_match_id = 0
+	lobby_error.emit(message)
+	party_reservation_result.emit(false)
+
+
+func _lobby_protocol_value(target_lobby_id: int) -> String:
 	if _steam == null or target_lobby_id <= 0:
-		return false
-	var raw_protocol := str(
+		return ""
+	return str(
 		_steam.call("getLobbyData", target_lobby_id, PROTOCOL_VERSION_KEY)
+	).strip_edges()
+
+
+func _lobby_protocol_is_compatible(target_lobby_id: int) -> bool:
+	return MatchProtocolRules.compatible_protocol(
+		_lobby_protocol_value(target_lobby_id)
 	)
-	return MatchProtocolRules.compatible_protocol(raw_protocol)
 
 func refresh_lobbies() -> void:
 	if not _require_steam() or _pending_match_search:
@@ -281,6 +321,7 @@ func _clear_pending_operations() -> void:
 	_pending_create_match = false
 	_pending_create_lobby_type = STEAM_LOBBY_TYPE_PUBLIC
 	_pending_join_match_id = 0
+	_pending_protocol_lobby_id = 0
 	_pending_match_search = false
 
 func _clear_session_state() -> void:
@@ -414,6 +455,40 @@ func _on_lobby_joined(joined_lobby_id: int, _permissions: int, _locked, response
 			return
 		multiplayer.multiplayer_peer = peer
 	lobby_state_changed.emit(&"in_lobby")
+
+func _on_lobby_data_update(arg1, arg2, arg3) -> void:
+	if _pending_protocol_lobby_id <= 0:
+		return
+	var update := _normalize_lobby_data_update(arg1, arg2, arg3)
+	var updated_lobby_id := int(update.get("lobby_id", 0))
+	if updated_lobby_id != _pending_protocol_lobby_id:
+		return
+	if not bool(update.get("success", false)):
+		_reject_protocol_join("No se pudo verificar la versión de red de la partida.")
+		return
+	var target_lobby_id := _pending_protocol_lobby_id
+	var raw_protocol := _lobby_protocol_value(target_lobby_id)
+	if not MatchProtocolRules.compatible_protocol(raw_protocol):
+		_reject_protocol_join("La partida usa una versión de red incompatible.")
+		return
+	_begin_verified_join(target_lobby_id)
+
+
+func _normalize_lobby_data_update(arg1, arg2, arg3) -> Dictionary:
+	var first := int(arg1)
+	var third := int(arg3)
+	if arg1 is bool or first in [0, 1]:
+		return {
+			"success": bool(arg1),
+			"lobby_id": int(arg2),
+			"member_id": third,
+		}
+	return {
+		"success": bool(arg3),
+		"lobby_id": first,
+		"member_id": int(arg2),
+	}
+
 
 func _on_lobby_match_list(lobbies: Array) -> void:
 	if not _pending_match_search:

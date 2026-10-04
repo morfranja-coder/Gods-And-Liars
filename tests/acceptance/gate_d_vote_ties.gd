@@ -12,7 +12,7 @@ var _server_resolution_ready := false
 var _final_ack_sent := false
 var _d11_completed := false
 var _accepted_votes: Dictionary = {}
-var _validated_clients: Dictionary = {}
+var _tie_validated_clients: Dictionary = {}
 var _expected_tied_targets: Array[int] = []
 
 func _ready() -> void:
@@ -42,7 +42,7 @@ func _process(delta: float) -> void:
 				_scenario,
 				int(GameManager.phase),
 				_accepted_votes.size(),
-				_validated_clients.size(),
+				_tie_validated_clients.size(),
 			]
 		)
 		return
@@ -196,10 +196,10 @@ func _ack_d11_result(
 	if not error.is_empty():
 		_fail(error)
 		return
-	if _validated_clients.has(sender_id):
+	if _tie_validated_clients.has(sender_id):
 		_fail("D11 server received duplicate client acknowledgement")
 		return
-	_validated_clients[sender_id] = true
+	_tie_validated_clients[sender_id] = true
 	_try_complete_d11()
 
 func _client_ack_error(
@@ -222,7 +222,7 @@ func _client_ack_error(
 func _try_complete_d11() -> void:
 	if _d11_completed or not _server_resolution_ready or not _sacrifice_phase_seen:
 		return
-	if _validated_clients.size() != EXPECTED_CLIENTS:
+	if _tie_validated_clients.size() != EXPECTED_CLIENTS:
 		return
 	var error := _server_final_error()
 	if not error.is_empty():

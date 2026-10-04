@@ -723,12 +723,35 @@ func _resume_after_disconnect(disconnected_peer_id: int) -> void:
 	if not winner.is_empty():
 		_end_match(winner)
 		return
-	if GameManager.phase == GameManager.MatchPhase.HERETIC_ACTION:
-		_reassign_heretic_decider_after_disconnect(disconnected_peer_id)
-		return
-	if GameManager.phase == GameManager.MatchPhase.ROLE_REVEAL:
-		if _role_acknowledged.size() >= _living_player_count():
-			_start_god_intro()
+	match GameManager.phase:
+		GameManager.MatchPhase.HERETIC_ACTION:
+			_reassign_heretic_decider_after_disconnect(disconnected_peer_id)
+		GameManager.MatchPhase.HEALER_ACTION:
+			_resume_role_phase_after_disconnect(PlayerState.Role.HEALER)
+		GameManager.MatchPhase.INQUISITOR_ACTION:
+			_resume_role_phase_after_disconnect(PlayerState.Role.INQUISITOR)
+		GameManager.MatchPhase.VOTING:
+			_resume_voting_after_disconnect()
+		GameManager.MatchPhase.ROLE_REVEAL:
+			if _role_acknowledged.size() >= _living_player_count():
+				_start_god_intro()
+
+
+func _resume_role_phase_after_disconnect(role_value: PlayerState.Role) -> void:
+	if _living_role_count(role_value) == 0:
+		_clear_phase_timeout()
+		_advance_night_phase()
+
+
+func _resume_voting_after_disconnect() -> void:
+	_sync_vote_state.rpc(
+		_votes,
+		0,
+		phase_seconds_remaining() * 1000,
+	)
+	if _valid_vote_count() >= _living_player_count():
+		_clear_phase_timeout()
+		_resolve_vote(true)
 
 func _reassign_heretic_decider_after_disconnect(disconnected_peer_id: int) -> void:
 	if disconnected_peer_id != current_heretic_decider_peer_id:

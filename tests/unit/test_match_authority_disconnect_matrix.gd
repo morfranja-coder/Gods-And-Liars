@@ -90,7 +90,7 @@ func test_inquisitor_disconnect_advances_when_no_inquisitor_remains() -> void:
 	MatchAuthority.call("_resume_after_disconnect", 4)
 
 	assert_int(int(GameManager.phase)).is_equal(
-		int(GameManager.MatchPhase.NIGHT_RESOLUTION)
+		int(GameManager.MatchPhase.DAY_ANNOUNCEMENT)
 	)
 
 func _fixed_session() -> MatchSession:

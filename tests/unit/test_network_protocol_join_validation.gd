@@ -9,6 +9,8 @@ class FakeSteam:
 	var joined_lobbies: Array[int] = []
 	var request_result := true
 
+	# GodotSteam methods are invoked by exact external API names via Object.call().
+	# gdlint: disable=function-name
 	func getLobbyData(lobby_id: int, key: String) -> String:
 		if key != MatchProtocolRules.PROTOCOL_VERSION_KEY:
 			return ""
@@ -20,6 +22,7 @@ class FakeSteam:
 
 	func joinLobby(lobby_id: int) -> void:
 		joined_lobbies.append(lobby_id)
+	# gdlint: enable=function-name
 
 
 func before_test() -> void:

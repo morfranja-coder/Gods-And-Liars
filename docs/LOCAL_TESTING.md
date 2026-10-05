@@ -1,38 +1,104 @@
 # Gods & Liars — Local testing workflow
 
-This document is for the Windows development workstation.
+This is the canonical Windows QA sequence after the multiplayer P0 hardening pass.
 
-## Engine
+## Engine and runtime
 
-Gods & Liars uses Godot 4.7 for development, local QA, MCP, CI and runtime validation. `project.godot` declares Godot 4.7 and the Steam runtime gate is pinned to GodotSteam 4.20 / Godot 4.7 / Steamworks SDK 1.64.
+Gods & Liars uses:
+
+- Godot 4.7.x;
+- GodotSteam 4.20;
+- Steamworks SDK 1.64;
+- development Steam App ID 480 until the production App ID is assigned.
 
 Do not use Godot 4.6 for this project.
 
-## 1. Install Godot 4.7 + QA MCP
+## Layer 0 — repository quality gate
 
 From the repository root in PowerShell:
 
 ```powershell
-.\tools\setup-local-godot47-mcp.ps1
+.\tools\verify-local.ps1
 ```
 
-This installs the official Godot 4.7 stable Windows x86_64 editor under the current user's LocalAppData and registers a Codex MCP named:
+This runs the local lint/import/smoke/GdUnit gate. GitHub CI remains the canonical acceptance gate for the full multi-process D1-D11 suite.
+
+Expected final line:
 
 ```text
-godot47-visual
+GREEN: local quality gate passed.
 ```
 
-The MCP is pinned to Godot MCP Enhanced 0.26.0 and is configured as a QA-oriented local tool.
+## Layer 1 — one human + seven bots
 
-Requirements:
+This is the first gameplay test to run locally.
 
-- Windows x86_64;
-- Node.js 18+ with `npx`;
-- Codex CLI available in PATH.
+It uses `PracticeManager` with an offline host and seven deterministic/synthetic participants. It validates gameplay presentation and the human interaction loop without requiring Steam networking.
 
-Use Codex only for visual/runtime QA in this project. Programming and repository changes remain outside that QA role.
+Launch each role separately from PowerShell:
 
-After setup, run the workstation preflight:
+```powershell
+godot --path . -- PRACTICA1_HEREJE
+godot --path . -- PRACTICA1_FIEL
+godot --path . -- PRACTICA1_SACERDOTE
+godot --path . -- PRACTICA1_INQUISIDOR
+```
+
+If `godot` is not in PATH, replace it with the Godot 4.7 executable path.
+
+For every role validate:
+
+- table scene opens correctly;
+- role reveal is readable and private;
+- phase labels and buttons match the active role;
+- dead players cannot act or vote;
+- day/vote/sacrifice transitions do not freeze;
+- win screen appears and the session can exit cleanly.
+
+### Canonical Night 1
+
+Night 1 is intentionally special:
+
+1. one Heretic decider chooses a victim;
+2. God warns the Priest who will be attacked;
+3. the Priest automatically protects that victim;
+4. the Inquisitor rests;
+5. nobody dies;
+6. Day 1 begins.
+
+Do not report the lack of a manual Priest/Inquisitor Night-1 action as a bug.
+
+### Night 2+
+
+Validate:
+
+- Heretic decider rotates by round;
+- only the current decider can submit the Heretic action;
+- Heretic cannot target another Heretic;
+- Priest can protect a legal target;
+- Priest can self-save only once per match;
+- a second self-save attempt is rejected;
+- Inquisitor can investigate on Night 2+;
+- private investigation result appears only for the Inquisitor.
+
+### Voting
+
+Validate:
+
+- all living players vote in the same voting window;
+- one vote per living player;
+- a submitted vote cannot be replaced;
+- self-vote is rejected;
+- dead voter and dead target are rejected;
+- a vote after the voting phase has ended is ignored;
+- a unique top target is sacrificed;
+- tied top targets are resolved by the authoritative server RNG and all clients must converge to the same result.
+
+Practice mode does **not** validate Steam identity, lobby metadata, relay transport or voice.
+
+## Layer 2 — local workstation preflight
+
+Before real Steam tests:
 
 ```powershell
 .\tools\check-local-qa-prereqs.ps1
@@ -44,15 +110,19 @@ Expected final line:
 GREEN: local QA workstation prerequisites are ready.
 ```
 
-## 2. Get the Steam-capable Windows artifact
+The optional Godot visual-QA MCP setup remains available through:
 
-Open the latest green GitHub Actions run for branch `phase-0-bootstrap` and download:
-
-```text
-GodsAndLiars-Steam-Windows
+```powershell
+.\tools\setup-local-godot47-mcp.ps1
 ```
 
-Extract it to a dedicated QA folder, for example:
+## Layer 3 — Steam-capable Windows artifact
+
+Use the `GodsAndLiars-Steam-Windows` artifact from the exact green commit you want to test.
+
+After this branch is merged, use the latest green integration-branch artifact rather than an older build.
+
+Extract the artifact to a dedicated QA folder, for example:
 
 ```text
 C:\GodsAndLiars-QA\host
@@ -66,11 +136,9 @@ steam_api64.dll
 steam_appid.txt
 ```
 
-`steam_appid.txt` must contain development App ID `480`.
+`steam_appid.txt` must contain `480` during development.
 
-## 3. Layer A — one-client smoke test
-
-Start Steam and sign in. Then:
+Launch:
 
 ```powershell
 .\tools\run-steam-qa-client.ps1 `
@@ -78,82 +146,56 @@ Start Steam and sign in. Then:
   -ClientLabel "host"
 ```
 
-Validate:
+## Layer 4 — two independent Steam accounts
 
-- the process opens without an immediate crash;
-- Steam initializes;
-- the current lobby / transitional entry screen loads;
-- hosting a match lobby does not throw an error;
-- the client identity/name is populated;
-- closing/leaving returns cleanly.
+Use two different Steam accounts, preferably on two computers.
 
-The QA logger is enabled automatically.
+Run `docs/STEAM_TWO_ACCOUNT_SMOKE_TEST.md`.
 
-Expected log location:
+This layer validates:
 
-```text
-%APPDATA%\Godot\app_userdata\Gods & Liars\qa-session-host.log
-```
+- Steam identity;
+- Party invite;
+- protocol-compatible Match Lobby handoff;
+- SteamMultiplayerPeer connection;
+- authoritative roster/seats;
+- READY staying blocked from starting gameplay below 8/8;
+- basic push-to-talk voice;
+- leaving the Match while preserving the Party.
 
-## 4. Layer B — two real Steam clients
+Two accounts are not a complete Mafia gameplay acceptance gate.
 
-Use two different Steam accounts. Prefer two computers.
+## Layer 5 — exact-8 human Steam acceptance
 
-Validate:
+The final commercial networking gate still requires eight independent Steam identities.
 
-- host creates a match lobby;
-- second client can discover/join it;
-- both see the same identities and seat assignments;
-- READY synchronizes;
-- PTT voice on `V` works;
-- disconnect/leave returns cleanly to lobby state.
-
-Two clients are intentionally insufficient to press gameplay START. This layer validates transport and voice only.
-
-## 5. Layer C — rule/failure QA with fewer than eight
-
-Four clients or synthetic peers may still be used to exercise isolated networking, disconnect, vote, night-action and privacy paths where the test harness does not require a valid commercial match start.
-
-This is no longer a complete Mafia acceptance gate.
-
-## 6. Layer D — eight-client full Mafia acceptance
-
-The current commercial Mafia match target is exactly eight players. Use eight distinct Steam accounts for the real end-to-end acceptance run.
-
-Run clients labeled:
+Run:
 
 ```text
-host
-client2
-client3
-client4
-client5
-client6
-client7
-client8
+docs/PHASE_8_STEAM_8CLIENT_CHECKLIST.md
 ```
 
-Execute `docs/PHASE_8_STEAM_8CLIENT_CHECKLIST.md`.
+Synthetic bots and CI prove rules and authorization, but they cannot prove real Steam lobby membership, relay behavior, eight independent identities or real voice routing.
 
-The eight logs must agree on public state transitions while private events remain private:
+## Failure capture
 
-- each client receives only its own role;
-- only the Inquisitor log receives `local_investigation`;
-- night deaths are identical across all logs;
-- vote resolution is identical across all logs;
-- match winner is identical across all logs;
-- rematch resets life/roles while retaining the final Match Lobby peers/seats.
+For local practice failures capture:
 
-## 7. Party + Quick Match transition
+- human role;
+- current round and phase;
+- action attempted;
+- visible result;
+- console error/stack trace.
 
-The old lobby browser is transitional/debug infrastructure. The commercial entry architecture is documented in `docs/MATCHMAKING_ARCHITECTURE.md`:
+For Steam failures also capture:
 
-`Party -> Quick Match -> Match Found -> Match Lobby -> Match`
+- exact Git commit/build;
+- Steam IDs involved;
+- Party Lobby ID;
+- Match Lobby ID;
+- queue state;
+- peer count;
+- host/client status;
+- QA session logs.
 
-Progressive search expands CLOSE -> DEFAULT -> FAR -> WORLDWIDE while preserving complete Parties and the exact target of eight players.
-
-## 8. Assets from Blender
-
-Rigged character assets should be exported as GLB/glTF 2.0 following `docs/ASSET_CONTRACT.md`.
-
-Do not overwrite the placeholder architecture while validating the network loop. Import the real Body/Tunic/Mask assets through the existing modular avatar slots so networking and gameplay QA remain isolated from art iteration.
+Do not fix a local failure by weakening an automated gate. Reproduce the mismatch, identify whether runtime or the checklist is stale, then change one canonical source.

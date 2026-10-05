@@ -1,111 +1,138 @@
 # FASE 8 — Steam 8-client acceptance checklist
 
-Este gate valida el modo Mafia completo sobre Steam real con el target comercial actual de exactamente ocho jugadores.
+This is the final human exact-8 networking gate for the current Mafia rules.
 
-## Preparación
+## Preparation
 
-1. Descargar `GodsAndLiars-Steam-Windows` del último Action verde.
-2. Confirmar `GodsAndLiars.exe`, `steam_api64.dll` y `steam_appid.txt`.
-3. Confirmar App ID de desarrollo `480`.
-4. Usar ocho cuentas Steam distintas.
-5. Iniciar cada cliente con QA logging y una etiqueta única: `host`, `client2` ... `client8`.
+1. Use the `GodsAndLiars-Steam-Windows` artifact from the exact green commit under test.
+2. Confirm `GodsAndLiars.exe`, `steam_api64.dll` and `steam_appid.txt`.
+3. Confirm development App ID `480`.
+4. Use eight distinct Steam accounts.
+5. Launch clients with unique QA labels: `host`, `client2` ... `client8`.
+6. Record the tested Git commit before starting.
 
 ## Party + Quick Match
 
-- [ ] Un solo jugador puede entrar a Quick Match como Party de 1.
-- [ ] Un Party completo nunca es dividido para completar una partida.
-- [ ] Composiciones exactas como 5+3 pueden formar 8/8.
-- [ ] Composiciones múltiples como 4+2+1+1 pueden formar 8/8.
-- [ ] Una composición que excedería 8 es rechazada.
-- [ ] La búsqueda expande CLOSE -> DEFAULT -> FAR -> WORLDWIDE con el tiempo.
-- [ ] Al encontrar 8/8, todos terminan en el mismo Match Lobby.
-- [ ] Ningún noveno jugador puede entrar al Match Lobby.
+- [ ] A solo Party can enter Quick Match.
+- [ ] A Party is never split.
+- [ ] Exact compositions such as 5+3 can converge to 8/8.
+- [ ] Multiple Parties such as 4+2+1+1 can converge to 8/8.
+- [ ] Any composition that would exceed 8 is rejected.
+- [ ] Search expands CLOSE -> DEFAULT -> FAR -> WORLDWIDE.
+- [ ] All members of a Party follow the same compatible Match target.
+- [ ] A follower with uncached lobby metadata waits for Steam metadata validation instead of joining blindly or rejecting a valid target prematurely.
+- [ ] Protocol mismatch fails closed.
+- [ ] No ninth player can enter the Match Lobby.
 
 ## Match Lobby
 
-- [ ] Los ocho clientes muestran exactamente los mismos ocho jugadores.
-- [ ] Los `seat_id` son únicos y coinciden en todas las instancias.
-- [ ] Los ocho pueden marcar READY mientras el flujo transicional siga usando READY.
-- [ ] START permanece bloqueado con 7/8.
-- [ ] Host puede iniciar con 8/8 READY.
+- [ ] All eight clients show the same eight players.
+- [ ] `seat_id` values are unique and agree across instances.
+- [ ] READY synchronizes.
+- [ ] START remains blocked at 7/8.
+- [ ] Host can start only at exact 8/8 with the required readiness.
 
-## Mesa y roles
+## Roles and privacy
 
-- [ ] Los ocho clientes cambian a `table.tscn`.
-- [ ] Cada jugador ocupa el mismo seat en todas las instancias.
-- [ ] Cada cliente recibe exactamente un rol privado.
-- [ ] Ningún cliente muestra roles de otros jugadores.
-- [ ] La distribución de 8 contiene 2 Herejes, 1 Sanador, 1 Inquisidor y 4 Fieles.
-- [ ] Todos pueden confirmar la revelación.
+- [ ] All eight enter the table scene.
+- [ ] Every player occupies the same seat on every client.
+- [ ] Each client receives exactly one private role.
+- [ ] No client learns the complete role map.
+- [ ] Distribution is exactly 2 Heretics, 1 Priest, 1 Inquisitor, 4 Faithful.
+- [ ] Only living Heretics receive the private current-decider identity.
+- [ ] Non-Heretics never receive the private decider.
+- [ ] Role reveal acknowledgement converges.
 
-## Noche
+## Night 1 — mandatory special rule
 
-- [ ] Fases avanzan Hereje -> Sanador -> Inquisidor -> resolución.
-- [ ] Solo el rol activo puede confirmar una acción.
-- [ ] Hereje no puede seleccionar otro Hereje.
-- [ ] Sanador puede proteger un objetivo válido.
-- [ ] Inquisidor no puede investigarse a sí mismo.
-- [ ] Muertes nocturnas coinciden en los ocho clientes.
-- [ ] Resultado del Inquisidor aparece solo en su cliente.
+- [ ] Exactly one living Heretic is the decider.
+- [ ] The decider can target a living non-Heretic.
+- [ ] A non-decider Heretic cannot submit the attack.
+- [ ] A Heretic cannot target another Heretic.
+- [ ] God privately warns the Priest of the intended victim.
+- [ ] Priest protection is automatic on that victim.
+- [ ] Priest does not manually choose a Night-1 target.
+- [ ] Inquisitor does not act on Night 1.
+- [ ] Nobody dies on Night 1.
+- [ ] All clients converge to the same public night result.
 
-## Voz
+## Night 2+
 
-- [ ] Durante noche/revelación el voice routing queda silenciado según diseño.
-- [ ] Durante día, vivos se oyen entre sí.
-- [ ] Muertos pueden escuchar a vivos.
-- [ ] Voz de muerto no llega a vivos.
-- [ ] Muertos sí pueden hablar entre muertos.
+- [ ] Heretic decider rotates by round.
+- [ ] Priest can protect a legal living target.
+- [ ] Priest can self-save once per match.
+- [ ] A second Priest self-save is rejected.
+- [ ] Inquisitor can investigate a legal target.
+- [ ] Investigation result appears only on the Inquisitor client.
+- [ ] Dead/disconnected players cannot submit night actions.
+- [ ] Dead players cannot be selected as legal night targets.
+- [ ] Public deaths converge on all clients.
 
-## Día, voto y sacrificio
+## Voice
 
-- [ ] Host abre votación.
-- [ ] Solo vivos pueden votar.
-- [ ] No se puede votar a un muerto ni a uno mismo.
-- [ ] Votos válidos sincronizan y pueden corregirse antes del cierre del quorum.
-- [ ] Empate produce cero sacrificios.
-- [ ] Ganador único produce exactamente un sacrificado.
-- [ ] Estado vivo/muerto coincide en los ocho clientes.
+- [ ] Voice routing is muted during phases where design requires silence.
+- [ ] During day, living players hear living players.
+- [ ] Dead players can hear living players.
+- [ ] Dead-player voice does not reach living players.
+- [ ] Dead players can speak to other dead players.
+- [ ] PTT on `V` does not loop local audio.
 
-## Victoria y rematch
+## Day, voting and sacrifice
 
-- [ ] Fieles ganan cuando no quedan Herejes.
-- [ ] Herejes ganan al alcanzar paridad.
-- [ ] Los ocho muestran el mismo ganador.
-- [ ] Muertos permanecen como ghosts/espectadores lógicos.
-- [ ] Solo host puede iniciar rematch.
-- [ ] Rematch conserva Match Lobby, peers y seats.
-- [ ] Rematch revive a todos y reparte roles nuevos.
+- [ ] All living players enter one simultaneous voting window.
+- [ ] Every living player may submit at most one vote.
+- [ ] A submitted vote cannot be replaced.
+- [ ] Self-vote is rejected.
+- [ ] Dead players cannot vote.
+- [ ] Dead players cannot be valid vote targets.
+- [ ] Votes received after leaving VOTING are ignored.
+- [ ] Unique top target produces exactly one sacrifice.
+- [ ] 2-2-2-2 tie is marked tied and resolves to one of the four tied top targets.
+- [ ] 3-3-1-1 tie is marked tied and resolves to one of the two tied top targets.
+- [ ] Every client receives the same authoritative tied result.
+- [ ] Alive/dead public state agrees across all eight clients.
 
-## Desconexiones
+## Disconnects
 
-- [ ] Cliente puede salir sin congelar ACK, noche o voto.
-- [ ] Jugador desconectado queda fuera/muerto para quorum de la partida en curso.
-- [ ] Steam ID puede volver en una sesión posterior tras desconexión limpia.
-- [ ] Steam ID duplicado simultáneo sigue rechazado.
-- [ ] Si sale el host, la sesión termina limpiamente; no hay host migration en el MVP.
+- [ ] A disconnected player becomes unavailable/dead for the current match.
+- [ ] Pending night actions or votes involving that player are removed as required.
+- [ ] Public vote state resynchronizes after a voting disconnect.
+- [ ] If the only living Priest disconnects during the Priest phase, the server advances without waiting for an impossible action.
+- [ ] Same behavior for the only living Inquisitor.
+- [ ] If the active Heretic decider disconnects, another living Heretic is selected without restarting the whole phase.
+- [ ] If the host leaves, the current match ends cleanly.
+- [ ] Host migration does not occur in the MVP.
 
-## Logs
+## Victory and rematch
 
-Comparar:
+- [ ] Faithful win when no Heretics remain.
+- [ ] Heretics win when living Heretics reach parity with living non-Heretics.
+- [ ] All clients show the same winner.
+- [ ] Rematch resets living state and private roles without leaking the previous role map.
+- [ ] Match Lobby roster/seats remain coherent through the intended rematch flow.
+
+## Logs and privacy
+
+Compare public events across all clients:
 
 ```text
 lobby_state
 peer_updated
-local_role_received
 phase_synced
 night_resolution
-local_investigation
 vote_resolution
 match_end
 rematch
 ```
 
-Privacidad:
-- `local_role_received` puede diferir entre clientes.
-- `local_investigation` debe aparecer únicamente en el Inquisidor.
-- fases y resoluciones públicas deben coincidir en los ocho logs.
-- ningún log de cliente debe contener el mapa completo de roles.
+Private events are intentionally different:
+
+- `local_role_received` belongs only to that client;
+- `local_investigation` appears only for the Inquisitor;
+- Priest warning appears only for the Priest;
+- private Heretic decider data appears only for Heretics;
+- no client log may contain the complete authoritative role map.
 
 ## Exit gate
 
-FASE 8 humana queda VERDE solamente cuando la partida completa 8/8 termina y puede hacer rematch sin divergencias públicas ni filtraciones privadas.
+The human FASE 8 gate is GREEN only when one complete exact-8 Steam match finishes without public-state divergence or private-information leakage and the intended rematch/exit flow also succeeds.

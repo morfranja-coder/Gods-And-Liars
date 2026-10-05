@@ -75,9 +75,21 @@ A commit is not considered finished merely because it was pushed. For project wo
 ## Why addons are not committed
 `addons/gdUnit4/` and `addons/godot_state_charts/` are reproducibly downloaded from pinned GitHub tags. Keeping them out of the repository avoids thousands of third-party files while preserving deterministic setup in local development and CI.
 
-## Current GdUnit4 coverage
-- eight-player role distribution
-- vote tie behavior
-- healer preventing a night kill
+## Current automated coverage
 
-Next tests should cover dead-player restrictions, win conditions, READY authority, illegal role actions, disconnects, and full simulated rounds.
+The current automated gate includes:
+
+- exact-8 role distribution and role-reveal acknowledgement;
+- canonical Night 1 exception and three-night progression;
+- Heretic decider privacy, rotation and authorization;
+- Priest one-use self-save;
+- Inquisitor Night-1 restriction and later private result;
+- dead-player night/vote restrictions;
+- disconnect cleanup and phase resumption;
+- simultaneous one-shot voting and adversarial RPC rejection;
+- exact-8 2-2-2-2 and 3-3-1-1 tie convergence;
+- full-match and rematch loops;
+- protocol-version compatibility, including uncached lobby metadata validation;
+- multi-process ENet acceptance plus Steam runtime/export gates.
+
+Real Steam identity, relay, voice and final exact-8 human UX still require manual acceptance testing.

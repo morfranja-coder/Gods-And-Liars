@@ -242,7 +242,7 @@ func _on_leave_match_confirmed() -> void:
 func _on_match_leave_started() -> void:
 	leave_match_button.disabled = true
 	status_label.text = (
-		"Transfiriendo host antes de salir..."
+		"Cerrando la partida actual..."
 		if NetworkManager.is_host
 		else "Abandonando partida..."
 	)
@@ -288,6 +288,7 @@ func _on_queue_error(message: String) -> void:
 func _on_lobby_state_changed(state_name: StringName) -> void:
 	match state_name:
 		&"creating": status_label.text = "Preparando Match Lobby..."
+		&"validating": status_label.text = "Verificando compatibilidad de red de la partida..."
 		&"joining": status_label.text = "Entrando a la partida encontrada..."
 		&"hosting": status_label.text = "Match creado. Esperando completar 8/8..."
 		&"in_lobby": status_label.text = "Match unido. Conectando con el host..."

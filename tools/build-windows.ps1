@@ -61,10 +61,21 @@ $GodotBinary = Resolve-GodotBinary $GodotBinary
 
 function Invoke-Godot([string[]]$Arguments) {
     if ($IsWindows) {
-        # GitHub's Windows runner can execute Godot successfully while leaving
-        # PowerShell's $LASTEXITCODE unset. Start-Process gives us the native
-        # process exit code reliably.
-        $process = Start-Process -FilePath $GodotBinary -ArgumentList $Arguments -NoNewWindow -Wait -PassThru
+        # Start-Process flattens ArgumentList into a single command line and can
+        # split values containing spaces (for example the preset "Windows Desktop").
+        # ProcessStartInfo.ArgumentList preserves each argument exactly.
+        $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+        $startInfo.FileName = $GodotBinary
+        $startInfo.UseShellExecute = $false
+        foreach ($argument in $Arguments) {
+            [void]$startInfo.ArgumentList.Add($argument)
+        }
+
+        $process = [System.Diagnostics.Process]::Start($startInfo)
+        if ($null -eq $process) {
+            throw "Failed to start Godot process"
+        }
+        $process.WaitForExit()
         return [int]$process.ExitCode
     }
 

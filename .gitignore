@@ -30,3 +30,6 @@ steam_appid.txt
 
 # Pinned bot AI runtime installed by setup-bot-ai.ps1
 addons/nobodywho/
+
+# Generated local test reports
+reports/

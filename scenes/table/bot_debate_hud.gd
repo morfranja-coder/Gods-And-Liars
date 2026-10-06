@@ -1,5 +1,7 @@
 extends CanvasLayer
 
+const HUD := preload("res://ui/ritual_hud_theme.gd")
+
 var _log: RichTextLabel
 var _entry: LineEdit
 var _typing_label: Label
@@ -12,26 +14,35 @@ func _ready() -> void:
 	_panel.anchor_top = 1.0
 	_panel.anchor_bottom = 1.0
 	_panel.offset_left = 16
-	_panel.offset_right = 520
-	_panel.offset_top = -248
-	_panel.offset_bottom = -16
+	_panel.offset_right = 482
+	_panel.offset_top = -240
+	_panel.offset_bottom = -18
+	_panel.add_theme_stylebox_override("panel", HUD.panel_style(16))
 	add_child(_panel)
 	var box := VBoxContainer.new()
 	_panel.add_child(box)
 	_log = RichTextLabel.new()
-	_log.custom_minimum_size = Vector2(490, 172)
+	_log.custom_minimum_size = Vector2(0, 124)
 	_log.scroll_following = true
+	_log.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_log.add_theme_color_override("default_color", HUD.IVORY)
+	_log.add_theme_constant_override("line_separation", 5)
 	_log.add_theme_font_size_override("normal_font_size", 15)
+	_log.add_theme_font_override("normal_font", HUD.body_font())
+	_log.add_theme_font_override("bold_font", HUD.strong_font())
 	box.add_child(_log)
 	_log.selection_enabled = true
 	_typing_label = Label.new()
 	_typing_label.add_theme_font_size_override("font_size", 13)
+	_typing_label.add_theme_font_override("font", HUD.body_font())
 	box.add_child(_typing_label)
 	BotDirector.typing_changed.connect(_on_typing_changed)
 	_entry = LineEdit.new()
 	_entry.placeholder_text = "Escribí para debatir con los bots"
 	_entry.max_length = 320
 	box.add_child(_entry)
+	_entry.custom_minimum_size.y = 36
+	HUD.apply_tree(_entry)
 	_entry.text_submitted.connect(_submit)
 	_entry.focus_entered.connect(func(): InputBindings.text_entry_active = true)
 	_entry.focus_exited.connect(func(): InputBindings.text_entry_active = false)
@@ -64,7 +75,7 @@ func _on_utterance(id: int, text: String) -> void:
 	_log.push_color(PlayerColors.for_seat(id - 1).lightened(0.35))
 	_log.add_text(name_text + ": ")
 	_log.pop()
-	_log.add_text(text + "\n")
+	_log.add_text(text + "\n\n")
 
 
 func _exit_tree() -> void:

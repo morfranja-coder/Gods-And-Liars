@@ -50,6 +50,10 @@ window/stretch/mode="canvas_items"
 
 enabled=PackedStringArray("res://addons/Tripo3d_Godot_Bridge/plugin.cfg")
 
+[gui]
+
+theme/custom="res://ui/gods_liars_theme.tres"
+
 [input]
 
 voice_talk={

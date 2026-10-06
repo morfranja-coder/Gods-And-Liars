@@ -1,4 +1,8 @@
-[gd_resource type="Theme" format=3 uid="uid://cu0xlhbqxw68r"]
+[gd_resource type="Theme" load_steps=8 format=3 uid="uid://cu0xlhbqxw68r"]
+
+[ext_resource type="FontFile" path="res://assets/fonts/BarlowSemiCondensed-Regular.ttf" id="FontBody"]
+[ext_resource type="FontFile" path="res://assets/fonts/BarlowSemiCondensed-SemiBold.ttf" id="FontStrong"]
+[ext_resource type="FontFile" path="res://assets/fonts/Cinzel.ttf" id="FontHeading"]
 
 [sub_resource type="StyleBoxFlat" id="ButtonHover"]
 content_margin_left = 16.0
@@ -61,7 +65,13 @@ corner_radius_bottom_right = 2
 corner_radius_bottom_left = 2
 
 [resource]
+default_font = ExtResource("FontBody")
 default_font_size = 18
+Button/fonts/font = ExtResource("FontHeading")
+OptionButton/fonts/font = ExtResource("FontBody")
+LineEdit/fonts/font = ExtResource("FontBody")
+RichTextLabel/fonts/normal_font = ExtResource("FontBody")
+RichTextLabel/fonts/bold_font = ExtResource("FontStrong")
 Button/colors/font_color = Color(0.82, 0.79, 0.7, 1)
 Button/colors/font_hover_color = Color(0.95, 0.88, 0.68, 1)
 Button/colors/font_pressed_color = Color(0.95, 0.77, 0.66, 1)

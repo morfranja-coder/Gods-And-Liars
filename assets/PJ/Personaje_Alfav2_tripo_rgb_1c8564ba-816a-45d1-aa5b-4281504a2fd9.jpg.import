@@ -1,0 +1,44 @@
+[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+uid="uid://biygh8tknev4y"
+path.s3tc="res://.godot/imported/Personaje_Alfav2_tripo_rgb_1c8564ba-816a-45d1-aa5b-4281504a2fd9.jpg-26768294196d9d31fe1258724f12c11a.s3tc.ctex"
+metadata={
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
+}
+generator_parameters={
+"md5": "3050ce2d27bf3656b6cf7bc25abe2d5a"
+}
+
+[deps]
+
+source_file="res://assets/PJ/Personaje_Alfav2_tripo_rgb_1c8564ba-816a-45d1-aa5b-4281504a2fd9.jpg"
+dest_files=["res://.godot/imported/Personaje_Alfav2_tripo_rgb_1c8564ba-816a-45d1-aa5b-4281504a2fd9.jpg-26768294196d9d31fe1258724f12c11a.s3tc.ctex"]
+
+[params]
+
+compress/mode=2
+compress/high_quality=false
+compress/lossy_quality=0.7
+compress/uastc_level=0
+compress/rdo_quality_loss=0.0
+compress/hdr_compression=1
+compress/normal_map=0
+compress/channel_pack=0
+mipmaps/generate=true
+mipmaps/limit=-1
+roughness/mode=0
+roughness/src_normal=""
+process/channel_remap/red=0
+process/channel_remap/green=1
+process/channel_remap/blue=2
+process/channel_remap/alpha=3
+process/fix_alpha_border=true
+process/premult_alpha=false
+process/normal_map_invert_y=false
+process/hdr_as_srgb=false
+process/hdr_clamp_exposure=false
+process/size_limit=0
+detect_3d/compress_to=0

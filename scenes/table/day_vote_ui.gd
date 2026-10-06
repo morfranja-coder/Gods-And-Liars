@@ -226,7 +226,7 @@ func _refresh_discussion_timer() -> void:
 	== GameManager.MatchPhase.DAY_DISCUSSION
 	)
 
-	_discussion_timer.visible = is_discussion
+	_discussion_timer.visible = false # The public roster owns the canonical phase clock.
 
 	if not is_discussion:
 		_discussion_timer.text = ""

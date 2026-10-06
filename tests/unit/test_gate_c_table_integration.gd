@@ -97,7 +97,12 @@ func _verify_day_vote_ui(table: Node) -> void:
 	assert_object(panel).is_not_null()
 	assert_bool(panel.visible).is_false()
 	assert_object(discussion_timer).is_not_null()
-	assert_bool(discussion_timer.visible).is_true()
+	assert_bool(discussion_timer.visible).is_false()
+	var roster := table.get_node("PlayerRosterHUD")
+	var phase_title: Label = roster.get("_phase_title")
+	var phase_clock: Label = roster.get("_phase_clock")
+	assert_str(phase_title.text).is_equal("DEBATE")
+	assert_bool(phase_clock.visible).is_true()
 
 	MatchAuthority.current_voter_peer_id = multiplayer.get_unique_id()
 	GameManager.set_phase(GameManager.MatchPhase.VOTING)

@@ -39,6 +39,7 @@ var _god_head_tween: Tween = null
 @onready var dead_god_visual: Node3D = $GodState/DeadGod
 
 func _ready() -> void:
+	call_deferred("_apply_ritual_hud_theme")
 	add_child(load("res://scenes/table/bot_debate_hud.gd").new())
 	_setup_environment()
 	_ensure_table_center()
@@ -569,6 +570,10 @@ func _spawn_or_update_avatar(peer_id: int, seat_id: int) -> void:
 	var peer: Dictionary = NetworkManager.peers.get(peer_id, {})
 	var label := avatar.get_node_or_null("NameLabel") as Label3D
 	if label != null:
+		label.font_size = 24
+		label.font = load("res://assets/fonts/BarlowSemiCondensed-SemiBold.ttf")
+		label.pixel_size = 0.0015
+		label.outline_size = 3
 		var display_name := str(peer.get("display_name", ""))
 		if display_name.is_empty():
 			display_name = "Acólito %s" % peer_id
@@ -952,3 +957,8 @@ func _receive_private_chat(sender_peer_id: int, sender_name: String, text: Strin
 	if MatchAuthority.is_local_ghost():
 		return
 	private_chat_received.emit(sender_peer_id, sender_name, text)
+
+func _apply_ritual_hud_theme() -> void:
+	var hud = load("res://ui/ritual_hud_theme.gd")
+	for surface in [day_vote_ui, night_action_ui, chat_ui, pause_ui, $RoleReveal, $MatchEndUI]:
+		hud.apply_tree(surface)

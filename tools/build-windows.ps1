@@ -21,6 +21,8 @@ try {
     Write-Host "[1/3] Installing pinned development addons"
     & "$PSScriptRoot/setup-dev-tools.ps1" -Force
 
+    & "$PSScriptRoot/setup-bot-ai.ps1"
+
     Write-Host "[2/3] Importing project"
     & $GodotBinary --headless --path . --editor --quit
     if ($LASTEXITCODE -ne 0) { throw "Godot import failed" }
@@ -52,8 +54,21 @@ try {
     }
 
     if ($exportExitCode -ne 0) {
-        Write-Warning "Godot returned exit code $exportExitCode after producing a valid Windows executable; accepting artifact after validation."
+        throw "Godot export failed with exit code $exportExitCode; a partial artifact is not a successful build."
     }
+
+    # GodotSteam templates require their native dependency beside the executable.
+    $steamCandidates = @(Join-Path $Root ".tools/godotsteam/templates-expanded/win64/steam_api64.dll")
+    if ($env:APPDATA) { $steamCandidates += Join-Path $env:APPDATA "Godot/export_templates/4.7.stable/steam_api64.dll" }
+    foreach ($candidate in $steamCandidates) {
+        if (Test-Path -LiteralPath $candidate) {
+            Copy-Item -LiteralPath $candidate -Destination (Join-Path $outputDir "steam_api64.dll") -Force
+            Copy-Item -LiteralPath (Join-Path $Root "steam_appid.txt") -Destination (Join-Path $outputDir "steam_appid.txt") -Force
+            break
+        }
+    }
+
+    & "$PSScriptRoot/package-bot-ai.ps1" -OutputDirectory ((Resolve-Path -LiteralPath $outputDir).Path)
 
     Write-Host "GREEN: Windows build created at $Output ($($exe.Length) bytes)"
 }
@@ -61,8 +76,6 @@ finally {
     Pop-Location
 }
 
-# GitHub Actions' pwsh wrapper observes the last native process exit code even
-# when the script intentionally accepts a validated artifact. Reset it only
-# after every validation above has succeeded; thrown failures never reach here.
+# Reset the CI wrapper exit code only after every validation succeeds.
 $global:LASTEXITCODE = 0
 exit 0

@@ -16,6 +16,9 @@ func _init() -> void:
 	OS.set_environment("SteamGameId", str(STEAM_APP_ID))
 
 func _ready() -> void:
+	if OS.get_cmdline_user_args().has("--offline-practice"):
+		mark_unavailable("Local offline practice requested")
+		return
 	if not Engine.has_singleton("Steam"):
 		mark_unavailable("GodotSteam singleton not found")
 		return

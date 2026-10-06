@@ -1,0 +1,37 @@
+[
+  {
+    "name": "espeak-ng",
+    "version": "0.2.0",
+    "sha256": "213ed87669515192b61f34dc6d6c36adeb75ae424b63e32612a65a1e21e9bee3"
+  },
+  {
+    "name": "espeak-ng-data-dict-en",
+    "version": "0.2.0",
+    "sha256": "3f231805f816e50caa02fc9266ba9e7ba842bc1439ed5dc4adc8aa09a745aa4a"
+  },
+  {
+    "name": "espeak-ng-data-dict-es",
+    "version": "0.2.0",
+    "sha256": "e125e5571d38d2e3ac752fd72d4bcf2119a4d9af95cb0cd97a4d8d2692567c5f"
+  },
+  {
+    "name": "espeak-ng-data-dict-fr",
+    "version": "0.2.0",
+    "sha256": "22bfa135ac45c5c58e0f254144845add795bdab2d4aea094c70f9d5352e15684"
+  },
+  {
+    "name": "espeak-ng-data-dict-it",
+    "version": "0.2.0",
+    "sha256": "28d10cde865ed26b37f96652dd8b9a42170facc3bea8a0272fd5f197fb693d50"
+  },
+  {
+    "name": "espeak-ng-data-dict-pt",
+    "version": "0.2.0",
+    "sha256": "4ebda03d7c45f5536bb4d186a269eddf3d884162bea6f93f29ccc34c5a1623af"
+  },
+  {
+    "name": "espeak-ng-data-phonemes",
+    "version": "0.2.0",
+    "sha256": "73639acc81fa0d350dd6fef933d4a935b6f8b93ef74455c9eebf1f3873253e0d"
+  }
+]

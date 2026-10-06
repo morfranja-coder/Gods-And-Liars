@@ -88,7 +88,7 @@ func _rebuild() -> void:
 		idle_style.border_color = Color(0.2, 0.2, 0.2, 0.7)
 		var talking_style := idle_style.duplicate() as StyleBoxFlat
 		var color := PlayerColors.for_seat(int(NetworkManager.peers[peer_id].get("seat_id", -1)))
-		talking_style.bg_color = Color(color.r, color.g, color.b, 0.4)
+		talking_style.bg_color = Color(0.04, 0.04, 0.04, 0.92).lerp(Color(color.r, color.g, color.b, 0.92), 0.08)
 		talking_style.border_color = color.lightened(0.45)
 		talking_style.set_border_width_all(2)
 		talking_style.shadow_color = Color(color.r, color.g, color.b, 0.65)

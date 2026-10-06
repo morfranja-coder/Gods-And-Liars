@@ -71,7 +71,9 @@ jobs:
 
       - name: Install pinned Godot addons
         shell: pwsh
-        run: ./tools/setup-dev-tools.ps1 -Force
+        run: |
+          ./tools/setup-dev-tools.ps1 -Force
+          ./tools/setup-bot-ai.ps1 -SkipModels
 
       - name: Import and parse project
         run: godot --headless --path . --editor --quit
@@ -501,7 +503,9 @@ jobs:
 
       - name: Install pinned Godot addons
         shell: pwsh
-        run: ./tools/setup-dev-tools.ps1 -Force
+        run: |
+          ./tools/setup-dev-tools.ps1 -Force
+          ./tools/setup-bot-ai.ps1 -SkipModels
 
       - name: Export Windows release
         shell: pwsh
@@ -526,7 +530,9 @@ jobs:
 
       - name: Install pinned Godot addons
         shell: pwsh
-        run: ./tools/setup-dev-tools.ps1 -Force
+        run: |
+          ./tools/setup-dev-tools.ps1 -Force
+          ./tools/setup-bot-ai.ps1 -SkipModels
 
       - name: Setup pinned GodotSteam 4.20 runtime
         shell: pwsh

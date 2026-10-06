@@ -1,5 +1,7 @@
 extends GdUnitTestSuite
 
+const ROSTER_HUD := preload("res://scenes/table/player_roster_hud.gd")
+
 func before_test() -> void:
 	PracticeManager.start_seven_bot_match(PlayerState.Role.INQUISITOR)
 	MatchAuthority.begin_role_reveal()
@@ -10,7 +12,7 @@ func after_test() -> void:
 
 func test_roster_shows_only_local_role_and_player_colored_masks() -> void:
 	var hud := CanvasLayer.new()
-	hud.set_script(load("res://scenes/table/player_roster_hud.gd"))
+	hud.set_script(ROSTER_HUD)
 	add_child(hud)
 	await get_tree().process_frame
 	var rows: Dictionary = hud.get("_rows")
@@ -39,7 +41,7 @@ func test_selection_cards_share_mask_texture_without_3d_viewports() -> void:
 
 func test_voice_events_light_only_speaking_player_and_clear_after_silence() -> void:
 	var hud := CanvasLayer.new()
-	hud.set_script(load("res://scenes/table/player_roster_hud.gd"))
+	hud.set_script(ROSTER_HUD)
 	add_child(hud)
 	await get_tree().process_frame
 	var rows: Dictionary = hud.get("_rows")

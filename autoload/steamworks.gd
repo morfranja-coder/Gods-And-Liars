@@ -3,7 +3,8 @@ extends Node
 signal steam_ready
 signal steam_unavailable(reason: String)
 
-const STEAM_APP_ID: int = 480
+const DEV_STEAM_APP_ID: int = 480
+const STEAM_APP_ID_OVERRIDE_ENV: String = "GODS_LIARS_STEAM_APP_ID"
 
 var initialized: bool = false
 var steam_id: int = 0
@@ -12,8 +13,22 @@ var lobby_id: int = 0
 var _steam: Object = null
 
 func _init() -> void:
-	OS.set_environment("SteamAppId", str(STEAM_APP_ID))
-	OS.set_environment("SteamGameId", str(STEAM_APP_ID))
+	var override_text := OS.get_environment(STEAM_APP_ID_OVERRIDE_ENV).strip_edges()
+	if not override_text.is_empty():
+		var override_id := int(override_text)
+		if override_id > 0:
+			OS.set_environment("SteamAppId", str(override_id))
+			OS.set_environment("SteamGameId", str(override_id))
+			return
+		push_warning("Ignoring invalid %s='%s'" % [STEAM_APP_ID_OVERRIDE_ENV, override_text])
+
+	var steam_app_id := OS.get_environment("SteamAppId").strip_edges()
+	var steam_game_id := OS.get_environment("SteamGameId").strip_edges()
+	if steam_app_id.is_empty() and steam_game_id.is_empty():
+		# Local/direct development fallback only. When launched by the real Steam
+		# client, preserve the App ID supplied by Steam instead of forcing Spacewar.
+		OS.set_environment("SteamAppId", str(DEV_STEAM_APP_ID))
+		OS.set_environment("SteamGameId", str(DEV_STEAM_APP_ID))
 
 func _ready() -> void:
 	if OS.get_cmdline_user_args().has("--offline-practice"):

@@ -134,15 +134,39 @@ try {
     # build the PCK explicitly and pair it with the matching release template.
     $pckOutput = [System.IO.Path]::ChangeExtension($Output, ".pck")
     $packExitCode = Invoke-Godot @("--headless", "--path", ".", "--export-pack", $Preset, $pckOutput)
-    if ($packExitCode -ne 0) {
-        throw "Godot pack export failed with exit code $packExitCode"
-    }
+
     if (-not (Test-Path -LiteralPath $pckOutput)) {
-        throw "Expected PCK was not produced: $pckOutput"
+        throw "Expected PCK was not produced: $pckOutput (Godot exit code $packExitCode)"
     }
     $pck = Get-Item -LiteralPath $pckOutput
     if ($pck.Length -lt 1024) {
         throw "Exported PCK is unexpectedly small: $($pck.Length) bytes"
+    }
+
+    # NobodyWho 12/godot-rust currently crashes during Godot editor teardown on
+    # Windows CI after savepack has completed. Windows reports this native access
+    # violation as 0xC0000005 (-1073741819). Do not hide arbitrary export errors:
+    # tolerate only that exact post-savepack crash and only after validating the
+    # completed PCK container below.
+    $knownNobodyWhoTeardownCrash = -1073741819
+    if ($packExitCode -ne 0 -and $packExitCode -ne $knownNobodyWhoTeardownCrash) {
+        throw "Godot pack export failed with exit code $packExitCode"
+    }
+
+    $pckStream = [System.IO.File]::OpenRead($pck.FullName)
+    try {
+        $magicBytes = New-Object byte[] 4
+        $readCount = $pckStream.Read($magicBytes, 0, 4)
+    }
+    finally {
+        $pckStream.Dispose()
+    }
+    if ($readCount -ne 4 -or [System.Text.Encoding]::ASCII.GetString($magicBytes) -ne "GDPC") {
+        throw "Exported PCK failed container signature validation"
+    }
+
+    if ($packExitCode -eq $knownNobodyWhoTeardownCrash) {
+        Write-Warning "Godot exited with the known NobodyWho/godot-rust teardown access violation after savepack; validated PCK will continue through runtime smoke validation."
     }
 
     $templateCandidates = @()
@@ -228,6 +252,14 @@ try {
     }
 
     & "$PSScriptRoot/package-bot-ai.ps1" -OutputDirectory ((Resolve-Path -LiteralPath $outputDir).Path)
+
+    Write-Host "Running packaged Windows runtime smoke probe"
+    $runtimeArgs = @("--headless", "--path", (Resolve-Path -LiteralPath $outputDir).Path, "--quit")
+    $runtime = Start-Process -FilePath (Resolve-Path -LiteralPath $Output).Path -ArgumentList $runtimeArgs -NoNewWindow -Wait -PassThru
+    $runtimeExit = [int]$runtime.ExitCode
+    if ($runtimeExit -ne 0) {
+        throw "Packaged Windows runtime smoke probe failed with exit code $runtimeExit"
+    }
 
     Write-Host "GREEN: Windows build created at $Output ($($exe.Length) bytes)"
     Write-Host "GREEN: Project pack created at $pckOutput ($($pck.Length) bytes)"

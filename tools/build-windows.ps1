@@ -58,10 +58,23 @@ function Resolve-GodotBinary([string]$Requested) {
 }
 
 $GodotBinary = Resolve-GodotBinary $GodotBinary
+
+function Invoke-Godot([string[]]$Arguments) {
+    if ($IsWindows) {
+        # GitHub's Windows runner can execute Godot successfully while leaving
+        # PowerShell's $LASTEXITCODE unset. Start-Process gives us the native
+        # process exit code reliably.
+        $process = Start-Process -FilePath $GodotBinary -ArgumentList $Arguments -NoNewWindow -Wait -PassThru
+        return [int]$process.ExitCode
+    }
+
+    & $GodotBinary @Arguments
+    return [int]$LASTEXITCODE
+}
+
 Write-Host "Using Godot binary: $GodotBinary"
-& $GodotBinary --version
-$versionExit = $LASTEXITCODE
-if ($null -eq $versionExit -or $versionExit -ne 0) {
+$versionExit = Invoke-Godot @("--version")
+if ($versionExit -ne 0) {
     throw "Godot binary failed version probe with exit code '$versionExit'"
 }
 
@@ -90,15 +103,13 @@ try {
     # A pristine checkout has no generated .godot import cache. The first pass
     # creates imported resources and class metadata; the second verifies the
     # freshly generated cache before packaging.
-    & $GodotBinary --headless --verbose --path . --editor --quit
-    $firstImportExit = $LASTEXITCODE
+    $firstImportExit = Invoke-Godot @("--headless", "--verbose", "--path", ".", "--editor", "--quit")
     if ($firstImportExit -ne 0) {
         Write-Host "Godot first import exit code: $firstImportExit" -ForegroundColor Red
         throw "Godot first import pass failed"
     }
 
-    & $GodotBinary --headless --verbose --path . --editor --quit
-    $secondImportExit = $LASTEXITCODE
+    $secondImportExit = Invoke-Godot @("--headless", "--verbose", "--path", ".", "--editor", "--quit")
     if ($secondImportExit -ne 0) {
         Write-Host "Godot verification import exit code: $secondImportExit" -ForegroundColor Red
         throw "Godot import verification pass failed"
@@ -111,8 +122,7 @@ try {
     # Because this preset intentionally uses an external PCK (embed_pck=false),
     # build the PCK explicitly and pair it with the matching release template.
     $pckOutput = [System.IO.Path]::ChangeExtension($Output, ".pck")
-    & $GodotBinary --headless --path . --export-pack $Preset $pckOutput
-    $packExitCode = $LASTEXITCODE
+    $packExitCode = Invoke-Godot @("--headless", "--path", ".", "--export-pack", $Preset, $pckOutput)
     if ($packExitCode -ne 0) {
         throw "Godot pack export failed with exit code $packExitCode"
     }

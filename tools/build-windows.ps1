@@ -8,6 +8,22 @@ param(
 
 $ErrorActionPreference = "Stop"
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+
+if ($GodotBinary -eq "godot") {
+    if (-not [string]::IsNullOrWhiteSpace($env:GODOT) -and (Test-Path -LiteralPath $env:GODOT)) {
+        $GodotBinary = $env:GODOT
+    }
+    elseif (-not [string]::IsNullOrWhiteSpace($env:GODOT4) -and (Test-Path -LiteralPath $env:GODOT4)) {
+        $GodotBinary = $env:GODOT4
+    }
+}
+
+Write-Host "Using Godot binary: $GodotBinary"
+& $GodotBinary --version
+if ($LASTEXITCODE -ne 0) {
+    throw "Godot binary failed version probe with exit code $LASTEXITCODE"
+}
+
 Push-Location $Root
 
 try {
@@ -33,11 +49,19 @@ try {
     # A pristine checkout has no generated .godot import cache. The first pass
     # creates imported resources and class metadata; the second verifies the
     # freshly generated cache before packaging.
-    & $GodotBinary --headless --path . --editor --quit
-    if ($LASTEXITCODE -ne 0) { throw "Godot first import pass failed" }
+    & $GodotBinary --headless --verbose --path . --editor --quit
+    $firstImportExit = $LASTEXITCODE
+    if ($firstImportExit -ne 0) {
+        Write-Host "Godot first import exit code: $firstImportExit" -ForegroundColor Red
+        throw "Godot first import pass failed"
+    }
 
-    & $GodotBinary --headless --path . --editor --quit
-    if ($LASTEXITCODE -ne 0) { throw "Godot import verification pass failed" }
+    & $GodotBinary --headless --verbose --path . --editor --quit
+    $secondImportExit = $LASTEXITCODE
+    if ($secondImportExit -ne 0) {
+        Write-Host "Godot verification import exit code: $secondImportExit" -ForegroundColor Red
+        throw "Godot import verification pass failed"
+    }
 
     Write-Host "[3/3] Packaging Windows release"
 

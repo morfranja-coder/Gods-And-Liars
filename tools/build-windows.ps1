@@ -1,7 +1,9 @@
 param(
     [string]$GodotBinary = "godot",
     [string]$Preset = "Windows Desktop",
-    [string]$Output = "build/windows/GodsAndLiars.exe"
+    [string]$Output = "build/windows/GodsAndLiars.exe",
+    [switch]$IncludeSteamAppIdFile,
+    [int]$ExpectedSteamAppId = 480
 )
 
 $ErrorActionPreference = "Stop"
@@ -63,7 +65,22 @@ try {
     foreach ($candidate in $steamCandidates) {
         if (Test-Path -LiteralPath $candidate) {
             Copy-Item -LiteralPath $candidate -Destination (Join-Path $outputDir "steam_api64.dll") -Force
-            Copy-Item -LiteralPath (Join-Path $Root "steam_appid.txt") -Destination (Join-Path $outputDir "steam_appid.txt") -Force
+
+            $outputAppId = Join-Path $outputDir "steam_appid.txt"
+            if ($IncludeSteamAppIdFile) {
+                $sourceAppId = Join-Path $Root "steam_appid.txt"
+                if (-not (Test-Path -LiteralPath $sourceAppId)) {
+                    throw "steam_appid.txt is required for a local Steam QA build"
+                }
+                $actualAppId = (Get-Content -LiteralPath $sourceAppId -Raw).Trim()
+                if ($actualAppId -ne [string]$ExpectedSteamAppId) {
+                    throw "Expected Steam App ID $ExpectedSteamAppId, got '$actualAppId'"
+                }
+                Copy-Item -LiteralPath $sourceAppId -Destination $outputAppId -Force
+            }
+            elseif (Test-Path -LiteralPath $outputAppId) {
+                Remove-Item -LiteralPath $outputAppId -Force
+            }
             break
         }
     }

@@ -25,9 +25,21 @@ try {
 
     & "$PSScriptRoot/setup-bot-ai.ps1"
 
-    Write-Host "[2/3] Importing project"
+    Write-Host "[2/3] Importing project from a clean Godot cache"
+    $godotCache = Join-Path $Root ".godot"
+    if (Test-Path -LiteralPath $godotCache) {
+        Remove-Item -LiteralPath $godotCache -Recurse -Force
+    }
+
+    # The project theme references imported font resources during editor startup.
+    # On a pristine checkout the first pass creates those imported resources,
+    # while a second pass verifies that the freshly generated cache can be read
+    # before attempting the export.
     & $GodotBinary --headless --path . --editor --quit
-    if ($LASTEXITCODE -ne 0) { throw "Godot import failed" }
+    if ($LASTEXITCODE -ne 0) { throw "Godot first import pass failed" }
+
+    & $GodotBinary --headless --path . --editor --quit
+    if ($LASTEXITCODE -ne 0) { throw "Godot import verification pass failed" }
 
     Write-Host "[3/3] Exporting Windows release"
     & $GodotBinary --headless --path . --export-release $Preset $Output

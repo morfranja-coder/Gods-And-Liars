@@ -1,51 +1,86 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scenes/table/role_reveal.gd" id="1"]
-[ext_resource type="Theme" path="res://ui/gods_liars_theme.tres" id="2"]
+
+[sub_resource type="Gradient" id="GradientTitle"]
+offsets = PackedFloat32Array(0, 0.25, 0.38, 1)
+colors = PackedColorArray(0, 0, 0, 0, 0, 0, 0, 0.7, 0, 0, 0, 1, 0, 0, 0, 1)
+
+[sub_resource type="GradientTexture2D" id="TitleTexture"]
+gradient = SubResource("GradientTitle")
+width = 4
+height = 256
+fill_from = Vector2(0, 0)
+fill_to = Vector2(0, 1)
 
 [node name="RoleReveal" type="CanvasLayer"]
 script = ExtResource("1")
 
-[node name="Panel" type="PanelContainer" parent="."]
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -290.0
-offset_top = -180.0
-offset_right = 290.0
-offset_bottom = 180.0
+[node name="Panel" type="Control" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme = ExtResource("2")
+mouse_filter = 0
 
-[node name="VBox" type="VBoxContainer" parent="Panel"]
-layout_mode = 2
-theme_override_constants/separation = 18
+[node name="BlackBackground" type="ColorRect" parent="Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 1)
+mouse_filter = 2
 
-[node name="Title" type="Label" parent="Panel/VBox"]
+[node name="Aspect" type="AspectRatioContainer" parent="Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+ratio = 1.7777778
+mouse_filter = 2
+
+[node name="Video" type="VideoStreamPlayer" parent="Panel/Aspect"]
 layout_mode = 2
-text = "TU ROL"
-horizontal_alignment = 1
-theme_override_font_sizes/font_size = 16
-modulate = Color(0.62, 0.55, 0.4, 1)
+expand = true
+bus = &"SFX"
+mouse_filter = 2
+
+[node name="TitleShade" type="TextureRect" parent="Panel/Aspect/Video"]
+layout_mode = 1
+anchor_top = 0.66
+anchor_right = 1.0
+anchor_bottom = 1.0
+texture = SubResource("TitleTexture")
+expand_mode = 1
+mouse_filter = 2
+
+[node name="VBox" type="Control" parent="Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
 
 [node name="RoleLabel" type="Label" parent="Panel/VBox"]
-layout_mode = 2
 text = "Sin revelar"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 32
-modulate = Color(0.92, 0.86, 0.68, 1)
+vertical_alignment = 1
+uppercase = true
+mouse_filter = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
 
 [node name="DescriptionLabel" type="Label" parent="Panel/VBox"]
-custom_minimum_size = Vector2(0, 110)
-layout_mode = 2
-text = "Esperando la voluntad de los dioses."
 autowrap_mode = 2
 horizontal_alignment = 1
 vertical_alignment = 1
+mouse_filter = 2
 
-[node name="CloseButton" type="Button" parent="Panel/VBox"]
-layout_mode = 2
-text = "Entendido"
+[node name="Cover" type="ColorRect" parent="Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 1)
+mouse_filter = 2

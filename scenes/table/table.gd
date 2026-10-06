@@ -61,6 +61,8 @@ func _ready() -> void:
 	if chat_ui.has_signal("private_message_submitted"):
 		chat_ui.connect("private_message_submitted", _on_private_message_submitted)
 	pause_ui.leave_pressed.connect(_on_leave_match_pressed)
+	$RoleReveal.presentation_started.connect(_update_camera_input_state)
+	$RoleReveal.presentation_finished.connect(_update_camera_input_state)
 	leave_confirm_dialog.confirmed.connect(_on_leave_confirmed)
 	_refresh_roster()
 	_refresh_god_state()
@@ -416,6 +418,7 @@ func _gameplay_input_blocked() -> bool:
 		or chat_ui.is_open
 		or vote_blocks_input
 		or night_blocks_input
+		or $RoleReveal.blocks_gameplay_input()
 	)
 
 func _update_camera_input_state() -> void:

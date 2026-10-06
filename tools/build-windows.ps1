@@ -9,19 +9,60 @@ param(
 $ErrorActionPreference = "Stop"
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 
-if ($GodotBinary -eq "godot") {
-    if (-not [string]::IsNullOrWhiteSpace($env:GODOT) -and (Test-Path -LiteralPath $env:GODOT)) {
-        $GodotBinary = $env:GODOT
+function Resolve-GodotBinary([string]$Requested) {
+    if (-not $IsWindows) {
+        return $Requested
     }
-    elseif (-not [string]::IsNullOrWhiteSpace($env:GODOT4) -and (Test-Path -LiteralPath $env:GODOT4)) {
-        $GodotBinary = $env:GODOT4
+
+    # setup-godot exposes GODOT/GODOT4 as an extensionless symlink on Windows.
+    # Invoking that symlink by absolute path from PowerShell can return no native
+    # exit code. Dereference it to the real .exe instead.
+    foreach ($candidate in @($Requested, $env:GODOT, $env:GODOT4)) {
+        if ([string]::IsNullOrWhiteSpace($candidate)) { continue }
+
+        if (Test-Path -LiteralPath $candidate) {
+            $item = Get-Item -LiteralPath $candidate -Force
+            if ($item.Extension -ieq ".exe") {
+                return $item.FullName
+            }
+            if ($item.LinkType -and $item.Target) {
+                $target = [string]$item.Target[0]
+                if (-not [System.IO.Path]::IsPathRooted($target)) {
+                    $target = Join-Path $item.DirectoryName $target
+                }
+                if ((Test-Path -LiteralPath $target) -and ([System.IO.Path]::GetExtension($target) -ieq ".exe")) {
+                    return (Resolve-Path -LiteralPath $target).Path
+                }
+            }
+        }
     }
+
+    $command = Get-Command godot.exe -CommandType Application -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($null -ne $command) {
+        return $command.Source
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($env:USERPROFILE)) {
+        $installDir = Join-Path $env:USERPROFILE "godot"
+        if (Test-Path -LiteralPath $installDir) {
+            $installed = Get-ChildItem -LiteralPath $installDir -File -Filter "Godot*_win64.exe" |
+                Select-Object -First 1
+            if ($null -ne $installed) {
+                return $installed.FullName
+            }
+        }
+    }
+
+    throw "Could not resolve the real Godot Windows executable"
 }
 
+$GodotBinary = Resolve-GodotBinary $GodotBinary
 Write-Host "Using Godot binary: $GodotBinary"
 & $GodotBinary --version
-if ($LASTEXITCODE -ne 0) {
-    throw "Godot binary failed version probe with exit code $LASTEXITCODE"
+$versionExit = $LASTEXITCODE
+if ($null -eq $versionExit -or $versionExit -ne 0) {
+    throw "Godot binary failed version probe with exit code '$versionExit'"
 }
 
 Push-Location $Root

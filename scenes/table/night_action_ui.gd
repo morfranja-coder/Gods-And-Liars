@@ -51,8 +51,8 @@ func _build_minimal_subtitles() -> void:
 	_subtitle_timer.anchor_right = 0.5
 	_subtitle_timer.offset_left = -60.0
 	_subtitle_timer.offset_right = 60.0
-	_subtitle_timer.offset_top = 28.0
-	_subtitle_timer.offset_bottom = 62.0
+	_subtitle_timer.offset_top = 110.0
+	_subtitle_timer.offset_bottom = 144.0
 	_subtitle_timer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_subtitle_timer.add_theme_font_size_override("font_size", 22)
 	_subtitle_timer.add_theme_color_override("font_color", Color(0.88, 0.82, 0.69, 1.0))
@@ -106,20 +106,18 @@ func _sync_minimal_subtitles() -> void:
 	var narrative_phase := phase in [
 		GameManager.MatchPhase.GOD_INTRO,
 		GameManager.MatchPhase.DAY_ANNOUNCEMENT,
-		GameManager.MatchPhase.SACRIFICE,
 	]
 	var night_info_phase := (
 		phase == GameManager.MatchPhase.NIGHT_START
 		or NightPhaseRules.is_action_phase(phase)
 	)
 
-	var show_subtitles := narrative_phase or night_info_phase
+	var show_subtitles := (narrative_phase or night_info_phase) and not panel.visible
 
 	if MatchAuthority.is_local_ghost():
 		show_subtitles = phase in [
 			GameManager.MatchPhase.DAY_ANNOUNCEMENT,
-			GameManager.MatchPhase.SACRIFICE,
-		]
+			]
 
 	_subtitle_root.visible = show_subtitles
 
@@ -248,7 +246,7 @@ func _refresh_for_phase() -> void:
 	black_overlay.visible = _should_show_black_overlay()
 	phase_label.visible = false
 	timer_label.visible = false
-	message_label.visible = false
+	message_label.visible = panel.visible
 	_refresh_action_controls()
 	_refresh_narrative()
 	_sync_minimal_subtitles()
@@ -281,7 +279,8 @@ func _refresh_action_controls() -> void:
 		confirm_button.visible = false
 
 func _refresh_timer(seconds: int) -> void:
-	timer_label.visible = false
+	timer_label.visible = panel.visible
+	timer_label.text = "%02d:%02d" % [seconds / 60, seconds % 60]
 	_update_minimal_timer(seconds)
 
 func _refresh_narrative() -> void:
@@ -414,7 +413,7 @@ func _should_show_black_overlay() -> bool:
 	if not night_phase:
 		return false
 	if MatchAuthority.is_local_ghost():
-		return true
+		return false
 	return MatchAuthority.local_role != PlayerState.Role.HERETIC
 
 func _local_can_act_in_phase() -> bool:
@@ -533,7 +532,7 @@ func _phase_title(phase: GameManager.MatchPhase) -> String:
 		GameManager.MatchPhase.INQUISITOR_ACTION:
 			title = "NOCHE — INQUISIDOR"
 		GameManager.MatchPhase.DAY_ANNOUNCEMENT:
-			title = "DÍA %d" % (GameManager.round_number + 1)
+			title = "DÍA %d" % GameManager.round_number
 		GameManager.MatchPhase.SACRIFICE:
 			title = "EL DIOS DICTA SENTENCIA"
 	return title

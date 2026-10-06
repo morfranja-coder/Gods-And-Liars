@@ -23,7 +23,7 @@ anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
 offset_left = -400.0
-offset_top = -245.0
+offset_top = -440.0
 offset_right = 400.0
 offset_bottom = -28.0
 grow_horizontal = 2
@@ -60,10 +60,11 @@ text = ""
 horizontal_alignment = 1
 
 [node name="CardsScroll" type="ScrollContainer" parent="Panel/VBox"]
-custom_minimum_size = Vector2(0, 150)
+custom_minimum_size = Vector2(0, 230)
+size_flags_vertical = 3
 layout_mode = 2
 horizontal_scroll_mode = 2
-vertical_scroll_mode = 0
+vertical_scroll_mode = 2
 
 [node name="CardsGrid" type="GridContainer" parent="Panel/VBox/CardsScroll"]
 layout_mode = 2

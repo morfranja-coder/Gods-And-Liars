@@ -104,8 +104,8 @@ func _verify_day_vote_ui(table: Node) -> void:
 	MatchAuthority.phase_synced.emit(int(GameManager.phase))
 	await get_tree().process_frame
 	var label := table.get_node_or_null("DayVoteUI/Panel/VBox/PhaseLabel") as Label
-	var target_center := table.get_node_or_null("DayVoteUI/Panel/VBox/TargetCenter") as CenterContainer
-	var target_grid := table.get_node_or_null("DayVoteUI/Panel/VBox/TargetCenter/TargetGrid") as GridContainer
+	var target_center := table.get_node_or_null("DayVoteUI/Panel/VBox/VoteCardsScroll/TargetCenter") as CenterContainer
+	var target_grid := table.get_node_or_null("DayVoteUI/Panel/VBox/VoteCardsScroll/TargetCenter/TargetGrid") as GridContainer
 	assert_bool(panel.visible).is_true()
 	assert_object(label).is_not_null()
 	assert_str(label.text).contains("DÍA")

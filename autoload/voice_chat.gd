@@ -36,8 +36,12 @@ func _setup_playback() -> void:
 func reset_for_match_leave() -> void:
 	_set_talking(false)
 	AudioSettings.clear_session_mutes()
-	if _playback != null:
-		_playback.clear_buffer()
+	# clear_buffer() rejects an active generator. Restart with a fresh playback.
+	if _voice_player != null:
+		_voice_player.stop()
+		_playback = null
+		_voice_player.play()
+		_playback = _voice_player.get_stream_playback()
 
 func _process(_delta: float) -> void:
 	if _steam == null or not Steamworks.initialized:

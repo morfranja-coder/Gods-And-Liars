@@ -447,7 +447,7 @@ func _on_leave_match_pressed() -> void:
 	if MatchLeaveManager.leave_pending:
 		return
 	leave_confirm_dialog.dialog_text = (
-		"Sos el host. Se transferirá la autoridad antes de salir. ¿Querés continuar?"
+		"Sos el host. Salir termina esta partida para todos los jugadores. ¿Querés continuar?"
 		if NetworkManager.is_host
 		else "¿Seguro que querés abandonar esta partida? Tu grupo se conservará."
 	)
@@ -457,7 +457,7 @@ func _on_leave_confirmed() -> void:
 	if MatchLeaveManager.request_leave_match():
 		pause_ui.set_leave_pending(
 			true,
-			"Transfiriendo host..." if NetworkManager.is_host else "Abandonando partida..."
+			"Terminando partida..." if NetworkManager.is_host else "Abandonando partida..."
 		)
 
 func _on_leave_started() -> void:

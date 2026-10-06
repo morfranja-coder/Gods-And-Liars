@@ -7,6 +7,7 @@ extends CanvasLayer
 
 func _ready() -> void:
 	panel.visible = false
+	MatchAuthority.phase_synced.connect(_on_phase_synced)
 	close_button.pressed.connect(_on_close_pressed)
 	MatchAuthority.private_role_received.connect(_on_private_role_received)
 	MatchAuthority.private_heretic_teammate_received.connect(_on_private_heretic_teammate_received)
@@ -20,7 +21,13 @@ func _on_private_heretic_teammate_received(_peer_id: int, _display_name: String)
 	if MatchAuthority.local_role == PlayerState.Role.HERETIC:
 		_show_local_role()
 
+func _on_phase_synced(phase: int) -> void:
+	if phase != GameManager.MatchPhase.ROLE_REVEAL:
+		panel.visible = false
+
 func _show_local_role() -> void:
+	if GameManager.phase != GameManager.MatchPhase.ROLE_REVEAL:
+		return
 	role_label.text = MatchAuthority.role_title()
 	description_label.text = MatchAuthority.role_description()
 	panel.visible = true

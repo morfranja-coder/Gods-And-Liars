@@ -7,6 +7,28 @@ const HUD_SCENE := preload("res://scenes/table/ghost_hud.tscn")
 func after_test() -> void:
 	Input.action_release(InputBindings.ACTION_GHOST_FORWARD)
 	InputBindings.set_text_entry_active(false)
+	MatchAuthority.reset()
+	GameManager.reset_match()
+	multiplayer.multiplayer_peer = null
+
+func test_death_during_every_night_phase_removes_blackout() -> void:
+	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
+	MatchAuthority.local_role = PlayerState.Role.FAITHFUL
+	var ui := load("res://scenes/table/night_action_ui.tscn").instantiate() as Node
+	add_child(ui)
+	for phase in [GameManager.MatchPhase.NIGHT_START, GameManager.MatchPhase.HERETIC_ACTION,
+		GameManager.MatchPhase.HEALER_ACTION, GameManager.MatchPhase.INQUISITOR_ACTION]:
+		MatchAuthority.public_alive_by_peer[1] = true
+		MatchAuthority._sync_phase(phase, 2)
+		await get_tree().process_frame
+		assert_bool(ui.get_node("BlackOverlay").visible).is_true()
+		# Die without changing phase: the next frame must restore spectator vision.
+		MatchAuthority.public_alive_by_peer[1] = false
+		await get_tree().process_frame
+		assert_bool(ui.get_node("BlackOverlay").visible).is_false()
+		assert_bool(ui.get_node("Panel").visible).is_false()
+	ui.queue_free()
+	await get_tree().process_frame
 
 func test_ghost_role_selects_the_matching_visual() -> void:
 	var ghost := GHOST_SCENE.instantiate() as GhostController

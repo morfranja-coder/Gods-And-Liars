@@ -35,7 +35,7 @@ offset_right = -20.0
 offset_bottom = -20.0
 
 [node name="Panel" type="PanelContainer" parent="Center"]
-custom_minimum_size = Vector2(0, 0)
+custom_minimum_size = Vector2(800, 620)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -57,6 +57,7 @@ vertical_scroll_mode = 1
 [node name="VBox" type="VBoxContainer" parent="Center/Panel/Margin/Scroll"]
 custom_minimum_size = Vector2(680, 0)
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 9
 
 [node name="Title" type="Label" parent="Center/Panel/Margin/Scroll/VBox"]

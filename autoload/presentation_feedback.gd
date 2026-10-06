@@ -97,7 +97,7 @@ func _refresh_inquisitor_selection() -> void:
 		elif peer_id == selected_peer_id:
 			card.modulate = Color(1.0, 1.0, 1.0, 1.0)
 		else:
-			card.modulate = Color(0.48, 0.48, 0.48, 0.82)
+			card.modulate = Color(0.82, 0.82, 0.82, 1.0)
 
 func _show_feedback(title: String, text: String, duration_seconds: float) -> void:
 	_ensure_feedback_overlay()

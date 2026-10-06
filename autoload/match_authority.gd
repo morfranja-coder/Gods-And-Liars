@@ -243,9 +243,9 @@ func role_description(role: PlayerState.Role = local_role) -> String:
 				return "Eliminá a los fieles sin revelar tu identidad. Tu compañero hereje es %s." % local_heretic_teammate_name
 			return "Eliminá a los fieles sin revelar tu identidad."
 		PlayerState.Role.HEALER:
-			return "Protegé a los hijos del dios durante la noche."
+			return "Protegé a un jugador cada noche. En Noche 1 la protección es automática. Ganás con los fieles al eliminar a los herejes."
 		PlayerState.Role.INQUISITOR:
-			return "Descubrí la verdad detrás de una máscara por noche."
+			return "Desde Noche 2, investigá una máscara por noche: el resultado es privado. En Noche 1 descansás. Ganás con los fieles al eliminar a los herejes."
 		_:
 			return "Esperando la voluntad de los dioses."
 
@@ -312,6 +312,8 @@ func _heretic_teammate_for(peer_id: int) -> PlayerState:
 	return null
 
 func _server_acknowledge_role(peer_id: int) -> void:
+	if GameManager.phase != GameManager.MatchPhase.ROLE_REVEAL:
+		return
 	if not multiplayer.is_server() or _session == null:
 		return
 	var player := _session.get_player(peer_id)
@@ -322,7 +324,7 @@ func _server_acknowledge_role(peer_id: int) -> void:
 		_start_god_intro()
 
 func _start_god_intro() -> void:
-	if GameManager.phase == GameManager.MatchPhase.GOD_INTRO:
+	if GameManager.phase != GameManager.MatchPhase.ROLE_REVEAL:
 		return
 	_broadcast_phase(GameManager.MatchPhase.GOD_INTRO)
 
@@ -913,7 +915,7 @@ func _receive_private_investigation(target_peer_id: int, is_heretic: bool) -> vo
 
 func _on_peer_left(peer_id: int) -> void:
 	public_alive_by_peer[peer_id] = false
-	if not multiplayer.is_server():
+	if multiplayer.multiplayer_peer == null or not multiplayer.is_server():
 		return
 	if _apply_peer_disconnect(peer_id):
 		_resume_after_disconnect(peer_id)

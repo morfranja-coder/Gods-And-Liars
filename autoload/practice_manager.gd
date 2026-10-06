@@ -137,9 +137,25 @@ func _play_bot_votes() -> void:
 	for peer_id in _bot_peer_ids:
 		if not MatchAuthority.is_peer_publicly_alive(peer_id):
 			continue
-		var target_peer_id := _pick_other_living_peer(peer_id)
+		var target_peer_id := _pick_vote_target(peer_id)
 		if target_peer_id > 0:
 			MatchAuthority._server_submit_vote(peer_id, target_peer_id)
+
+func _pick_vote_target(actor_peer_id: int) -> int:
+	var candidates: Array[int] = []
+	for raw_peer_id in NetworkManager.peers.keys():
+		var peer_id := int(raw_peer_id)
+		if peer_id == actor_peer_id or not MatchAuthority.is_peer_publicly_alive(peer_id):
+			continue
+		# The first practice day teaches voting before risking the human's life.
+		if GameManager.round_number == 1 and peer_id == HUMAN_PEER_ID:
+			continue
+		candidates.append(peer_id)
+	if candidates.is_empty():
+		return 0
+	candidates.sort()
+	# Rotate by voter and round: reproducible, varied and independent of roster order.
+	return candidates[(actor_peer_id + GameManager.round_number) % candidates.size()]
 
 func _bot_can_act(peer_id: int, required_role: PlayerState.Role) -> bool:
 	if not MatchAuthority.is_peer_publicly_alive(peer_id):
@@ -169,6 +185,8 @@ func _pick_living_non_heretic(actor_peer_id: int) -> int:
 	for raw_peer_id in NetworkManager.peers.keys():
 		var peer_id := int(raw_peer_id)
 		if peer_id == actor_peer_id or not MatchAuthority.is_peer_publicly_alive(peer_id):
+			continue
+		if GameManager.round_number == 2 and peer_id == HUMAN_PEER_ID:
 			continue
 		if MatchAuthority.server_role_for_peer(peer_id) != PlayerState.Role.HERETIC:
 			return peer_id

@@ -516,7 +516,7 @@ func _on_connected_to_server() -> void:
 func _authenticated_steam_id_for_peer(peer_id: int, transport: Object = null) -> int:
 	if peer_id <= 0:
 		return 0
-	if peer_id == multiplayer.get_unique_id():
+	if multiplayer.multiplayer_peer != null and peer_id == multiplayer.get_unique_id():
 		return Steamworks.steam_id
 	var resolved_transport := transport if transport != null else multiplayer.multiplayer_peer
 	if resolved_transport == null or not resolved_transport.has_method("get_steam_id_for_peer_id"):

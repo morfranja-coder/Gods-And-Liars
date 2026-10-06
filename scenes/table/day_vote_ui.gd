@@ -83,8 +83,8 @@ func _build_discussion_timer() -> void:
 
 	_discussion_timer.offset_left = -150.0
 	_discussion_timer.offset_right = 150.0
-	_discussion_timer.offset_top = 26.0
-	_discussion_timer.offset_bottom = 65.0
+	_discussion_timer.offset_top = 110.0
+	_discussion_timer.offset_bottom = 149.0
 
 	_discussion_timer.horizontal_alignment = (
 	HORIZONTAL_ALIGNMENT_CENTER
@@ -142,7 +142,14 @@ func _build_live_votes() -> void:
 	16
 	)
 
-	vbox.add_child(_live_votes_label)
+	var scroll := ScrollContainer.new()
+	scroll.name = "LiveVotesScroll"
+	scroll.custom_minimum_size.y = 120
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	_live_votes_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(_live_votes_label)
+	vbox.add_child(scroll)
 
 
 func _build_target_grid() -> void:
@@ -168,7 +175,14 @@ func _build_target_grid() -> void:
 	)
 
 	_target_center.add_child(_target_grid)
-	vbox.add_child(_target_center)
+	var scroll := ScrollContainer.new()
+	scroll.name = "VoteCardsScroll"
+	scroll.custom_minimum_size.y = 210
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	scroll.add_child(_target_center)
+	vbox.add_child(scroll)
 
 
 func _on_phase_synced(_phase: int) -> void:
@@ -251,7 +265,7 @@ func _refresh() -> void:
 	== GameManager.MatchPhase.SACRIFICE
 	)
 
-	panel.visible = is_voting or is_sacrifice
+	panel.visible = is_voting
 
 	if not panel.visible:
 		return
@@ -274,7 +288,7 @@ func _refresh() -> void:
 
 	if is_voting:
 		if can_vote_now:
-			target_label.text = "Elegí a quién votar. Tu voto será público."
+			target_label.text = "Clic o flechas + Enter para votar. Tu voto será público."
 		else:
 			target_label.text = "Tu voto ya fue cantado. Observá la votación en vivo."
 
@@ -377,7 +391,7 @@ func _add_target_card(peer_id: int) -> void:
 	)
 
 	button.focus_mode = Control.FOCUS_ALL
-	button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.mouse_filter = Control.MOUSE_FILTER_STOP
 
 	button.toggle_mode = true
 	button.expand_icon = true
@@ -385,9 +399,13 @@ func _add_target_card(peer_id: int) -> void:
 	button.disabled = not alive
 	button.tooltip_text = _peer_name(peer_id)
 
-	button.icon = _create_portrait(
-	player_color
-	)
+	var mask := PlayerPortraitCards.create_mask(peer_id, Vector2.ZERO)
+	mask.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	mask.offset_left = 10
+	mask.offset_top = 8
+	mask.offset_right = -10
+	mask.offset_bottom = -8
+	button.add_child(mask)
 
 	button.pressed.connect(
 	_select_target.bind(peer_id)
@@ -423,7 +441,7 @@ func _add_target_card(peer_id: int) -> void:
 	"font_color",
 	player_color
 	if alive
-	else Color(0.8, 0.22, 0.22, 1.0)
+	else Color(player_color.r, player_color.g, player_color.b, 0.58)
 	)
 
 	card.add_child(label)
@@ -565,76 +583,6 @@ func _on_sacrifice_reveal_received(
 	if was_heretic
 	else "Se sacrificó a un inocente."
 	)
-
-
-func _create_portrait(
-	player_color: Color
-	) -> Texture2D:
-	var viewport := SubViewport.new()
-
-	viewport.size = Vector2i(192, 160)
-	viewport.transparent_bg = true
-	viewport.own_world_3d = true
-
-	viewport.render_target_update_mode = (
-	SubViewport.UPDATE_ALWAYS
-	)
-
-	add_child(viewport)
-
-	_portrait_viewports.append(viewport)
-
-	var avatar := (
-	PLAYER_AVATAR_SCENE.instantiate()
-	as Node3D
-	)
-
-	viewport.add_child(avatar)
-
-	if avatar is AvatarSlots:
-		(avatar as AvatarSlots).set_player_color(
-		player_color
-		)
-
-	var name_label := (
-	avatar.get_node_or_null("NameLabel")
-	as Label3D
-	)
-
-	if name_label != null:
-		name_label.visible = false
-
-	var light := DirectionalLight3D.new()
-
-	light.rotation_degrees = Vector3(
-	-35.0,
-	-25.0,
-	0.0
-	)
-
-	light.light_energy = 2.0
-
-	viewport.add_child(light)
-
-	var camera := Camera3D.new()
-	camera.fov = 34.0
-
-	viewport.add_child(camera)
-
-	camera.position = Vector3(
-	0.0,
-	1.25,
-	3.2
-	)
-
-	camera.look_at(
-	Vector3(0.0, 1.2, 0.0),
-	Vector3.UP
-	)
-
-	camera.current = true
-
-	return viewport.get_texture()
 
 
 func _clear_target_cards() -> void:

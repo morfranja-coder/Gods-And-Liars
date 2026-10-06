@@ -558,7 +558,7 @@ jobs:
         shell: pwsh
         run: |
           $editor = "${{ steps.godotsteam.outputs.editor }}"
-          ./tools/build-windows.ps1 -GodotBinary $editor -Output "build/steam-windows/GodsAndLiars.exe"
+          ./tools/build-windows.ps1 -GodotBinary $editor -Output "build/steam-windows/GodsAndLiars.exe" -IncludeSteamAppIdFile -ExpectedSteamAppId 480
 
       - name: Assemble and validate Steam Windows runtime
         shell: pwsh

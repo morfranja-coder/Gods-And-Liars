@@ -486,7 +486,7 @@ jobs:
 
   windows-build:
     name: Windows release export
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     needs: godot-quality
     steps:
       - name: Checkout
@@ -519,7 +519,7 @@ jobs:
           if-no-files-found: error
 
   steam-runtime:
-    name: Steam multiplayer runtime export
+    name: Steam multiplayer runtime gate
     runs-on: ubuntu-latest
     needs: godot-quality
     steps:
@@ -554,24 +554,47 @@ jobs:
           & $editor --headless --path . --script res://tools/verify-steam-runtime.gd
           if ($LASTEXITCODE -ne 0) { throw "GodotSteam multiplayer runtime gate failed" }
 
-      - name: Export Steam-capable Windows release
+  steam-windows-build:
+    name: Steam Windows release export
+    runs-on: windows-latest
+    needs:
+      - godot-quality
+      - steam-runtime
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Setup Godot 4.7 with templates
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.0
+          use-dotnet: false
+          include-templates: true
+
+      - name: Install pinned Godot addons
         shell: pwsh
         run: |
-          $editor = "${{ steps.godotsteam.outputs.editor }}"
-          ./tools/build-windows.ps1 -GodotBinary $editor -Output "build/steam-windows/GodsAndLiars.exe" -IncludeSteamAppIdFile -ExpectedSteamAppId 480
+          ./tools/setup-dev-tools.ps1 -Force
+          ./tools/setup-bot-ai.ps1 -SkipModels
 
-      - name: Assemble and validate Steam Windows runtime
+      - name: Setup pinned GodotSteam 4.20 templates
+        shell: pwsh
+        run: ./tools/setup-godotsteam-runtime.ps1
+
+      - name: Build Steam-capable Windows release
+        shell: pwsh
+        run: |
+          ./tools/build-windows.ps1 -GodotBinary godot -Output "build/steam-windows/GodsAndLiars.exe" -IncludeSteamAppIdFile -ExpectedSteamAppId 480
+
+      - name: Validate Steam Windows runtime
         shell: pwsh
         run: |
           $out = "build/steam-windows"
-          $steamDll = ".tools/godotsteam/templates-expanded/win64/steam_api64.dll"
-          if (-not (Test-Path $steamDll)) { throw "steam_api64.dll missing from pinned GodotSteam runtime" }
-          if (-not (Test-Path "steam_appid.txt")) { throw "steam_appid.txt missing from repository" }
-          Copy-Item $steamDll "$out/steam_api64.dll" -Force
-          Copy-Item "steam_appid.txt" "$out/steam_appid.txt" -Force
-
           $required = @(
             "$out/GodsAndLiars.exe",
+            "$out/GodsAndLiars.pck",
             "$out/steam_api64.dll",
             "$out/steam_appid.txt"
           )
@@ -579,7 +602,6 @@ jobs:
             if (-not (Test-Path $file)) { throw "Steam Windows artifact missing required file: $file" }
             if ((Get-Item $file).Length -le 0) { throw "Steam Windows artifact contains empty file: $file" }
           }
-
           $appId = (Get-Content "$out/steam_appid.txt" -Raw).Trim()
           if ($appId -ne "480") { throw "Expected development Steam App ID 480, got '$appId'" }
           Write-Host "GREEN: complete Steam Windows runtime assembled"

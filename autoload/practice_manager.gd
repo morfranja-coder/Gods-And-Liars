@@ -5,7 +5,6 @@ signal practice_stopped
 
 const HUMAN_PEER_ID := 1
 const BOT_COUNT := 7
-const BOT_NAME_PREFIX := "Acólito"
 
 var active: bool = false
 var forced_human_role: PlayerState.Role = PlayerState.Role.UNASSIGNED
@@ -75,7 +74,7 @@ func _seed_roster() -> void:
 		NetworkManager.register_peer(
 			peer_id,
 			990001 + peer_id,
-			"%s %d" % [BOT_NAME_PREFIX, index + 1],
+			BotDirector.NAMES[index],
 			index + 1,
 		)
 	NetworkManager.lobby_started = true
@@ -154,8 +153,7 @@ func _pick_vote_target(actor_peer_id: int) -> int:
 	if candidates.is_empty():
 		return 0
 	candidates.sort()
-	# Rotate by voter and round: reproducible, varied and independent of roster order.
-	return candidates[(actor_peer_id + GameManager.round_number) % candidates.size()]
+	return BotDirector.preferred_vote(actor_peer_id, candidates)
 
 func _bot_can_act(peer_id: int, required_role: PlayerState.Role) -> bool:
 	if not MatchAuthority.is_peer_publicly_alive(peer_id):

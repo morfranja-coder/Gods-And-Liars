@@ -31,6 +31,7 @@ func _dispatch_investigation_result(result: NightResolver.NightResult) -> void:
 		if not player.alive or player.role != PlayerState.Role.INQUISITOR:
 			continue
 		if PracticeManager.is_bot(player.peer_id):
+			BotDirector.record_investigation(player.peer_id, result.investigation_target_peer_id, result.investigation_is_heretic)
 			return
 		_receive_private_investigation(
 			result.investigation_target_peer_id,

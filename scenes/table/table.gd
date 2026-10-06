@@ -39,6 +39,7 @@ var _god_head_tween: Tween = null
 @onready var dead_god_visual: Node3D = $GodState/DeadGod
 
 func _ready() -> void:
+	add_child(load("res://scenes/table/bot_debate_hud.gd").new())
 	_setup_environment()
 	_ensure_table_center()
 	NetworkManager.peer_joined.connect(_on_roster_changed)
@@ -340,7 +341,7 @@ func _on_chat_open_state_changed(_is_open: bool) -> void:
 	_update_camera_input_state()
 
 func _on_emote_requested(index: int) -> void:
-	var local_peer_id := multiplayer.get_unique_id()
+	var local_peer_id := multiplayer.get_unique_id() if multiplayer.multiplayer_peer != null else 1
 	var local_avatar := _avatars.get(local_peer_id) as AvatarSlots
 	if local_avatar != null and not MatchAuthority.is_local_ghost():
 		local_avatar.play_movement(index)
@@ -357,7 +358,7 @@ func _on_private_message_submitted(target_peer_id: int, text: String) -> void:
 func send_private_chat(target_peer_id: int, text: String) -> void:
 	if MatchAuthority.is_local_ghost() or multiplayer.multiplayer_peer == null:
 		return
-	var local_peer_id := multiplayer.get_unique_id()
+	var local_peer_id := multiplayer.get_unique_id() if multiplayer.multiplayer_peer != null else 1
 	if not _can_private_chat(local_peer_id, target_peer_id):
 		return
 	var clean_text := text.strip_edges().left(PRIVATE_CHAT_MAX_LENGTH)
@@ -853,7 +854,7 @@ func _refresh_remote_ghost_visuals() -> void:
 	if not MatchAuthority.is_local_ghost():
 		_clear_remote_ghost_visuals()
 		return
-	var local_peer_id := multiplayer.get_unique_id() if multiplayer.multiplayer_peer != null else 0
+	var local_peer_id := multiplayer.get_unique_id() if multiplayer.multiplayer_peer != null else 1 if multiplayer.multiplayer_peer != null else 0
 	for raw_peer_id in NetworkManager.peers.keys():
 		var peer_id := int(raw_peer_id)
 		if peer_id == local_peer_id or MatchAuthority.is_peer_publicly_alive(peer_id):

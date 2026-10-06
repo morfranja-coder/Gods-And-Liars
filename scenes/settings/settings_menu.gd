@@ -26,6 +26,7 @@ var _waiting_for_ptt_key: bool = false
 @onready var back_button: Button = %BackButton
 
 func _ready() -> void:
+	_add_bot_language_option()
 	_populate_options()
 	_sync_from_settings()
 	brightness_slider.value_changed.connect(_on_brightness_changed)
@@ -180,3 +181,19 @@ func _on_back_pressed() -> void:
 		return_scene = str(get_tree().root.get_meta("settings_return_scene"))
 		get_tree().root.remove_meta("settings_return_scene")
 	get_tree().change_scene_to_file(return_scene)
+
+func _add_bot_language_option() -> void:
+	var row := HBoxContainer.new()
+	var label := Label.new()
+	label.text = "Idioma del servidor de práctica"
+	row.add_child(label)
+	var option := OptionButton.new()
+	var codes := ["es", "en", "pt", "fr"]
+	for language in ["Español", "English", "Português", "Français"]:
+		option.add_item(language)
+	option.select(codes.find(BotDirector.server_language))
+	option.disabled = PracticeManager.active
+	option.item_selected.connect(func(index): BotDirector.set_server_language(codes[index]))
+	row.add_child(option)
+	back_button.get_parent().add_child(row)
+	back_button.get_parent().move_child(row, back_button.get_index())

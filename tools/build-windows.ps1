@@ -254,8 +254,15 @@ try {
     & "$PSScriptRoot/package-bot-ai.ps1" -OutputDirectory ((Resolve-Path -LiteralPath $outputDir).Path)
 
     Write-Host "Running packaged Windows runtime smoke probe"
-    $runtimeArgs = @("--headless", "--path", (Resolve-Path -LiteralPath $outputDir).Path, "--quit")
-    $runtime = Start-Process -FilePath (Resolve-Path -LiteralPath $Output).Path -ArgumentList $runtimeArgs -NoNewWindow -Wait -PassThru
+    $resolvedOutputDir = (Resolve-Path -LiteralPath $outputDir).Path
+    $runtimeArgs = @("--headless", "--quit")
+    $runtime = Start-Process `
+        -FilePath (Resolve-Path -LiteralPath $Output).Path `
+        -ArgumentList $runtimeArgs `
+        -WorkingDirectory $resolvedOutputDir `
+        -NoNewWindow `
+        -Wait `
+        -PassThru
     $runtimeExit = [int]$runtime.ExitCode
     if ($runtimeExit -ne 0) {
         throw "Packaged Windows runtime smoke probe failed with exit code $runtimeExit"
